@@ -1,5 +1,5 @@
 import { trpc } from "@/lib/trpc";
-import { Loader2, User } from "lucide-react";
+import { Loader2, User, RefreshCw, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const WEEKDAYS = [
@@ -7,16 +7,26 @@ const WEEKDAYS = [
   { v: 4, label: "Qui" }, { v: 5, label: "Sex" }, { v: 6, label: "Sáb" }, { v: 0, label: "Dom" },
 ];
 
-/** Seletor de dia da semana + horário para UM curso (agendamento recorrente). */
+/**
+ * Seletor de dia da semana + horário para UM curso (agendamento recorrente).
+ * PRD_MATRICULA_HORARIOS: slots vêm do expediente real da escola (schoolHours)
+ * + aulas já agendadas. PRD_MATRICULA_MULTIUSO: refresh automático a cada 15s
+ * para refletir horários ocupados por outros alunos do mesmo link.
+ */
 export function CourseSchedulePicker({ code, course, courseName, onChange }: {
   code: string;
   course: { instrumentId: number; weekday: number | null; timeStr: string | null };
   courseName: string;
   onChange: (patch: { weekday?: number; timeStr?: string | null; teacherUserId?: number | null; studioRoomId?: number | null }) => void;
 }) {
-  const { data, isLoading } = trpc.enrollment.getWeekdaySlots.useQuery(
+  const { data, isLoading, isError, refetch } = trpc.enrollment.getWeekdaySlots.useQuery(
     { code, instrumentId: course.instrumentId, weekday: course.weekday ?? 1 },
-    { enabled: !!code && course.weekday !== null }
+    {
+      enabled: !!code && course.weekday !== null,
+      staleTime: 0,
+      refetchInterval: 15_000,
+      retry: 1,
+    }
   );
 
   return (
@@ -39,12 +49,25 @@ export function CourseSchedulePicker({ code, course, courseName, onChange }: {
       </div>
 
       {course.weekday !== null && (
-        isLoading ? (
+        isError ? (
+          <div className="flex flex-col items-center gap-2 py-3">
+            <p className="text-[11px] text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
+              <AlertTriangle size={12} /> Não foi possível carregar os horários.
+            </p>
+            <button
+              type="button"
+              onClick={() => refetch()}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-600 text-[10px] font-black uppercase tracking-wider hover:bg-emerald-500/20 transition-all"
+            >
+              <RefreshCw size={11} /> Tentar novamente
+            </button>
+          </div>
+        ) : isLoading ? (
           <div className="flex justify-center py-3"><Loader2 className="animate-spin text-primary" size={16} /></div>
         ) : data?.closedDay ? (
           <p className="text-[11px] text-muted-foreground">Escola fechada neste dia. Escolha outro.</p>
         ) : (data?.slots?.length ?? 0) === 0 ? (
-          <p className="text-[11px] text-muted-foreground">Sem horários disponíveis neste dia.</p>
+          <p className="text-[11px] text-muted-foreground">Sem horários disponíveis neste dia. Escolha outro dia.</p>
         ) : (
           <div className="grid grid-cols-4 gap-2">
             {data!.slots.map((s: any) => (

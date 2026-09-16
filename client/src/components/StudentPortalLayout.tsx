@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { StudentSidebar } from "./StudentSidebar";
 import { AppHeader } from "./AppHeader";
+import { PushPermissionsBanner } from "./student/PushPermissionsBanner";
 import { useAuth } from "@/hooks/useAuth";
 import { getLoginUrl } from "@/const";
 import { Loader2, Music } from "lucide-react";
@@ -124,6 +125,10 @@ export function StudentPortalLayout({ children }: StudentPortalLayoutProps) {
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative" style={{ minWidth: 0 }}>
         <AppHeader onMobileMenuOpen={() => setMobileOpen(true)} />
         <main className="flex-1 overflow-y-auto bg-background p-4 sm:p-5 lg:p-6 scrollbar-thin no-scrollbar flex flex-col" style={{ paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom, 0px))' }}>
+          {/* PRD_NOTIFICACAO_ALUNO: onboarding de permissão de push */}
+          <div className="max-w-[1600px] mx-auto w-full mb-3">
+            <PushPermissionsBanner />
+          </div>
           <div className="max-w-[1600px] mx-auto w-full animate-in fade-in slide-in-from-bottom-2 duration-500 flex-1">
             {children}
           </div>

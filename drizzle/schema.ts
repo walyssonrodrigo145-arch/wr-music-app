@@ -213,6 +213,10 @@ export const lessons = pgTable("lessons", {
   recurrence: varchar("recurrence", { length: 20 }),
   alertSent1h: boolean("alertSent1h").default(false).notNull(),
   alertSent30m: boolean("alertSent30m").default(false).notNull(),
+  // PRD_NOTIFICACAO_ALUNO: confirmação de presença do aluno (portal).
+  // 'pendente' | 'confirmado' | 'nao_vai' — resetada para 'pendente' ao remarcar.
+  studentConfirmation: varchar("studentConfirmation", { length: 20 }).default("pendente").notNull(),
+  studentConfirmedAt: timestamp("studentConfirmedAt"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
 }, (table) => [
@@ -583,6 +587,8 @@ export const notifications = pgTable("notifications", {
   type: varchar("type", { length: 50 }).default("info").notNull(), // 'info', 'warning', 'success', 'error'
   read: boolean("read").default(false).notNull(),
   actionUrl: text("actionUrl"),
+  // PRD_NOTIFICACAO_ALUNO: chave de dedupe (ex: lesson-confirm-{id}) — 1 notificação por evento
+  refId: varchar("refId", { length: 200 }),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
@@ -1656,6 +1662,10 @@ export const enrollmentLinks = pgTable("enrollment_links", {
   contractTemplateId: integer("contractTemplateId"),
   status: varchar("status", { length: 20 }).default("active").notNull(), // 'active' | 'used' | 'expired'
   expiresAt: timestamp("expiresAt"),
+  // Multi-uso (PRD_MATRICULA_MULTIUSO): quantos alunos podem usar o MESMO link.
+  // null/1 = single-use (legado). O claim é atômico (UPDATE ... WHERE usesCount < maxUses).
+  maxUses: integer("maxUses").default(1).notNull(),
+  usesCount: integer("usesCount").default(0).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 

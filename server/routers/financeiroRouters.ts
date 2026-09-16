@@ -659,6 +659,107 @@ export const financeiroRouters = {
         }
       }),
 
+    // ─ PRD_RECIBO_MENSALIDADE: gera PDF do recibo (aluno, valor, vencimento,
+    // pagamento) e opcionalmente envia por WhatsApp. Melhor esforço no envio. ─
+    generateReceipt: protectedProcedure
+      .input(z.object({
+        paymentDueId: z.number(),
+        sendWhatsapp: z.boolean().default(false),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        try {
+          const db = await getDb();
+          if (!db) throw new Error("Banco de dados não disponível");
+          const orgId = ctx.user.organizationId!;
+
+          const [due] = await db.select({
+            id: paymentDues.id,
+            amount: paymentDues.amount,
+            dueDate: paymentDues.dueDate,
+            paidAt: paymentDues.paidAt,
+            status: paymentDues.status,
+            month: paymentDues.month,
+            year: paymentDues.year,
+            asaasId: paymentDues.asaasId,
+            mpPaymentId: paymentDues.mpPaymentId,
+            infinitepayPaymentId: paymentDues.infinitepayPaymentId,
+            studentName: students.name,
+            studentPhone: students.phone,
+            guardianPhone: students.guardianPhone,
+          }).from(paymentDues)
+            .leftJoin(students, eq(paymentDues.studentId, students.id))
+            .where(and(
+              eq(paymentDues.id, input.paymentDueId),
+              eq(paymentDues.organizationId, orgId)
+            ))
+            .limit(1);
+          if (!due) throw new Error("Mensalidade não encontrada.");
+
+          const allSettings = await db.select().from(settings).where(eq(settings.organizationId, orgId));
+          const schoolSet = allSettings.find(s => s.schoolName && s.schoolName.trim() !== '')
+            || allSettings.find(s => s.whatsappBotUrl)
+            || allSettings[0];
+
+          // Forma de pagamento: só faz sentido quando já há pagamento registrado
+          const paymentMethod = due.paidAt
+            ? (due.asaasId ? "asaas" : due.mpPaymentId ? "mercadopago" : due.infinitepayPaymentId ? "infinitepay" : "manual")
+            : null;
+
+          const { renderPaymentReceiptPdf, buildReceiptNumber, formatMoney, MONTHS_PT } = await import("../services/ReceiptService");
+          const pdf = await renderPaymentReceiptPdf({
+            schoolName: (schoolSet as any)?.schoolName || "Escola de Música",
+            schoolPhone: (schoolSet as any)?.schoolPhone || (schoolSet as any)?.phone || null,
+            studentName: due.studentName || "Aluno",
+            studentPhone: due.studentPhone || due.guardianPhone || null,
+            dueId: due.id,
+            amount: due.amount,
+            dueDate: due.dueDate,
+            paidAt: due.paidAt,
+            status: due.status,
+            month: due.month,
+            year: due.year,
+            paymentMethod,
+          });
+
+          const { url } = await storagePut(
+            `receipts/org_${orgId}/due_${due.id}/recibo-${buildReceiptNumber(due.id, due.year)}-${nanoid(6)}.pdf`,
+            pdf,
+            "application/pdf"
+          );
+
+          await db.update(paymentDues)
+            .set({ receiptUrl: url, updatedAt: new Date() })
+            .where(and(eq(paymentDues.id, due.id), eq(paymentDues.organizationId, orgId)));
+
+          // Envio por WhatsApp (não falha a geração do recibo)
+          let whatsappSent = false;
+          if (input.sendWhatsapp) {
+            const target = due.studentPhone || due.guardianPhone;
+            if (target && (schoolSet as any)?.whatsappBotUrl) {
+              try {
+                const monthName = MONTHS_PT[Math.max(0, Math.min(11, due.month - 1))];
+                const sendRes = await sendWhatsAppMessage({
+                  url: (schoolSet as any).whatsappBotUrl,
+                  token: (schoolSet as any).whatsappBotToken,
+                  phone: target,
+                  message: `Olá ${due.studentName || "aluno"}! 📄\n\nSegue o recibo da sua mensalidade de ${monthName}/${due.year} (${formatMoney(due.amount)}).\nQualquer dúvida, estamos à disposição!`,
+                  mediaUrl: url,
+                  sessionId: `prof_${ctx.user.id}`,
+                });
+                whatsappSent = sendRes.success;
+                if (!sendRes.success) console.warn("[Recibo] WhatsApp falhou:", sendRes.error);
+              } catch (e) {
+                console.error("[Recibo] Erro ao enviar WhatsApp (recibo mantido):", e);
+              }
+            }
+          }
+
+          return { success: true, url, whatsappSent };
+        } catch (error) {
+          return handleDbError(error, "gerar o recibo");
+        }
+      }),
+
     // ─ Gerar mensalidades dos próximos 3 meses (travado) ──────────────
     generateMonthly: protectedProcedure
       .input(z.object({

@@ -513,6 +513,9 @@ async function runAutomation() {
             birthDate: students.birthDate,
                   allowAutoReminders: students.allowAutoReminders,
             studentName: students.name,
+            // PRD_NOTIFICACAO_ALUNO: link de confirmação + notificação no painel
+            lessonId: reminders.lessonId,
+            studentUserId: students.studentUserId,
           })
           .from(reminders)
           .leftJoin(students, and(eq(reminders.studentId, students.id), eq(reminders.organizationId, orgId)))
@@ -626,11 +629,22 @@ async function runAutomation() {
             : null;
 
           debugLog('[Trace] Calling sendWhatsAppMessage for ', targetPhone);
+          // PRD_NOTIFICACAO_ALUNO: lembrete de aula ganha link de confirmação de presença
+          let msgToSend = rem.message;
+          const isLessonReminder = rem.type === "aula" && !!rem.lessonId;
+          if (isLessonReminder && rem.studentUserId) {
+            try {
+              const { appendConfirmationLink } = await import("./services/attendanceConfirmation");
+              msgToSend = appendConfirmationLink(msgToSend, rem.lessonId!);
+            } catch (e) {
+              console.error("[Automation] Falha ao anexar link de confirmação (não impeditivo):", e);
+            }
+          }
           const sendRes = await sendWhatsAppMessage({
             url: userSettings.whatsappBotUrl,
             token: userSettings.whatsappBotToken,
             phone: targetPhone,
-            message: rem.message,
+            message: msgToSend,
             mediaUrl: schoolLogo,
             sessionId: `prof_${userId}`,
           });
@@ -654,6 +668,20 @@ async function runAutomation() {
               title: `✅ Enviado: ${remType}`,
               content: `👤 Aluno: ${rem.studentName || "Aluno"}\n📱 Número: ${targetPhone}\n⏰ Horário: ${timeStr}`
             });
+
+            // ── PRD_NOTIFICACAO_ALUNO: notificação de confirmação no painel do aluno ──
+            if (isLessonReminder) {
+              try {
+                const { requestAttendanceConfirmation } = await import("./services/attendanceConfirmation");
+                await requestAttendanceConfirmation({
+                  organizationId: orgId,
+                  lessonId: rem.lessonId!,
+                  studentUserId: rem.studentUserId,
+                });
+              } catch (e) {
+                console.error("[Automation] Falha ao pedir confirmação de presença (não impeditivo):", e);
+              }
+            }
           } else {
             await db.update(reminders)
               .set({

@@ -716,6 +716,25 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
     }
   });
 
+  // ── PRD_RECIBO_MENSALIDADE: gera PDF do recibo (+ opcional envio WhatsApp) ──
+  const generateReceiptMutation = trpc.paymentDues.generateReceipt.useMutation({
+    onSuccess: (data: any, variables) => {
+      utils.paymentDues.invalidate();
+      if (variables.sendWhatsapp) {
+        if (data?.whatsappSent) toast.success("Recibo gerado e enviado por WhatsApp!");
+        else toast.warning("Recibo gerado, mas o envio por WhatsApp falhou. Abra o link e envie manualmente.");
+      } else {
+        toast.success("Recibo gerado!");
+      }
+      if (data?.url) window.open(data.url, "_blank");
+    },
+    onError: (e: any) => toast.error("Erro ao gerar recibo: " + e.message),
+  });
+
+  const receiptMutationFor: number | null = generateReceiptMutation.variables?.paymentDueId ?? null;
+  const receiptPending = (sendWhatsapp: boolean) =>
+    generateReceiptMutation.isPending && receiptMutationFor !== null && generateReceiptMutation.variables?.sendWhatsapp === sendWhatsapp;
+
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !uploadingFor) return;
@@ -1219,8 +1238,8 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
                       </div>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-2 mt-4">
-                       {payment.receiptUrl ? (
+                     <div className="flex flex-wrap items-center gap-2 mt-4">
+                        {payment.receiptUrl ? (
                          <Button variant="ghost" size="sm" className="h-9 px-2 rounded-lg text-[10px] font-bold text-emerald-600 hover:bg-emerald-500/10 shrink-0" asChild>
                            <a href={payment.receiptUrl} target="_blank" rel="noopener noreferrer" download onClick={(e) => e.stopPropagation()}>
                              <FileCheck size={12} className="mr-1" /> Ver
@@ -1232,6 +1251,20 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
                            <FileUp size={12} className="mr-1" /> Anexar
                          </Button>
                        )}
+
+                      {/* PRD_RECIBO_MENSALIDADE: gerar recibo em PDF + envio por WhatsApp */}
+                      <Button variant="ghost" size="sm"
+                        className="h-9 px-2 rounded-lg text-[10px] font-bold text-primary hover:bg-primary/10 shrink-0"
+                        disabled={generateReceiptMutation.isPending}
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); generateReceiptMutation.mutate({ paymentDueId: payment.id, sendWhatsapp: false }); }}>
+                        {receiptPending(false) ? <Loader2 size={12} className="mr-1 animate-spin" /> : <FileCheck size={12} className="mr-1" />} Recibo
+                      </Button>
+                      <Button variant="ghost" size="sm"
+                        className="h-9 px-2 rounded-lg text-[10px] font-bold text-emerald-600 hover:bg-emerald-500/10 shrink-0"
+                        disabled={generateReceiptMutation.isPending}
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); generateReceiptMutation.mutate({ paymentDueId: payment.id, sendWhatsapp: true }); }}>
+                        {receiptPending(true) ? <Loader2 size={12} className="mr-1 animate-spin" /> : <Send size={12} className="mr-1" />} Enviar
+                      </Button>
 
                       <Button variant="ghost" size="sm" className="h-9 w-9 p-0 rounded-lg text-rose-500 hover:bg-rose-500/10 shrink-0"
                         onClick={(e) => { 

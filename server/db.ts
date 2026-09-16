@@ -1769,6 +1769,7 @@ export async function getRecentLessons(
     scheduledAt: lessons.scheduledAt,
     duration: lessons.duration,
     status: lessons.status,
+    studentConfirmation: lessons.studentConfirmation,
     rating: lessons.rating,
     isExperimental: lessons.isExperimental,
     experimentalName: lessons.experimentalName,

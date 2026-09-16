@@ -26,6 +26,31 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: "2026.09.16.2",
+    date: "2026-09-16",
+    title: "Matrícula multi-uso, recibo de mensalidade e horários corrigidos",
+    summary: "Um link serve vários alunos sem conflito de horário, recibo em PDF por WhatsApp e o passo de horários do link voltou a funcionar.",
+    items: [
+      { type: "novo", title: "Link de matrícula para vários alunos", description: "Ao gerar o link, a escola escolhe quantos alunos podem usá-lo (2, 5, 10 ou 50). Cada aluno preenche seus dados e paga a própria matrícula — sem precisar gerar um link por pessoa." },
+      { type: "novo", title: "Recibo de mensalidade em PDF", description: "No Financeiro, cada mensalidade tem os botões 'Recibo' (abre o PDF) e 'Enviar' (manda o recibo por WhatsApp). O PDF traz nome do aluno, valor, referência do mês, vencimento, pagamento e status." },
+      { type: "correcao", title: "Horários do link de matrícula", description: "O passo 3 (escolha de horário) voltou a listar horários: o sistema agora busca o expediente configurado na agenda da escola (dias e horários de funcionamento), mesmo que esteja salvo em outro perfil de usuário." },
+      { type: "correcao", title: "Fim dos conflitos de horário na matrícula", description: "Se o horário escolhido for ocupado por outro aluno no meio do caminho, a matrícula avisa e pede para escolher outro — nunca mais aluno matriculado e pago sem aula. Dois alunos no mesmo link não criam matrícula duplicada." },
+      { type: "melhoria", title: "Horários sempre atualizados", description: "A lista de horários do link recarrega sozinha a cada 15 segundos, refletindo o que foi ocupado por outros alunos em tempo real." },
+    ],
+  },
+  {
+    version: "2026.09.16",
+    date: "2026-09-16",
+    title: "Confirmação de presença e notificações no Portal do Aluno",
+    summary: "Lembrete de aula agora pede confirmação no painel do aluno — professor sabe na hora quem vem e quem não vem.",
+    items: [
+      { type: "novo", title: "Confirme sua presença", description: "Ao receber o lembrete de aula, o aluno é avisado no painel (sino + push) e pode responder com 1 toque: 'Estarei presente' ou 'Não poderei ir'. O lembrete do WhatsApp também chega com o link de confirmação." },
+      { type: "novo", title: "Professor avisado na hora", description: "Assim que o aluno responde, o professor recebe notificação (e push) e vê a confirmação na agenda e no detalhe da aula — fim das faltas silenciosas." },
+      { type: "novo", title: "Ativação de notificações", description: "No primeiro acesso ao portal, um banner convida o aluno a habilitar as notificações no navegador — com direito a push mesmo com o app fechado." },
+      { type: "melhoria", title: "Confirmação resetada ao remarcar", description: "Se a aula for remarcada (pelo aluno ou professor), a resposta de presença é limpa e o aluno é convidado a confirmar novamente para a nova data." },
+    ],
+  },
+  {
     version: "2026.09.15",
     date: "2026-09-15",
     title: "Renovação pelo portal e avaliações de professores",

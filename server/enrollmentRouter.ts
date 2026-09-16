@@ -11,6 +11,10 @@ import { createPaymentShortLink } from "./utils/shortlinks";
 import { decryptSecret } from "./utils/integrationCrypto";
 import { resolveActivePaymentGateway } from "./routers/helpers";
 import { ENV } from "./_core/env";
+import { nanoid } from "nanoid";
+import { firstRecurringLessonDate } from "./services/EnrollmentGenerationService";
+import { parseSchoolHours, generateDaySlots, type SchoolDayConfig } from "./services/ScheduleAvailabilityService";
+import { pickSettingsForHours } from "./services/EnrollmentHoursService";
 
 export const enrollmentRouter = router({
   // 1. Gera um link de auto-matrícula exclusivo (Admin/CRM)
@@ -22,6 +26,9 @@ export const enrollmentRouter = router({
         monthlyFee: z.number().optional(),
         contractTemplateId: z.number().optional(),
         autoSendWhatsapp: z.boolean().optional(),
+        // PRD_MATRICULA_MULTIUSO: quantos alunos podem usar o MESMO link (ex.: irmãos,
+        // grupo de WhatsApp). Omitido = 1 (single-use, comportamento anterior).
+        maxUses: z.number().int().min(1).max(50).optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -43,6 +50,7 @@ export const enrollmentRouter = router({
           instrumentId: input.instrumentId,
           monthlyFee: resolvedFee ? String(resolvedFee) : undefined,
           contractTemplateId: input.contractTemplateId,
+          maxUses: input.maxUses ?? 1,
           status: "active",
         })
         .returning();
@@ -155,8 +163,15 @@ export const enrollmentRouter = router({
       const activeGateway: "asaas" | "mercadopago" | "infinitepay" | "none" = resolveActivePaymentGateway(schoolSet);
 
       // Retorna schoolHours para o frontend poder cinzar dias fechados
+      // PRD_MATRICULA_HORARIOS: usa a linha que de fato tem o expediente configurado
       let parsedSchoolHours: Record<string, { active: boolean; start: string; end: string }> = {};
-      try { parsedSchoolHours = JSON.parse(schoolSet?.schoolHours || "{}"); } catch (_) {}
+      const hoursSource = allSettings.find(s => {
+        const h = parseSchoolHours((s as any).schoolHours);
+        return Object.values(h).some((d: any) => d && d.active && d.start && d.end);
+      });
+      parsedSchoolHours = hoursSource
+        ? parseSchoolHours((hoursSource as any).schoolHours)
+        : parseSchoolHours((schoolSet as any)?.schoolHours);
 
       const [org] = await db.select({ logo: organizations.logo }).from(organizations).where(eq(organizations.id, orgId)).limit(1);
       const schoolLogo = schoolSet?.logoUrl || org?.logo || null;
@@ -291,13 +306,10 @@ export const enrollmentRouter = router({
       const dateObj = new Date(`${input.dateStr}T12:00:00.000-03:00`);
       const weekdayKey = DAY_MAP[dateObj.getDay()];
 
-      // Parse do schoolHours
-      let schoolHoursObj: Record<string, { active: boolean; start: string; end: string }> = {};
-      try {
-        schoolHoursObj = JSON.parse(schoolSet?.schoolHours || "{}");
-      } catch (_) {}
-
-      const dayConfig = schoolHoursObj[weekdayKey];
+      // PRD_MATRICULA_HORARIOS: expediente da linha que de fato o configurou
+      // (fallback padrão seg-sex 08:00-18:00 quando ninguém configurou)
+      const resolved = pickSettingsForHours(allSettingsForSlots, weekdayKey);
+      const dayConfig = resolved.dayConfig;
 
       // Se a escola não funciona nesse dia, retorna vazio
       if (!dayConfig || !dayConfig.active) {
@@ -310,21 +322,9 @@ export const enrollmentRouter = router({
         };
       }
 
-      // Gera slots com passo igual a lessonDuration dentro do horário de funcionamento
-      const [startH, startM] = dayConfig.start.split(":").map(Number);
-      const [endH, endM] = dayConfig.end.split(":").map(Number);
-
-      const generatedSlots: string[] = [];
-      let cursor = startH * 60 + (startM || 0);
-      const endMinutes = endH * 60 + (endM || 0);
-
-      // Cada slot tem duração de duration minutos
-      while (cursor + duration <= endMinutes) {
-        const hh = String(Math.floor(cursor / 60)).padStart(2, "0");
-        const mm = String(cursor % 60).padStart(2, "0");
-        generatedSlots.push(`${hh}:${mm}`);
-        cursor += duration;
-      }
+      // Slots com passo igual a lessonDuration dentro do expediente
+      // (parsing robusto: start/end ausentes caem no padrão 08:00-18:00)
+      const generatedSlots: string[] = generateDaySlots(dayConfig, duration).map(s => s.time);
 
       // Busca aulas agendadas para essa data filtrando por professor E organização
       const startOfDay = new Date(`${input.dateStr}T00:00:00.000-03:00`);
@@ -394,22 +394,17 @@ export const enrollmentRouter = router({
       const duration = schoolSet?.lessonDuration ?? 60;
 
       const DAY_MAP: Record<number, string> = { 0: "sunday", 1: "monday", 2: "tuesday", 3: "wednesday", 4: "thursday", 5: "friday", 6: "saturday" };
-      let schoolHoursObj: Record<string, { active: boolean; start: string; end: string }> = {};
-      try { schoolHoursObj = JSON.parse(schoolSet?.schoolHours || "{}"); } catch { /* */ }
-      const dayConfig = schoolHoursObj[DAY_MAP[input.weekday]];
+
+      // PRD_MATRICULA_HORARIOS: expediente da linha que de fato o configurou
+      // (antes: linha "schoolName" sem hours → 0 slots → "Sem horários disponíveis")
+      const resolved = pickSettingsForHours(allSettingsForSlots, DAY_MAP[input.weekday]);
+      const dayConfig = resolved.dayConfig;
       if (!dayConfig || !dayConfig.active) {
         return { teacher: targetTeacher, room: rooms[0] || null, slots: [], closedDay: true, lessonDuration: duration };
       }
 
-      const [startH, startM] = dayConfig.start.split(":").map(Number);
-      const [endH, endM] = dayConfig.end.split(":").map(Number);
-      const generatedSlots: string[] = [];
-      let cursor = startH * 60 + (startM || 0);
-      const endMinutes = endH * 60 + (endM || 0);
-      while (cursor + duration <= endMinutes) {
-        generatedSlots.push(`${String(Math.floor(cursor / 60)).padStart(2, "0")}:${String(cursor % 60).padStart(2, "0")}`);
-        cursor += duration;
-      }
+      // Slots com parsing robusto (start/end ausentes caem no padrão 08:00-18:00)
+      const generatedSlots: string[] = generateDaySlots(dayConfig, duration).map(s => s.time);
 
       // Ocupação do professor E da sala nesse dia da semana (próximas 4 semanas)
       const busyTimes = new Set<string>();
@@ -531,6 +526,12 @@ export const enrollmentRouter = router({
         ? `Matrícula MusicPro - ${courseCount} cursos`
         : `Matrícula MusicPro - ${courseName}`;
 
+      // PRD_MATRICULA_MULTIUSO: referência de pagamento ÚNICA por cobrança.
+      // Com um link multi-uso, vários alunos pagam pelo mesmo code — sem o
+      // paymentRef, a verificação (MP/InfinitePay) buscaria o pagamento de
+      // OUTRO aluno com a mesma external_reference.
+      const paymentRef = nanoid(12);
+
       // Qual gateway a escola usa? (RN-001: fonte única de resolução)
       const activeGateway = resolveActivePaymentGateway(schoolSet);
 
@@ -538,7 +539,7 @@ export const enrollmentRouter = router({
       if (activeGateway === "infinitepay") {
         const ipLink = await createInfinitePayLink({
           handle: schoolSet!.infinitepayHandle!,
-          orderNsu: `enrollment_${link.code}`,
+          orderNsu: `enrollment_${link.code}_${paymentRef}`,
           items: [{
             quantity: 1,
             price: brlToCents(chargeAmount),
@@ -567,6 +568,7 @@ export const enrollmentRouter = router({
           slug: ipLink.slug,
           value: chargeAmount,
           billingType: input.billingType,
+          paymentRef,
         };
       }
 
@@ -586,7 +588,7 @@ export const enrollmentRouter = router({
               name: input.studentName,
               email: input.studentEmail || "cliente@wrmusicpro.com.br",
             },
-            external_reference: `enrollment_${link.code}`,
+            external_reference: `enrollment_${link.code}_${paymentRef}`,
             successUrl: `${ENV.appUrl || 'https://wrmusicpro.com.br'}/matricula/${link.code}?status=success`,
           },
           decryptSecret(schoolSet!.mpAccessToken!)
@@ -598,6 +600,7 @@ export const enrollmentRouter = router({
           invoiceUrl: mpResult.init_point,
           value: chargeAmount,
           billingType: input.billingType,
+          paymentRef,
         };
       }
 
@@ -648,11 +651,12 @@ export const enrollmentRouter = router({
           pixCopiaECola,
           value: chargeAmount,
           billingType: input.billingType,
+          paymentRef,
         };
       }
 
       // Sem gateway configurado na escola
-      return { skipPayment: true, gateway: "none" };
+      return { skipPayment: true, gateway: "none", paymentRef };
     }),
 
   // 4.1 Verifica o status da cobrança Asaas da matrícula (server-side)
@@ -709,6 +713,9 @@ export const enrollmentRouter = router({
         timeStr: z.string().optional(),
         asaasChargeId: z.string().optional(),
         infinitepaySlug: z.string().optional(),
+        // PRD_MATRICULA_MULTIUSO: referência única da cobrança DESTE aluno
+        // (evita validar o pagamento de outro aluno no mesmo link multi-uso)
+        paymentRef: z.string().optional(),
       })
     )
     .mutation(async ({ input }) => {
@@ -849,7 +856,9 @@ export const enrollmentRouter = router({
           try {
             const check = await checkInfinitePayPayment({
               handle: schoolSet!.infinitepayHandle!,
-              orderNsu: `enrollment_${link.code}`,
+              orderNsu: input.paymentRef
+                ? `enrollment_${link.code}_${input.paymentRef}`
+                : `enrollment_${link.code}`,
               slug: input.infinitepaySlug || undefined,
               apiKey: resolveInfinitePayApiKey((schoolSet as any).infinitepayApiKey ?? null),
             });
@@ -863,7 +872,11 @@ export const enrollmentRouter = router({
         } else {
           // Mercado Pago: busca pagamento APROVADO pela referência externa e valida o valor
           try {
-            const searchUrl = `https://api.mercadopago.com/v1/payments/search?external_reference=enrollment_${link.code}&sort=date_created&criteria=desc`;
+            // PRD_MATRICULA_MULTIUSO: com paymentRef a busca é da cobrança DESTE aluno
+            const reference = input.paymentRef
+              ? `enrollment_${link.code}_${input.paymentRef}`
+              : `enrollment_${link.code}`;
+            const searchUrl = `https://api.mercadopago.com/v1/payments/search?external_reference=${encodeURIComponent(reference)}&sort=date_created&criteria=desc`;
             const mpResp = await fetch(searchUrl, {
               headers: { Authorization: `Bearer ${decryptSecret(schoolSet!.mpAccessToken!)}` },
             });
@@ -949,127 +962,208 @@ export const enrollmentRouter = router({
         }
       }
 
-      // Cadastra o Aluno (curso principal = 1º selecionado; mensalidade = soma dos cursos)
-      const firstCourse = enrichedCourses[0];
-      const firstTeacher = teacherByCourse.get(firstCourse.instrumentId)!;
-      const brtDay = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" })).getDay();
-      const [newStudent] = await db
-        .insert(students)
-        .values({
-          organizationId: orgId,
-          userId: firstTeacher,
-          professorId: firstTeacher,
-          name: input.studentName,
-          phone: input.studentPhone,
-          email: input.studentEmail || undefined,
-          cpf: input.studentCpf || undefined,
-          birthDate: input.birthDate ? input.birthDate.slice(0, 10) : undefined,
-          guardianName: input.guardianName || undefined,
-          guardianCpf: input.guardianCpf || undefined,
-          guardianPhone: input.guardianPhone || undefined,
-          guardianEmail: input.guardianEmail || undefined,
-          instrumentId: firstCourse.instrumentId,
-          schoolPlanId: firstCourse.planId ?? undefined,
-          status: "ativo",
-          monthlyFee: totalMonthlyFee.toFixed(2),
-          dueDay: input.dueDay || new Date().getDate(),
-        })
-        .returning();
-
-      // Cria as matrículas, as aulas e as mensalidades
-      const { generateLessonsForEnrollment, generateMonthlyDues } = await import("./services/EnrollmentGenerationService");
-      let totalLessons = 0;
-      let firstLessonId: number | null = null;
-      const duesCourses: { monthlyFee: number; durationMonths: number }[] = billable.map((c) => ({ monthlyFee: c.monthlyFee, durationMonths: c.durationMonths }));
-
+      // ── PRD_MATRICULA_MULTIUSO (RF-002): revalidação de conflito no modo
+      // recorrente. O slot exibido pode ter sido ocupado por outro aluno do
+      // MESMO link entre a exibição e o submit — rejeitar ANTES de criar
+      // aluno/cobrança (o aluno escolhe outro horário e reenvia).
       for (const c of enrichedCourses) {
+        if (c.weekday === undefined || !c.timeStr) continue;
         const teacherUserId = teacherByCourse.get(c.instrumentId)!;
-        const courseName = instrumentsById.get(c.instrumentId)?.name || "Música";
+        const firstAt = firstRecurringLessonDate(c.weekday, c.timeStr);
+        if (isNaN(firstAt.getTime())) continue;
+        const slotStart = firstAt.getTime();
+        const slotEnd = slotStart + lessonDuration * 60_000;
 
-        await db.insert(studentEnrollments).values({
-          organizationId: orgId,
-          studentId: newStudent.id,
-          instrumentId: c.instrumentId,
-          planId: c.planId ?? null,
-          teacherUserId,
-          studioRoomId: c.studioRoomId ?? null,
-          durationMonths: c.durationMonths,
-          lessonsPerWeek: c.lessonsPerWeek,
-          weekday: c.weekday ?? brtDay,
-          timeStr: c.timeStr || null,
-          monthlyFee: c.monthlyFee.toFixed(2),
-          enrollmentFee: c.enrollmentFee.toFixed(2),
-          startDate: new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" }),
-          status: "ativo",
+        const nearLessons = await db
+          .select({ scheduledAt: lessons.scheduledAt, duration: lessons.duration })
+          .from(lessons)
+          .where(and(
+            eq(lessons.organizationId, orgId),
+            eq(lessons.userId, teacherUserId),
+            eq(lessons.status, "agendada"),
+            gte(lessons.scheduledAt, new Date(slotStart - 12 * 3_600_000)),
+            lte(lessons.scheduledAt, new Date(slotStart + 12 * 3_600_000)),
+          ));
+        const teacherConflict = nearLessons.some((l: any) => {
+          const s = new Date(l.scheduledAt).getTime();
+          const e = s + (l.duration || 60) * 60_000;
+          return slotStart < e && slotEnd > s;
         });
+        if (teacherConflict) {
+          throw new Error("Este horário acabou de ser ocupado por outro aluno. Volte e escolha outro horário — nenhum valor adicional será cobrado.");
+        }
 
-        if (c.weekday !== undefined && c.timeStr) {
-          totalLessons += await generateLessonsForEnrollment(db, {
-            orgId,
-            studentId: newStudent.id,
-            teacherUserId,
-            studioRoomId: c.studioRoomId ?? null,
-            instrumentId: c.instrumentId,
-            courseName,
-            durationMonths: c.durationMonths,
-            lessonsPerWeek: c.lessonsPerWeek,
-            weekday: c.weekday,
-            timeStr: c.timeStr,
-            durationMin: lessonDuration,
+        if (c.studioRoomId) {
+          const roomLessons = await db
+            .select({ scheduledAt: lessons.scheduledAt, duration: lessons.duration })
+            .from(lessons)
+            .where(and(
+              eq(lessons.organizationId, orgId),
+              eq(lessons.studioRoomId, c.studioRoomId),
+              eq(lessons.status, "agendada"),
+              gte(lessons.scheduledAt, new Date(slotStart - 12 * 3_600_000)),
+              lte(lessons.scheduledAt, new Date(slotStart + 12 * 3_600_000)),
+            ));
+          const roomConflict = roomLessons.some((l: any) => {
+            const s = new Date(l.scheduledAt).getTime();
+            const e = s + (l.duration || 60) * 60_000;
+            return slotStart < e && slotEnd > s;
           });
-        } else if (c.dateStr && c.timeStr) {
-          // Legado: aula única em data específica
-          const scheduledAt = new Date(`${c.dateStr}T${c.timeStr}:00.000-03:00`);
-          const [newLesson] = await db
-            .insert(lessons)
-            .values({
-              organizationId: orgId,
-              userId: teacherUserId,
-              studentId: newStudent.id,
-              title: `Aula de ${courseName} - ${newStudent.name}`,
-              scheduledAt,
-              duration: lessonDuration,
-              status: "agendada",
-              instrumentId: c.instrumentId,
-              studioRoomId: c.studioRoomId || undefined,
-            })
-            .returning();
-          if (!firstLessonId) firstLessonId = newLesson.id;
-          totalLessons++;
+          if (roomConflict) {
+            throw new Error("Esta sala acabou de ser ocupada neste horário. Volte e escolha outro horário.");
+          }
         }
       }
 
-      // Mensalidades dos meses seguintes (o 1º mês é pago no ato da matrícula)
-      const nowBrt = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
-      await generateMonthlyDues(db, {
-        orgId,
-        userId: newStudent.userId,
-        studentId: newStudent.id,
-        courses: duesCourses,
-        dueDay: input.dueDay || nowBrt.getDate(),
-        startMonth: nowBrt.getMonth() + 1,
-        startYear: nowBrt.getFullYear(),
+      // ── PRD_MATRICULA_MULTIUSO (RF-001/RN-002/CA-001): TUDO em transação —
+      // claim atômico do link + aluno + matrículas + aulas + mensalidades.
+      // Qualquer falha no meio → rollback completo (nunca aluno pago sem aula,
+      // nunca 2 matrículas no mesmo submit).
+      const lessonsByCourse: { instrumentId: number; courseName: string; created: number }[] = [];
+      let totalLessons = 0;
+      let firstLessonId: number | null = null;
+      let newStudentId: number | null = null;
+
+      await db.transaction(async (tx: any) => {
+        // CLAIM ATÔMICO: incrementa usesCount SOMENTE se status=active e
+        // usesCount < maxUses. Dois submits simultâneos → apenas 1 passa.
+        const claimed = await tx.update(enrollmentLinks)
+          .set({ usesCount: sql`${enrollmentLinks.usesCount} + 1` })
+          .where(and(
+            eq(enrollmentLinks.id, link.id),
+            eq(enrollmentLinks.status, "active"),
+            sql`${enrollmentLinks.usesCount} < ${enrollmentLinks.maxUses}`
+          ))
+          .returning({ usesCount: enrollmentLinks.usesCount, maxUses: enrollmentLinks.maxUses });
+        if (claimed.length === 0) {
+          throw new Error("Este link já foi usado em outra matrícula (limite de alunos atingido). Solicite um novo link à escola.");
+        }
+        if (claimed[0].usesCount >= claimed[0].maxUses) {
+          await tx.update(enrollmentLinks).set({ status: "used" }).where(eq(enrollmentLinks.id, link.id));
+        }
+
+        // Cadastra o Aluno (curso principal = 1º selecionado; mensalidade = soma dos cursos)
+        const firstCourse = enrichedCourses[0];
+        const firstTeacher = teacherByCourse.get(firstCourse.instrumentId)!;
+        const brtDay = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" })).getDay();
+        const [newStudent] = await tx
+          .insert(students)
+          .values({
+            organizationId: orgId,
+            userId: firstTeacher,
+            professorId: firstTeacher,
+            name: input.studentName,
+            phone: input.studentPhone,
+            email: input.studentEmail || undefined,
+            cpf: input.studentCpf || undefined,
+            birthDate: input.birthDate ? input.birthDate.slice(0, 10) : undefined,
+            guardianName: input.guardianName || undefined,
+            guardianCpf: input.guardianCpf || undefined,
+            guardianPhone: input.guardianPhone || undefined,
+            guardianEmail: input.guardianEmail || undefined,
+            instrumentId: firstCourse.instrumentId,
+            schoolPlanId: firstCourse.planId ?? undefined,
+            status: "ativo",
+            monthlyFee: totalMonthlyFee.toFixed(2),
+            dueDay: input.dueDay || new Date().getDate(),
+          })
+          .returning();
+        newStudentId = newStudent.id;
+
+        // Cria as matrículas, as aulas e as mensalidades
+        const { generateLessonsForEnrollment, generateMonthlyDues } = await import("./services/EnrollmentGenerationService");
+        const duesCourses: { monthlyFee: number; durationMonths: number }[] = billable.map((c) => ({ monthlyFee: c.monthlyFee, durationMonths: c.durationMonths }));
+
+        for (const c of enrichedCourses) {
+          const teacherUserId = teacherByCourse.get(c.instrumentId)!;
+          const courseName = instrumentsById.get(c.instrumentId)?.name || "Música";
+
+          await tx.insert(studentEnrollments).values({
+            organizationId: orgId,
+            studentId: newStudent.id,
+            instrumentId: c.instrumentId,
+            planId: c.planId ?? null,
+            teacherUserId,
+            studioRoomId: c.studioRoomId ?? null,
+            durationMonths: c.durationMonths,
+            lessonsPerWeek: c.lessonsPerWeek,
+            weekday: c.weekday ?? brtDay,
+            timeStr: c.timeStr || null,
+            monthlyFee: c.monthlyFee.toFixed(2),
+            enrollmentFee: c.enrollmentFee.toFixed(2),
+            startDate: new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" }),
+            status: "ativo",
+          });
+
+          let createdForCourse = 0;
+          if (c.weekday !== undefined && c.timeStr) {
+            createdForCourse = await generateLessonsForEnrollment(tx, {
+              orgId,
+              studentId: newStudent.id,
+              teacherUserId,
+              studioRoomId: c.studioRoomId ?? null,
+              instrumentId: c.instrumentId,
+              courseName,
+              durationMonths: c.durationMonths,
+              lessonsPerWeek: c.lessonsPerWeek,
+              weekday: c.weekday,
+              timeStr: c.timeStr,
+              durationMin: lessonDuration,
+            });
+            // RN-003 (CA-003): curso sem nenhuma aula gerada = matrícula quebrada
+            if (createdForCourse === 0) {
+              throw new Error(`Não foi possível criar as aulas de ${courseName} no horário escolhido (todas ocupadas). Volte e escolha outro horário — sua matrícula não foi concluída e nenhum valor adicional foi cobrado.`);
+            }
+          } else if (c.dateStr && c.timeStr) {
+            // Legado: aula única em data específica
+            const scheduledAt = new Date(`${c.dateStr}T${c.timeStr}:00.000-03:00`);
+            const [newLesson] = await tx
+              .insert(lessons)
+              .values({
+                organizationId: orgId,
+                userId: teacherUserId,
+                studentId: newStudent.id,
+                title: `Aula de ${courseName} - ${newStudent.name}`,
+                scheduledAt,
+                duration: lessonDuration,
+                status: "agendada",
+                instrumentId: c.instrumentId,
+                studioRoomId: c.studioRoomId || undefined,
+              })
+              .returning();
+            if (!firstLessonId) firstLessonId = newLesson.id;
+            createdForCourse = 1;
+          }
+          lessonsByCourse.push({ instrumentId: c.instrumentId, courseName, created: createdForCourse });
+          totalLessons += createdForCourse;
+        }
+
+        // Mensalidades dos meses seguintes (o 1º mês é pago no ato da matrícula)
+        const nowBrt = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
+        await generateMonthlyDues(tx, {
+          orgId,
+          userId: newStudent.userId,
+          studentId: newStudent.id,
+          courses: duesCourses,
+          dueDay: input.dueDay || nowBrt.getDate(),
+          startMonth: nowBrt.getMonth() + 1,
+          startYear: nowBrt.getFullYear(),
+        });
+
+        // Atualiza o Lead no CRM para "matriculado"
+        if (link.leadId) {
+          await tx
+            .update(crmLeads)
+            .set({ stage: "matriculado", updatedAt: new Date() })
+            .where(eq(crmLeads.id, link.leadId));
+        }
       });
-
-      // Atualiza o Lead no CRM para "matriculado"
-      if (link.leadId) {
-        await db
-          .update(crmLeads)
-          .set({ stage: "matriculado", updatedAt: new Date() })
-          .where(eq(crmLeads.id, link.leadId));
-      }
-
-      // Marca o link como usado
-      await db
-        .update(enrollmentLinks)
-        .set({ status: "used" })
-        .where(eq(enrollmentLinks.id, link.id));
 
       // Gera contrato + assinatura digital (best-effort; NÃO bloqueia a matrícula)
       let contract: { signUrl: string; contractId: number; contractNumber: string | null } | null = null;
       try {
         const { generateEnrollmentContract } = await import("./services/EnrollmentContractService");
-        contract = await generateEnrollmentContract(db, orgId, newStudent.id, {
+        contract = await generateEnrollmentContract(db, orgId, newStudentId!, {
           templateId: link.contractTemplateId ?? null,
           monthlyFee: totalMonthlyFee.toFixed(2),
           startDate: new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" }),
@@ -1080,9 +1174,11 @@ export const enrollmentRouter = router({
 
       return {
         success: true,
-        studentId: newStudent.id,
+        studentId: newStudentId,
         lessonId: firstLessonId,
         lessonsCreated: totalLessons,
+        // RF-004: o client exibe aviso se algum curso gerou menos aulas que o plano
+        lessonsByCourse,
         contractSignUrl: contract?.signUrl ?? null,
         contractId: contract?.contractId ?? null,
         contractNumber: contract?.contractNumber ?? null,
@@ -1130,11 +1226,13 @@ export const enrollmentRouter = router({
       };
     }),
 
-  // 7. Verifica pagamento MP buscando pelos pagamentos mais recentes com external_reference = enrollment_${code}
+  // 7. Verifica pagamento MP buscando pelos pagamentos mais recentes com external_reference
   verifyMPByReference: publicProcedure
     .input(
       z.object({
         code: z.string(),
+        // PRD_MATRICULA_MULTIUSO: ref único da cobrança deste aluno (se houver)
+        paymentRef: z.string().optional(),
       })
     )
     .query(async ({ input }) => {
@@ -1158,8 +1256,13 @@ export const enrollmentRouter = router({
         throw new Error("Escola sem Mercado Pago configurado.");
       }
 
+      // PRD_MATRICULA_MULTIUSO: busca a cobrança DESTE aluno; fallback no formato antigo
+      const reference = input.paymentRef
+        ? `enrollment_${input.code}_${input.paymentRef}`
+        : `enrollment_${input.code}`;
+
       // Busca na API do Mercado Pago por pagamentos referentes a essa matrícula
-      const searchUrl = `https://api.mercadopago.com/v1/payments/search?external_reference=enrollment_${input.code}&sort=date_created&criteria=desc`;
+      const searchUrl = `https://api.mercadopago.com/v1/payments/search?external_reference=${encodeURIComponent(reference)}&sort=date_created&criteria=desc`;
       const response = await fetch(searchUrl, {
         headers: { Authorization: `Bearer ${decryptSecret(schoolSet.mpAccessToken)}` },
       });
@@ -1191,6 +1294,7 @@ export const enrollmentRouter = router({
       z.object({
         code: z.string(),            // código do link de matrícula
         slug: z.string().optional(), // invoice_slug recebido na criação da cobrança (se disponível)
+        paymentRef: z.string().optional(), // PRD_MATRICULA_MULTIUSO: ref único da cobrança
       })
     )
     .query(async ({ input }) => {
@@ -1216,7 +1320,9 @@ export const enrollmentRouter = router({
 
       const check = await checkInfinitePayPayment({
         handle: schoolSet.infinitepayHandle,
-        orderNsu: `enrollment_${input.code}`,
+        orderNsu: input.paymentRef
+          ? `enrollment_${input.code}_${input.paymentRef}`
+          : `enrollment_${input.code}`,
         slug: input.slug || undefined,
         apiKey: resolveInfinitePayApiKey(schoolSet.infinitepayApiKey ?? null),
       });

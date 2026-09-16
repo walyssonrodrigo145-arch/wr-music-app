@@ -66,6 +66,7 @@ export const lessonsRouters = {
         scheduledAt: lessons.scheduledAt,
         duration: lessons.duration,
         status: lessons.status,
+        studentConfirmation: lessons.studentConfirmation,
         rating: lessons.rating,
         notes: lessons.notes,
         description: lessons.description,
@@ -127,6 +128,7 @@ export const lessonsRouters = {
             scheduledAt: lessons.scheduledAt,
             duration: lessons.duration,
             status: lessons.status,
+            studentConfirmation: lessons.studentConfirmation,
             rating: lessons.rating,
             isExperimental: lessons.isExperimental,
             experimentalName: lessons.experimentalName,
@@ -183,6 +185,7 @@ export const lessonsRouters = {
               scheduledAt: lessons.scheduledAt,
               duration: lessons.duration,
               status: lessons.status,
+              studentConfirmation: lessons.studentConfirmation,
               rating: lessons.rating,
               isExperimental: lessons.isExperimental,
               experimentalName: lessons.experimentalName,
@@ -219,6 +222,7 @@ export const lessonsRouters = {
             scheduledAt: lessons.scheduledAt,
             duration: lessons.duration,
             status: lessons.status,
+            studentConfirmation: lessons.studentConfirmation,
             rating: lessons.rating,
             isExperimental: lessons.isExperimental,
             experimentalName: lessons.experimentalName,
@@ -288,6 +292,7 @@ export const lessonsRouters = {
         scheduledAt: lessons.scheduledAt,
         duration: lessons.duration,
         status: lessons.status,
+        studentConfirmation: lessons.studentConfirmation,
         isExperimental: lessons.isExperimental,
         experimentalName: lessons.experimentalName,
         studentName: students.name,
@@ -531,6 +536,13 @@ export const lessonsRouters = {
             ))
             .limit(1);
           if (!ownedInstrument) throw new Error("O instrumento selecionado não pertence ao seu perfil.");
+        }
+
+        // PRD_NOTIFICACAO_ALUNO (RN-005): mudança de horário reseta a confirmação
+        // de presença do aluno (a resposta não vale para a nova data).
+        if (data.scheduledAt && new Date(data.scheduledAt).getTime() !== new Date(currentLesson.scheduledAt).getTime()) {
+          updateData.studentConfirmation = 'pendente';
+          updateData.studentConfirmedAt = null;
         }
 
         if (data.scheduledAt || data.studioRoomId !== undefined || data.lessonType) {

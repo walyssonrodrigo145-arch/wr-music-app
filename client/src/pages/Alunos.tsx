@@ -64,6 +64,7 @@ export default function Alunos() {
   const [enrollmentInstrumentId, setEnrollmentInstrumentId] = useState<string>("all");
   const [enrollmentFee, setEnrollmentFee] = useState<string>("");
   const [enrollmentContractTemplateId, setEnrollmentContractTemplateId] = useState<string>("auto");
+  const [enrollmentMaxUses, setEnrollmentMaxUses] = useState<string>("1");
   const [generatedEnrollmentLink, setGeneratedEnrollmentLink] = useState<{ url: string; fullUrl: string } | null>(null);
 
   const generateEnrollmentLinkMutation = trpc.enrollment.generateLink.useMutation({
@@ -793,6 +794,29 @@ export default function Alunos() {
                 </p>
               </div>
 
+              {/* PRD_MATRICULA_MULTIUSO: um link para N alunos (irmãos, grupo de WhatsApp) */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-foreground">Quantos alunos usarão este link?</label>
+                <Select
+                  value={enrollmentMaxUses}
+                  onValueChange={setEnrollmentMaxUses}
+                >
+                  <SelectTrigger className="h-10 rounded-xl text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1">1 aluno (individual)</SelectItem>
+                    <SelectItem value="2">2 alunos</SelectItem>
+                    <SelectItem value="5">5 alunos</SelectItem>
+                    <SelectItem value="10">10 alunos</SelectItem>
+                    <SelectItem value="50">50 alunos (grupo/divulgação)</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-[10px] text-muted-foreground">
+                  Cada aluno preenche seus próprios dados e escolhe seu horário — o sistema nunca deixa dois alunos no mesmo horário.
+                </p>
+              </div>
+
               <div className="flex justify-end gap-2 pt-2 border-t border-border/60">
                 <Button
                   variant="outline"
@@ -808,6 +832,7 @@ export default function Alunos() {
                       instrumentId: enrollmentInstrumentId !== "all" ? Number(enrollmentInstrumentId) : undefined,
                       monthlyFee: enrollmentFee ? Number(enrollmentFee) : undefined,
                       contractTemplateId: enrollmentContractTemplateId !== "auto" ? Number(enrollmentContractTemplateId) : undefined,
+                      maxUses: Number(enrollmentMaxUses) || 1,
                     });
                   }}
                   className="h-9 px-4 rounded-xl text-xs bg-primary hover:bg-primary/90 text-white font-bold gap-1.5"
@@ -825,7 +850,7 @@ export default function Alunos() {
                   Link criado com sucesso!
                 </p>
                 <p className="text-[11px] text-emerald-600/90 dark:text-emerald-400/90">
-                  Qualquer pessoa com este link pode acessar o formulário público e realizar o cadastro com segurança.
+                  Envie para até {Number(enrollmentMaxUses) > 1 ? `${enrollmentMaxUses} alunos` : "1 aluno"} — cada um preenche seus dados e escolhe seu próprio horário, sem conflito.
                 </p>
               </div>
 

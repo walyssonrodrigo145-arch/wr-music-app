@@ -32,6 +32,7 @@ import { getSystemPrompt, buildExerciseExplanationPrompt, AI_PROMPT_VERSIONS } f
 import { resolveAiCredentials } from "../utils/aiProvider";
 import { callGemini, genAI } from "../utils/gemini";
 import { BillingEngine } from "../services/BillingEngine";
+import { buildTeacherNotificationMessage } from "../services/attendanceConfirmation";
 import { sendWhatsAppMessage, startWhatsAppSession, getWhatsAppSessionStatus, logoutWhatsAppSession } from "../utils/whatsapp";
 import { nanoid } from "nanoid";
 import { sdk } from "../_core/sdk";
@@ -401,6 +402,7 @@ export const portalRouters = {
         scheduledAt: lessons.scheduledAt,
         duration: lessons.duration,
         status: lessons.status,
+        studentConfirmation: lessons.studentConfirmation,
         lessonType: lessons.lessonType,
         notes: lessons.notes,
         rating: lessons.rating,
@@ -1283,8 +1285,9 @@ export const portalRouters = {
         }
 
         // Update the lesson date
+        // PRD_NOTIFICACAO_ALUNO (RN-005): remarcação reseta a confirmação de presença
         await db.update(lessons)
-          .set({ scheduledAt: newDateObj, status: "agendada" })
+          .set({ scheduledAt: newDateObj, status: "agendada", studentConfirmation: "pendente", studentConfirmedAt: null })
           .where(eq(lessons.id, input.lessonId));
 
         const formatter = new Intl.DateTimeFormat('pt-BR', {
@@ -1348,6 +1351,104 @@ export const portalRouters = {
 
         return { success: true, message: "Aula reagendada com sucesso!" };
       }),
+
+    /**
+     * PRD_NOTIFICACAO_ALUNO (RF-002): aluno confirma presença ("confirmado")
+     * ou avisa que não irá ("nao_vai"). RN-001: apenas aula agendada do próprio
+     * aluno. RN-002: idempotente (mesma resposta não re-notifica).
+     * RN-003: NÃO muda o status da aula — cabe ao professor marcar falta/remarcar.
+     */
+    confirmAttendance: studentProcedure
+      .input(z.object({
+        lessonId: z.number(),
+        status: z.enum(["confirmado", "nao_vai"]),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        const orgId = ctx.user.organizationId!;
+
+        let studentId = ctx.user.studentId;
+        if (!studentId) {
+          const [found] = await db.select({ id: students.id }).from(students).where(eq(students.studentUserId, ctx.user.id)).limit(1);
+          if (found) studentId = found.id;
+        }
+        if (!studentId) throw new Error("Acesso não autorizado");
+
+        const [lesson] = await db.select({
+          id: lessons.id,
+          title: lessons.title,
+          userId: lessons.userId,
+          status: lessons.status,
+          studentConfirmation: lessons.studentConfirmation,
+          studentName: students.name,
+        }).from(lessons)
+          .leftJoin(students, eq(lessons.studentId, students.id))
+          .where(and(eq(lessons.id, input.lessonId), eq(lessons.studentId, studentId), eq(lessons.organizationId, orgId)))
+          .limit(1);
+        if (!lesson) throw new TRPCError({ code: "NOT_FOUND", message: "Aula não encontrada ou não pertence a você." });
+        if (lesson.status !== 'agendada') {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Esta aula não está mais agendada. Atualize a página." });
+        }
+
+        // RN-002: idempotente — mesma resposta não cria notificação duplicada
+        const unchanged = lesson.studentConfirmation === input.status;
+
+        await db.update(lessons).set({
+          studentConfirmation: input.status,
+          studentConfirmedAt: new Date(),
+          updatedAt: new Date(),
+        }).where(eq(lessons.id, input.lessonId));
+
+        if (!unchanged) {
+          const teacherUserId = lesson.userId;
+          const title = input.status === 'confirmado' ? "✅ Presença Confirmada" : "⚠️ Aluno não irá à aula";
+          const message = buildTeacherNotificationMessage(lesson.studentName || "Aluno", lesson.title, input.status === 'confirmado');
+          await db.insert(notifications).values({
+            organizationId: orgId,
+            userId: teacherUserId,
+            title,
+            message,
+            type: input.status === 'confirmado' ? "success" : "warning",
+            actionUrl: "/aulas",
+          });
+          notifyUser(teacherUserId, { title, content: message, url: "/aulas" }).catch(e => console.error("Falha no push de confirmação:", e));
+        }
+
+        return { success: true, studentConfirmation: input.status };
+      }),
+
+    /** PRD_NOTIFICACAO_ALUNO (RF-002): próxima aula agendada aguardando confirmação. */
+    myPendingConfirmation: studentProcedure.query(async ({ ctx }) => {
+      const db = await getDb();
+      if (!db) return null;
+      const orgId = ctx.user.organizationId!;
+
+      let studentId = ctx.user.studentId;
+      if (!studentId) {
+        const [found] = await db.select({ id: students.id }).from(students).where(eq(students.studentUserId, ctx.user.id)).limit(1);
+        if (found) studentId = found.id;
+      }
+      if (!studentId) return null;
+
+      const [lesson] = await db.select({
+        id: lessons.id,
+        title: lessons.title,
+        scheduledAt: lessons.scheduledAt,
+        duration: lessons.duration,
+      }).from(lessons)
+        .where(and(
+          eq(lessons.studentId, studentId),
+          eq(lessons.organizationId, orgId),
+          eq(lessons.status, 'agendada'),
+          eq(lessons.studentConfirmation, 'pendente'),
+          sql`${lessons.scheduledAt} > NOW()`,
+        ))
+        .orderBy(asc(lessons.scheduledAt))
+        .limit(1);
+
+      return lesson ?? null;
+    }),
     verifyAndConfirmPayment: studentProcedure
       .input(z.object({
         paymentDueId: z.number(),

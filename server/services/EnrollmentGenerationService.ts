@@ -9,7 +9,7 @@ import { lessons, paymentDues } from "../../drizzle/schema";
 function pad(n: number): string { return String(n).padStart(2, "0"); }
 
 /** Próxima ocorrência (a partir de amanhã) de um dia da semana, no fuso BRT. */
-function nextOccurrence(weekday: number): Date {
+export function nextOccurrence(weekday: number): Date {
   const brt = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
   brt.setHours(0, 0, 0, 0);
   let diff = (weekday - brt.getDay() + 7) % 7;
@@ -20,6 +20,16 @@ function nextOccurrence(weekday: number): Date {
 
 function toDateStr(d: Date): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+/**
+ * PRD_MATRICULA_MULTIUSO (RF-002): data/hora da 1ª aula recorrente (próxima
+ * ocorrência do weekday a partir de amanhã, no fuso BRT) — usada pelo
+ * submitEnrollment para revalidar o slot escolhido ANTES de criar o aluno.
+ */
+export function firstRecurringLessonDate(weekday: number, timeStr: string): Date {
+  const d = nextOccurrence(weekday);
+  return new Date(`${toDateStr(d)}T${timeStr}:00.000-03:00`);
 }
 
 export interface EnrollmentLessonInput {

@@ -556,6 +556,14 @@ export async function runAutoMigrations() {
             WHERE m2."organizationId" = mar."organizationId" AND m2."userId" = mar."userId" AND m2.trigger = 'contract_expiring'
           )
       ` },
+      // ── PRD_NOTIFICACAO_ALUNO: confirmação de presença + dedupe de notificações ──
+      { table: 'lessons', sql: `ALTER TABLE "lessons" ADD COLUMN IF NOT EXISTS "studentConfirmation" varchar(20) DEFAULT 'pendente' NOT NULL` },
+      { table: 'lessons', sql: `ALTER TABLE "lessons" ADD COLUMN IF NOT EXISTS "studentConfirmedAt" timestamp` },
+      { table: 'notifications', sql: `ALTER TABLE "notifications" ADD COLUMN IF NOT EXISTS "refId" varchar(200)` },
+      { table: 'notifications', sql: `CREATE INDEX IF NOT EXISTS "idx_notifications_user_ref" ON "notifications" ("userId", "refId")` },
+      // ── PRD_MATRICULA_MULTIUSO: link aceita N alunos (claim atômico) ──
+      { table: 'enrollment_links', sql: `ALTER TABLE "enrollment_links" ADD COLUMN IF NOT EXISTS "maxUses" integer DEFAULT 1 NOT NULL` },
+      { table: 'enrollment_links', sql: `ALTER TABLE "enrollment_links" ADD COLUMN IF NOT EXISTS "usesCount" integer DEFAULT 0 NOT NULL` },
     ];
 
     for (const m of migrations) {

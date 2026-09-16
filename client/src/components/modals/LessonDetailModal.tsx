@@ -154,6 +154,17 @@ export default function LessonDetailModal({
                     Experimental
                   </span>
                 )}
+                {/* PRD_NOTIFICACAO_ALUNO: confirmação de presença do aluno */}
+                {!isTurma && lesson.status === 'agendada' && lesson.studentConfirmation === 'confirmado' && (
+                  <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 inline-flex items-center gap-1">
+                    <Check size={9} /> Presença confirmada
+                  </span>
+                )}
+                {!isTurma && lesson.status === 'agendada' && lesson.studentConfirmation === 'nao_vai' && (
+                  <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md bg-rose-500/10 text-rose-600 border border-rose-500/20 inline-flex items-center gap-1">
+                    <X size={9} /> Não irá
+                  </span>
+                )}
               </div>
               <p className="text-xs font-bold text-muted-foreground mt-0.5">
                 {isTurma ? `Turma (${turmaDetails.length || (lesson.studentCount || 1)} Alunos)` : (lesson.studentName || lesson.experimentalName || "Aluno")}

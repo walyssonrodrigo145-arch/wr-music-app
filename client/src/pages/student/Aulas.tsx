@@ -24,6 +24,7 @@ import { ExtraLessonModal } from "@/components/student/ExtraLessonModal";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLocation } from "wouter";
 import { EarlySlotBanner } from "@/components/student/EarlySlotBanner";
+import { AttendanceConfirmCard } from "@/components/student/AttendanceConfirmCard";
 
 const container = {
   hidden: { opacity: 0 },
@@ -132,7 +133,20 @@ export default function StudentLessons() {
 
             {/* Action Column */}
             <div className="flex flex-row md:flex-col items-center justify-between md:justify-center gap-4 border-t border-border/10 md:border-none pt-6 md:pt-0">
-              <StatusBadge status={lesson.status} />
+              <div className="flex flex-col items-center md:items-end gap-1.5">
+                <StatusBadge status={lesson.status} />
+                {/* PRD_NOTIFICACAO_ALUNO: chip da confirmação de presença */}
+                {lesson.status === 'agendada' && (lesson as any).studentConfirmation === 'confirmado' && (
+                  <span className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 flex items-center gap-1">
+                    <CheckCircle2 size={9} /> Presença confirmada
+                  </span>
+                )}
+                {lesson.status === 'agendada' && (lesson as any).studentConfirmation === 'nao_vai' && (
+                  <span className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full bg-rose-100 text-rose-700 flex items-center gap-1">
+                    <AlertCircle size={9} /> Não irá
+                  </span>
+                )}
+              </div>
               <div className="flex items-center gap-2">
                  {lesson.status === 'agendada' && (
                    <button 
@@ -163,6 +177,9 @@ export default function StudentLessons() {
     <div className="space-y-10 pb-10 max-w-[1200px] mx-auto">
       {/* Banner de Antecipação Inteligente de Horário por Falta */}
       <EarlySlotBanner />
+
+      {/* PRD_NOTIFICACAO_ALUNO: card de confirmação de presença (deep-link ?confirmar=) */}
+      <AttendanceConfirmCard />
 
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 p-8 md:p-10 rounded-[2.5rem] bg-card text-card-foreground shadow-sm border border-border relative overflow-hidden">
         <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-primary/5 rounded-full blur-[80px] -translate-y-1/2 translate-x-1/3 pointer-events-none" />

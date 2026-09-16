@@ -621,6 +621,10 @@ export const comunicacaoRouters = {
           whatsappBotUrl: settings.whatsappBotUrl,
           whatsappBotToken: settings.whatsappBotToken,
           logoUrl: settings.logoUrl,
+          // PRD_NOTIFICACAO_ALUNO: link de confirmação + notificação no painel
+          type: reminders.type,
+          lessonId: reminders.lessonId,
+          studentUserId: students.studentUserId,
         })
         .from(reminders)
         .leftJoin(students, and(eq(reminders.studentId, students.id), eq(students.organizationId, orgId)))
@@ -652,11 +656,23 @@ export const comunicacaoRouters = {
           ? String(rem.logoUrl).trim()
           : null;
 
+        // PRD_NOTIFICACAO_ALUNO: lembrete de aula ganha link de confirmação de presença
+        let msgToSend = rem.message;
+        const isLessonReminder = rem.type === "aula" && !!rem.lessonId;
+        if (isLessonReminder && rem.studentUserId) {
+          try {
+            const { appendConfirmationLink } = await import("../services/attendanceConfirmation");
+            msgToSend = appendConfirmationLink(msgToSend, rem.lessonId!);
+          } catch (e) {
+            console.error("[Reminders] Falha ao anexar link de confirmação (não impeditivo):", e);
+          }
+        }
+
         const sendRes = await sendWhatsAppMessage({
           url: botUrl,
           token: botToken,
           phone: targetPhone,
-          message: rem.message,
+          message: msgToSend,
           mediaUrl: schoolLogo,
           sessionId: `prof_${ctx.user.id}`,
         });
@@ -670,6 +686,20 @@ export const comunicacaoRouters = {
             title: "Mensagem Enviada",
             content: `Mensagem enviada com sucesso para ${rem.studentName || "Aluno"} (${targetPhone}).`,
           });
+
+          // ── PRD_NOTIFICACAO_ALUNO: pedido de confirmação no painel do aluno ──
+          if (isLessonReminder) {
+            try {
+              const { requestAttendanceConfirmation } = await import("../services/attendanceConfirmation");
+              await requestAttendanceConfirmation({
+                organizationId: orgId,
+                lessonId: rem.lessonId!,
+                studentUserId: rem.studentUserId,
+              });
+            } catch (e) {
+              console.error("[Comunicacao] Falha ao pedir confirmação de presença (não impeditivo):", e);
+            }
+          }
 
           return { success: true, messageId: sendRes.messageId };
         } else {

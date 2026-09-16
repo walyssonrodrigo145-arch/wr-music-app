@@ -93,6 +93,8 @@ export default function PublicEnrollment() {
   const [checkoutProvider, setCheckoutProvider] = useState<"mercadopago" | "infinitepay">("mercadopago");
   // Slug do checkout InfinitePay (usado na verificação via payment_check)
   const [checkoutSlug, setCheckoutSlug] = useState<string | null>(null);
+  // PRD_MATRICULA_MULTIUSO: referência única da cobrança DESTE aluno
+  const [paymentRef, setPaymentRef] = useState<string | null>(null);
 
   // Verifica pagamento MP via API do backend (não confia apenas na URL)
   const verifyMPMutation = trpc.enrollment.verifyMPPayment.useQuery(
@@ -119,6 +121,7 @@ export default function PublicEnrollment() {
         if (Array.isArray(parsed.courses)) setCourses(parsed.courses);
         if (parsed.dueDay) setDueDay(parsed.dueDay);
         if (parsed.form) setForm(prev => ({ ...prev, ...parsed.form }));
+        if (parsed.paymentRef) setPaymentRef(parsed.paymentRef);
         localStorage.removeItem(`mp_enrollment_${window.location.pathname}`);
       }
     } catch (_) {}
@@ -196,6 +199,10 @@ export default function PublicEnrollment() {
   // ─── Mutations ───────────────────────────────────────────────────────────────
   const createChargeMutation = trpc.enrollment.createPaymentCharge.useMutation({
     onSuccess: (data) => {
+      // PRD_MATRICULA_MULTIUSO: guarda a referência única desta cobrança
+      const chargeRef = (data as any).paymentRef || null;
+      setPaymentRef(chargeRef);
+
       if (data.skipPayment) {
         // Sem gateway: vai direto para seleção de horário
         setStep("schedule");
@@ -206,6 +213,7 @@ export default function PublicEnrollment() {
             courses,
             dueDay,
             form,
+            paymentRef: chargeRef,
           }));
         } catch (_) {}
         // InfinitePay: abre em nova aba e mostra tela de aguardo com botão de verificação
@@ -221,6 +229,7 @@ export default function PublicEnrollment() {
             courses,
             dueDay,
             form,
+            paymentRef: chargeRef,
           }));
         } catch (_) {}
         // Mercado Pago: abre em nova aba e mostra tela de aguardo com botão de verificação
@@ -261,7 +270,7 @@ export default function PublicEnrollment() {
       if (checkoutProvider === "infinitepay") {
         // InfinitePay: revalidação server-to-server (payment_check) no backend
         const res = await fetch(
-          `/api/trpc/enrollment.verifyInfinitePayPayment?batch=1&input=${encodeURIComponent(JSON.stringify({ "0": { json: { code, slug: checkoutSlug ?? undefined } } }))}`
+          `/api/trpc/enrollment.verifyInfinitePayPayment?batch=1&input=${encodeURIComponent(JSON.stringify({ "0": { json: { code, slug: checkoutSlug ?? undefined, paymentRef: paymentRef ?? undefined } } }))}`
         );
         const resJson: any = await res.json();
         const result = resJson?.[0]?.result?.data?.json;
@@ -277,9 +286,9 @@ export default function PublicEnrollment() {
         return;
       }
 
-      // Tenta buscar o payment_id mais recente via API do backend (external_reference = enrollment_${code})
+      // Tenta buscar o payment_id mais recente via API do backend (external_reference)
       const res = await fetch(
-        `/api/trpc/enrollment.verifyMPByReference?batch=1&input=${encodeURIComponent(JSON.stringify({ "0": { json: { code } } }))}`
+        `/api/trpc/enrollment.verifyMPByReference?batch=1&input=${encodeURIComponent(JSON.stringify({ "0": { json: { code, paymentRef: paymentRef ?? undefined } } }))}`
       );
       const resJson: any = await res.json();
       const result = resJson?.[0]?.result?.data?.json;
@@ -973,6 +982,7 @@ export default function PublicEnrollment() {
                     })),
                     asaasChargeId: paymentData?.chargeId,
                     infinitepaySlug: checkoutSlug || undefined,
+                    paymentRef: paymentRef || undefined,
                   });
                 }}
                 className="w-full h-12 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-bold text-sm shadow-lg shadow-emerald-500/20 disabled:opacity-40 sticky bottom-2 z-10"
@@ -1035,6 +1045,16 @@ export default function PublicEnrollment() {
                           <span className="text-muted-foreground">Horário</span>
                           <span className="font-bold text-foreground">{weekdayLabel} às {c.timeStr}</span>
                         </div>
+                        {/* RF-004: nº real de aulas geradas para o curso */}
+                        {confirmMutation.data?.lessonsByCourse && (() => {
+                          const created = confirmMutation.data.lessonsByCourse?.find((lc: any) => lc.instrumentId === c.instrumentId)?.created ?? null;
+                          return created != null ? (
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Aulas criadas</span>
+                              <span className="font-bold text-foreground">{created}</span>
+                            </div>
+                          ) : null;
+                        })()}
                       </div>
                     );
                   })}
