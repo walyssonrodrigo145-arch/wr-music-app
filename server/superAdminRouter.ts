@@ -213,26 +213,41 @@ export const superAdminRouter = router({
 
   /**
    * PRD_RELATORIO_CLIENTES_ATIVOS: relatório de "clientes ativos de fato" —
-   * escolas com a mensalidade da plataforma PAGA no mês consultado.
-   * Fonte da verdade: Asaas (conta da plataforma, env ASAAS_API_KEY) — status
-   * real de cada cobrança da assinatura da escola. Orgs sem assinatura são
-   * classificadas por subscriptionStatus (trial/cancelada/sem cobrança).
+   * escolas com a mensalidade da plataforma PAGA no período consultado.
+   * Janela: N meses (1/2/3/6/12) terminando no mês âncora (month/year) —
+   * a mesma lista de pagamentos do Asaas é classificada para CADA mês da
+   * janela, gerando a série de evolução sem chamadas extras por mês.
+   * Fonte da verdade: Asaas (conta da plataforma, env ASAAS_API_KEY).
    * RN-001: "paga" = cobrança RECEIVED/CONFIRMED com vencimento no mês.
    * RN-002: chamadas Asaas por org com concorrência 5 e falha isolada
    * (status "erro") — nunca quebra o relatório inteiro.
+   * RN-003: prioridade do pagamento do mês — paga > atrasada > pendente.
    */
   getOrgBillingReport: isSuperAdmin
     .input(z.object({
       month: z.number().int().min(1).max(12).optional(),
       year: z.number().int().min(2020).max(2100).optional(),
+      // Janela de evolução: 1 = mês âncora apenas; N = N meses terminando no âncora
+      months: z.number().int().min(1).max(12).optional(),
     }).optional())
     .query(async ({ input }) => {
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
 
       const now = new Date();
-      const month = input?.month ?? now.getMonth() + 1;
-      const year = input?.year ?? now.getFullYear();
+      const anchorMonth = input?.month ?? now.getMonth() + 1;
+      const anchorYear = input?.year ?? now.getFullYear();
+      const windowMonths = Math.max(1, Math.min(12, input?.months ?? 1));
+
+      // Janela cronológica (mais antiga → âncora)
+      const range: { month: number; year: number; key: string }[] = [];
+      for (let back = windowMonths - 1; back >= 0; back--) {
+        const d = new Date(anchorYear, anchorMonth - 1 - back, 1);
+        const m = d.getMonth() + 1;
+        const y = d.getFullYear();
+        range.push({ month: m, year: y, key: `${y}-${String(m).padStart(2, "0")}` });
+      }
+      const anchorKey = range[range.length - 1].key;
 
       const PAID = new Set(["RECEIVED", "CONFIRMED", "RECEIVED_IN_CASH", "DETERMINED"]);
       const PENDING = new Set(["PENDING", "AWAITING_RISK_ANALYSIS"]);
@@ -285,18 +300,20 @@ export const superAdminRouter = router({
         else if (existing.role !== "admin" && u.role === "admin") ownerMap.set(u.organizationId, u);
       }
 
-      type OrgBilling = {
-        id: number; name: string; active: boolean;
-        planName: string; planPrice: number;
+      type MonthStatus = {
         status: "paga" | "pendente" | "atrasada" | "trial" | "cancelada" | "sem_cobranca" | "erro";
         value: number | null; dueDate: string | null; paymentDate: string | null;
+      };
+      type OrgBillingRow = {
+        id: number; name: string; active: boolean;
+        planName: string; planPrice: number;
         subscriptionStatus: string; trialEndsAt: Date | null; currentPeriodEnd: Date | null;
         activeStudents: number; ownerName: string | null; ownerEmail: string | null;
         lastSignedIn: any; hasSubscription: boolean; createdAt: Date;
+        months: Record<string, MonthStatus>;
       };
 
-      const rows: OrgBilling[] = [];
-      const buildRow = (org: any, billing: Omit<OrgBilling, "id" | "name" | "active" | "planName" | "planPrice" | "subscriptionStatus" | "trialEndsAt" | "currentPeriodEnd" | "activeStudents" | "ownerName" | "ownerEmail" | "lastSignedIn" | "hasSubscription" | "createdAt">): OrgBilling => {
+      const buildRow = (org: any, months: Record<string, MonthStatus>): OrgBillingRow => {
         const plan = planById.get(org.planId);
         const owner = ownerMap.get(org.id);
         return {
@@ -314,79 +331,111 @@ export const superAdminRouter = router({
           lastSignedIn: lastAccessMap.get(org.id) ?? null,
           hasSubscription: !!org.asaasSubscriptionId,
           createdAt: org.createdAt,
-          ...billing,
+          months,
         };
       };
 
-      // 5. Orgs COM assinatura: consulta o Asaas (concorrência 5, falha isolada)
+      // Classificação de UM mês a partir dos pagamentos do Asaas (RN-003)
+      const classifyMonth = (payments: any[], m: number, y: number): MonthStatus => {
+        const monthPayments = payments.filter((p) => {
+          const due = String(p.dueDate || "").slice(0, 10);
+          const d = new Date(`${due}T12:00:00`);
+          return !isNaN(d.getTime()) && d.getMonth() + 1 === m && d.getFullYear() === y;
+        });
+        const received = monthPayments.find((p) => PAID.has(String(p.status || "").toUpperCase()));
+        const overdue = monthPayments.find((p) => OVERDUE.has(String(p.status || "").toUpperCase()));
+        const pending = monthPayments.find((p) => PENDING.has(String(p.status || "").toUpperCase()));
+        const chosen = received || overdue || pending;
+        let status: MonthStatus["status"] = "sem_cobranca";
+        if (received) status = "paga";
+        else if (overdue) status = "atrasada";
+        else if (pending) status = "pendente";
+        return {
+          status,
+          value: chosen ? Number(chosen.value) : null,
+          dueDate: chosen ? String(chosen.dueDate || "").slice(0, 10) : null,
+          paymentDate: chosen && (chosen as any).paymentDate ? String((chosen as any).paymentDate) : null,
+        };
+      };
+
+      // 5. Orgs COM assinatura: UMA consulta por org cobre TODOS os meses da janela
       const { getAsaasSubscriptionPayments } = await import("./utils/asaas");
       const withSub = orgsList.filter(o => o.asaasSubscriptionId);
+      const rows: OrgBillingRow[] = [];
       const CONCURRENCY = 5;
       for (let i = 0; i < withSub.length; i += CONCURRENCY) {
         const chunk = withSub.slice(i, i + CONCURRENCY);
         await Promise.all(chunk.map(async (org: any) => {
-          let status: OrgBilling["status"] = "sem_cobranca";
-          let value: number | null = null;
-          let dueDate: string | null = null;
-          let paymentDate: string | null = null;
+          const months: Record<string, MonthStatus> = {};
           try {
-            const payments = await getAsaasSubscriptionPayments(org.asaasSubscriptionId);
-            const monthPayments = (payments as any[]).filter((p) => {
-              const due = String(p.dueDate || "").slice(0, 10);
-              const d = new Date(`${due}T12:00:00`);
-              return !isNaN(d.getTime()) && d.getMonth() + 1 === month && d.getFullYear() === year;
-            });
-            // RN-003: prioridade do pagamento do mês — paga > atrasada > pendente
-            const received = monthPayments.find((p) => PAID.has(String(p.status || "").toUpperCase()));
-            const overdue = monthPayments.find((p) => OVERDUE.has(String(p.status || "").toUpperCase()));
-            const pending = monthPayments.find((p) => PENDING.has(String(p.status || "").toUpperCase()));
-            const chosen = received || overdue || pending;
-            if (received) { status = "paga"; }
-            else if (overdue) { status = "atrasada"; }
-            else if (pending) { status = "pendente"; }
-            if (chosen) {
-              value = Number(chosen.value);
-              dueDate = String(chosen.dueDate || "").slice(0, 10);
-              paymentDate = (chosen as any).paymentDate ? String((chosen as any).paymentDate) : null;
+            const payments = (await getAsaasSubscriptionPayments(org.asaasSubscriptionId)) as any[];
+            for (const r of range) {
+              months[r.key] = classifyMonth(payments, r.month, r.year);
             }
           } catch (e) {
             console.warn(`[OrgBilling] Falha ao consultar Asaas da org ${org.id}:`, e);
-            status = "erro";
+            for (const r of range) months[r.key] = { status: "erro", value: null, dueDate: null, paymentDate: null };
           }
-          rows.push(buildRow(org, { status, value, dueDate, paymentDate }));
+          rows.push(buildRow(org, months));
         }));
       }
 
-      // 6. Orgs SEM assinatura: classificadas pelo subscriptionStatus local
+      // 6. Orgs SEM assinatura: status constante (local) em todos os meses da janela
       for (const org of orgsList.filter(o => !o.asaasSubscriptionId)) {
         const st = String(org.subscriptionStatus || "trialing");
-        let status: OrgBilling["status"] = "sem_cobranca";
+        let status: MonthStatus["status"] = "sem_cobranca";
         if (st === "trialing") status = "trial";
         else if (st === "canceled") status = "cancelada";
         else if (st === "active" || st === "past_due") status = "sem_cobranca";
-        rows.push(buildRow(org, { status, value: null, dueDate: null, paymentDate: null }));
+        const months: Record<string, MonthStatus> = {};
+        for (const r of range) months[r.key] = { status, value: null, dueDate: null, paymentDate: null };
+        rows.push(buildRow(org, months));
       }
 
-      // 7. KPIs — "clientes ativos de fato" = mensalidade PAGA no mês
+      // 7. KPIs do mês âncora — "clientes ativos de fato" = mensalidade PAGA no mês
+      const anchorStatus = (r: OrgBillingRow) => r.months[anchorKey]?.status ?? "sem_cobranca";
       const kpis = {
-        pagas: rows.filter(r => r.status === "paga").length,
-        pendentes: rows.filter(r => r.status === "pendente").length,
-        atrasadas: rows.filter(r => r.status === "atrasada").length,
-        trial: rows.filter(r => r.status === "trial").length,
-        canceladas: rows.filter(r => r.status === "cancelada").length,
-        semCobranca: rows.filter(r => r.status === "sem_cobranca").length,
-        erro: rows.filter(r => r.status === "erro").length,
+        pagas: rows.filter(r => anchorStatus(r) === "paga").length,
+        pendentes: rows.filter(r => anchorStatus(r) === "pendente").length,
+        atrasadas: rows.filter(r => anchorStatus(r) === "atrasada").length,
+        trial: rows.filter(r => anchorStatus(r) === "trial").length,
+        canceladas: rows.filter(r => anchorStatus(r) === "cancelada").length,
+        semCobranca: rows.filter(r => anchorStatus(r) === "sem_cobranca").length,
+        erro: rows.filter(r => anchorStatus(r) === "erro").length,
         total: rows.length,
-        receitaRecebida: rows.filter(r => r.status === "paga").reduce((s, r) => s + (r.value ?? 0), 0),
-        receitaPendente: rows.filter(r => r.status === "pendente").reduce((s, r) => s + (r.value ?? 0), 0),
-        receitaAtrasada: rows.filter(r => r.status === "atrasada").reduce((s, r) => s + (r.value ?? 0), 0),
+        receitaRecebida: rows.reduce((s, r) => s + (r.months[anchorKey]?.status === "paga" ? (r.months[anchorKey].value ?? 0) : 0), 0),
+        receitaPendente: rows.reduce((s, r) => s + (r.months[anchorKey]?.status === "pendente" ? (r.months[anchorKey].value ?? 0) : 0), 0),
+        receitaAtrasada: rows.reduce((s, r) => s + (r.months[anchorKey]?.status === "atrasada" ? (r.months[anchorKey].value ?? 0) : 0), 0),
       };
 
-      // 8. Ordenação: atrasadas → pendentes → pagas → trial → demais; depois nome
-      const order: Record<string, number> = { atrasada: 0, pendente: 1, paga: 2, trial: 3, sem_cobranca: 4, cancelada: 5, erro: 6 };
-      rows.sort((a, b) => (order[a.status] ?? 9) - (order[b.status] ?? 9) || a.name.localeCompare(b.name, "pt-BR"));
+      // 8. Série de evolução por mês da janela (a visão de crescimento pedida)
+      const evolution = range.map((r) => {
+        const st = (row: OrgBillingRow) => row.months[r.key]?.status ?? "sem_cobranca";
+        const val = (row: OrgBillingRow, s: MonthStatus["status"]) => (st(row) === s ? (row.months[r.key].value ?? 0) : 0);
+        return {
+          month: r.month,
+          year: r.year,
+          key: r.key,
+          pagas: rows.filter(row => st(row) === "paga").length,
+          pendentes: rows.filter(row => st(row) === "pendente").length,
+          atrasadas: rows.filter(row => st(row) === "atrasada").length,
+          semCobranca: rows.filter(row => st(row) === "sem_cobranca").length,
+          trial: rows.filter(row => st(row) === "trial").length,
+          canceladas: rows.filter(row => st(row) === "cancelada").length,
+          receitaRecebida: rows.reduce((s, row) => s + val(row, "paga"), 0),
+          receitaPendente: rows.reduce((s, row) => s + val(row, "pendente"), 0),
+          receitaAtrasada: rows.reduce((s, row) => s + val(row, "atrasada"), 0),
+        };
+      });
 
-      return { month, year, kpis, orgs: rows };
+      // 9. Ordenação: mais pagamentos em atraso primeiro; depois nome
+      const unpaidCount = (r: OrgBillingRow) => range.filter(k => {
+        const s = r.months[k.key]?.status;
+        return s === "atrasada" || s === "pendente" || s === "erro";
+      }).length;
+      rows.sort((a, b) => unpaidCount(b) - unpaidCount(a) || a.name.localeCompare(b.name, "pt-BR"));
+
+      return { month: anchorMonth, year: anchorYear, months: windowMonths, range, kpis, evolution, orgs: rows };
     }),
 
   // ─── Exclusão de organização: com transação e Drizzle tipado ─────────────
@@ -605,6 +654,12 @@ export const superAdminRouter = router({
       orgId: z.number().int().positive(),
       // Valores válidos que correspondem aos usados no sistema
       subscriptionStatus: z.enum(['active', 'trialing', 'pending', 'past_due', 'canceled', 'inactive', 'suspended']),
+      // PRD_TRIAL_PERIOD: período de teste GRÁTIS quando o status é 'trialing'.
+      // O fim do trial é calculado server-side (trialEndsAt = agora + período).
+      trialPeriod: z.object({
+        unit: z.enum(["dias", "meses"]),
+        amount: z.number().int().min(1).max(365),
+      }).optional(),
     }))
     .mutation(async ({ input }) => {
       const db = await getDb();
@@ -620,12 +675,32 @@ export const superAdminRouter = router({
         throw new TRPCError({ code: "NOT_FOUND", message: "Organização não encontrada." });
       }
 
+      const updates: any = {
+        subscriptionStatus: input.subscriptionStatus,
+        updatedAt: new Date(),
+      };
+
+      // Trial com período definido: grava o fim do teste gratuito
+      // (trialEndsAt é o campo que o restante do sistema usa p/ liberar/bloquear)
+      if (input.subscriptionStatus === "trialing" && input.trialPeriod) {
+        const end = new Date();
+        if (input.trialPeriod.unit === "dias") {
+          end.setDate(end.getDate() + input.trialPeriod.amount);
+        } else {
+          end.setMonth(end.getMonth() + input.trialPeriod.amount);
+        }
+        updates.trialEndsAt = end;
+        // Saída de trial não pode manter cobrança assinada ativa
+        updates.asaasSubscriptionId = null;
+        updates.currentPeriodEnd = null;
+      }
+
       await db.update(organizations)
-        .set({ subscriptionStatus: input.subscriptionStatus, updatedAt: new Date() })
+        .set(updates)
         .where(eq(organizations.id, input.orgId));
 
-      debugLog(`[SuperAdmin] Status da org #${input.orgId} alterado para "${input.subscriptionStatus}".`);
-      return { success: true };
+      debugLog(`[SuperAdmin] Status da org #${input.orgId} alterado para "${input.subscriptionStatus}"${updates.trialEndsAt ? ` (trial até ${updates.trialEndsAt.toISOString().slice(0, 10)})` : ""}.`);
+      return { success: true, trialEndsAt: updates.trialEndsAt ?? null };
     }),
 
   // ─── Ação de suporte: redefinir senha do usuário administrador da escola ─────

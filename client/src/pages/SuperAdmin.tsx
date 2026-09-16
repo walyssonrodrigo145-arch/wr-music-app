@@ -61,12 +61,19 @@ function SuperAdminPanel() {
   const utils = trpc.useUtils();
   const [activeTab, setActiveTab] = useState<"dashboard" | "receita" | "escolas" | "usuarios" | "plans" | "coupons" | "clientes" | "slides" | "tutoriais" | "chamados">("dashboard");
 
-  // ── PRD_RELATORIO_CLIENTES_ATIVOS: mês/ano do relatório de receita ─────────
+  // ── PRD_RELATORIO_CLIENTES_ATIVOS: janela de evolução + filtros ─────────────
   const nowDate = new Date();
   const [billingMonth, setBillingMonth] = useState(nowDate.getMonth() + 1);
   const [billingYear, setBillingYear] = useState(nowDate.getFullYear());
+  const [billingWindow, setBillingWindow] = useState<number>(1);
   const [billingStatusFilter, setBillingStatusFilter] = useState<"all" | "paga" | "pendente" | "atrasada" | "trial" | "cancelada" | "sem_cobranca" | "erro">("all");
   const [billingSearch, setBillingSearch] = useState("");
+  const MONTHS_PT_BR = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+
+  // ── PRD_TRIAL_PERIOD: seleção do período de teste gratuito no modal da escola ──
+  const [trialPeriodOpen, setTrialPeriodOpen] = useState(false);
+  const [trialUnit, setTrialUnit] = useState<"dias" | "meses">("dias");
+  const [trialAmount, setTrialAmount] = useState<number>(30);
 
   // Copiar telefone da escola (navegador moderno + fallback antigo)
   const copyPhone = async (phone: string) => {
@@ -128,10 +135,10 @@ function SuperAdminPanel() {
   const { data: orgs, isLoading: loadingOrgs, isError: errorOrgs, error: errorOrgsData, refetch: refetchOrgs } =
     trpc.superAdmin.getOrganizations.useQuery(undefined, { enabled: activeTab === "escolas" });
 
-  // PRD_RELATORIO_CLIENTES_ATIVOS: mensalidades do mês pagas por escola (Asaas)
+  // PRD_RELATORIO_CLIENTES_ATIVOS: janela de N meses (evolução) + status real no Asaas
   const { data: billing, isLoading: loadingBilling, isError: errorBilling, error: errorBillingData, refetch: refetchBilling } =
     trpc.superAdmin.getOrgBillingReport.useQuery(
-      { month: billingMonth, year: billingYear },
+      { month: billingMonth, year: billingYear, months: billingWindow },
       { enabled: activeTab === "receita" }
     );
 
@@ -184,12 +191,23 @@ function SuperAdminPanel() {
   });
 
   const updateOrgSub = trpc.superAdmin.updateOrgSubscription.useMutation({
-    onSuccess: (_data, variables) => {
-      toast.success("Status da escola atualizado!");
+    onSuccess: (data, variables) => {
+      const trialMsg = variables.subscriptionStatus === "trialing" && data?.trialEndsAt
+        ? ` · teste gratuito até ${new Date(data.trialEndsAt).toLocaleDateString("pt-BR")}`
+        : "";
+      toast.success(`Status da escola atualizado!${trialMsg}`);
       utils.superAdmin.getOrganizations.invalidate();
       utils.superAdmin.getDashboardStats.invalidate();
+      utils.superAdmin.getOrgBillingReport.invalidate();
       // FIX: Atualiza estado local para refletir imediatamente no modal
-      setSelectedSchool((prev: any) => prev ? { ...prev, subscriptionStatus: variables.subscriptionStatus } : prev);
+      setSelectedSchool((prev: any) => prev ? {
+        ...prev,
+        subscriptionStatus: variables.subscriptionStatus,
+        trialEndsAt: data?.trialEndsAt ?? prev.trialEndsAt,
+        asaasSubscriptionId: variables.subscriptionStatus === "trialing" ? null : prev.asaasSubscriptionId,
+      } : prev);
+      // Sai do modo de seleção de período após aplicar
+      setTrialPeriodOpen(false);
     },
     onError: (err) => toast.error(`Erro: ${err.message}`),
   });
@@ -356,8 +374,22 @@ function SuperAdminPanel() {
       {/* ── TAB: Clientes Ativos (Receita) ─────────────────────────────────── */}
       {activeTab === "receita" && (
         <div className="space-y-6">
-          {/* Seletor de período + refresh */}
+          {/* Seletor de janela (evolução) + mês âncora + refresh */}
           <div className="flex flex-wrap items-center gap-3">
+            <div className="flex gap-1.5 bg-muted p-1 rounded-xl">
+              {[1, 2, 3, 6, 12].map(n => (
+                <button
+                  key={n}
+                  onClick={() => setBillingWindow(n)}
+                  className={cn(
+                    "px-3 py-1.5 rounded-lg text-xs font-black transition-all",
+                    billingWindow === n ? "bg-primary text-white shadow-sm" : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {n === 1 ? "Mês" : `${n} meses`}
+                </button>
+              ))}
+            </div>
             <select
               value={billingMonth}
               onChange={(e) => setBillingMonth(Number(e.target.value))}
@@ -391,9 +423,67 @@ function SuperAdminPanel() {
             <ErrorState message={`Erro ao carregar relatório: ${errorBillingData?.message || "Desconhecido"}`} onRetry={refetchBilling} />
           )}
 
-          {billing && (
+          {billing && (() => {
+            const anchorKey = `${billing.year}-${String(billing.month).padStart(2, "0")}`;
+            const anchorOf = (o: any) => o.months?.[anchorKey] ?? { status: "sem_cobranca" as const };
+            const statusBadge = (s: string, size: "sm" | "xs" = "sm") => (
+              <span className={cn(
+                "inline-flex items-center gap-1 font-black uppercase rounded-lg border",
+                size === "sm" ? "text-[10px] px-2.5 py-1" : "text-[9px] px-1.5 py-0.5",
+                s === "paga" && "bg-emerald-500/10 text-emerald-600 border-emerald-500/30",
+                s === "pendente" && "bg-amber-500/10 text-amber-600 border-amber-500/30",
+                s === "atrasada" && "bg-rose-500/10 text-rose-600 border-rose-500/30",
+                s === "trial" && "bg-blue-500/10 text-blue-600 border-blue-500/30",
+                (s === "cancelada" || s === "sem_cobranca") && "bg-muted text-muted-foreground border-border",
+                s === "erro" && "bg-rose-500/10 text-rose-500 border-rose-500/40",
+              )}>
+                {s === "paga" && <CheckCircle2 size={10} />}
+                {s === "pendente" && <Clock size={10} />}
+                {s === "atrasada" && <AlertTriangle size={10} />}
+                {s === "erro" && <AlertTriangle size={10} />}
+                {s === "paga" ? "Paga" : s === "pendente" ? "Pendente" : s === "atrasada" ? "Atrasada" : s === "trial" ? "Trial" : s === "cancelada" ? "Cancelada" : s === "erro" ? "Erro" : "Sem cobrança"}
+              </span>
+            );
+            const filteredOrgs = billing.orgs
+              .filter((o: any) => billingStatusFilter === "all" || anchorOf(o).status === billingStatusFilter)
+              .filter((o: any) => {
+                const q = billingSearch.trim().toLowerCase();
+                if (!q) return true;
+                return o.name.toLowerCase().includes(q) || (o.ownerName || "").toLowerCase().includes(q) || (o.ownerEmail || "").toLowerCase().includes(q);
+              });
+            return (
             <>
-              {/* KPIs — "clientes ativos de fato" = mensalidade paga no mês */}
+              {/* Série de evolução (quando janela > 1 mês) */}
+              {billing.months > 1 && (
+                <div className="flex gap-3 overflow-x-auto pb-2">
+                  {billing.evolution.map((e: any) => {
+                    const isAnchor = e.key === anchorKey;
+                    return (
+                      <div key={e.key} className={cn(
+                        "rounded-2xl border p-4 min-w-[170px] shrink-0",
+                        isAnchor ? "bg-primary/5 border-primary/40" : "bg-card border-border",
+                      )}>
+                        <p className={cn("text-[10px] font-black uppercase tracking-widest mb-2", isAnchor ? "text-primary" : "text-muted-foreground")}>
+                          {MONTHS_PT_BR[e.month - 1]}/{String(e.year).slice(2)} {isAnchor ? "· atual" : ""}
+                        </p>
+                        <div className="flex items-baseline gap-1.5">
+                          <CheckCircle2 size={14} className="text-emerald-500" />
+                          <span className="text-2xl font-black text-foreground">{e.pagas}</span>
+                          <span className="text-[10px] font-bold text-muted-foreground">pagas</span>
+                        </div>
+                        <p className="text-xs font-black text-emerald-600 mt-1">{formatBRL(e.receitaRecebida)}</p>
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {e.pendentes > 0 && <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600">{e.pendentes} pend.</span>}
+                          {e.atrasadas > 0 && <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-600">{e.atrasadas} atras.</span>}
+                          {e.trial > 0 && <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-600">{e.trial} trial</span>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* KPIs — "clientes ativos de fato" = mensalidade paga no mês âncora */}
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                 <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-2xl p-5">
                   <CheckCircle2 size={22} className="text-emerald-500 mb-1" />
@@ -453,11 +543,11 @@ function SuperAdminPanel() {
                   {billing.kpis.erro > 0 && <option value="erro">Erro de consulta ({billing.kpis.erro})</option>}
                 </select>
                 <span className="text-xs text-muted-foreground font-medium ml-auto">
-                  {billing.orgs.length} escolas · {billing.month}/{billing.year}
+                  {billing.orgs.length} escolas · janela de {billing.months} {billing.months === 1 ? "mês" : "meses"} até {MONTHS_PT_BR[billing.month - 1]}/{billing.year}
                 </span>
               </div>
 
-              {/* Tabela */}
+              {/* Tabela: coluna por mês quando janela > 1 */}
               <div className="bg-card border border-border rounded-2xl overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm min-w-[900px]">
@@ -465,23 +555,17 @@ function SuperAdminPanel() {
                       <tr className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">
                         <th className="px-4 py-3">Escola</th>
                         <th className="px-4 py-3">Plano</th>
-                        <th className="px-4 py-3">Status do mês</th>
-                        <th className="px-4 py-3">Valor</th>
-                        <th className="px-4 py-3">Vencimento</th>
-                        <th className="px-4 py-3">Pago em</th>
+                        {[...billing.range].reverse().map((r: any) => (
+                          <th key={r.key} className="px-3 py-3 text-center">
+                            {MONTHS_PT_BR[r.month - 1]}/{String(r.year).slice(2)}
+                          </th>
+                        ))}
                         <th className="px-4 py-3 text-center">Alunos</th>
                         <th className="px-4 py-3">Último acesso</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border">
-                      {billing.orgs
-                        .filter((o: any) => billingStatusFilter === "all" || o.status === billingStatusFilter)
-                        .filter((o: any) => {
-                          const q = billingSearch.trim().toLowerCase();
-                          if (!q) return true;
-                          return o.name.toLowerCase().includes(q) || (o.ownerName || "").toLowerCase().includes(q) || (o.ownerEmail || "").toLowerCase().includes(q);
-                        })
-                        .map((o: any) => (
+                      {filteredOrgs.map((o: any) => (
                         <tr key={o.id} className="hover:bg-muted/20 transition-colors">
                           <td className="px-4 py-3">
                             <p className="font-bold text-foreground">{o.name}</p>
@@ -491,28 +575,17 @@ function SuperAdminPanel() {
                             {o.planName}
                             <span className="block text-[10px] opacity-70">Tabela: {formatBRL(o.planPrice)}/mês</span>
                           </td>
-                          <td className="px-4 py-3">
-                            <span className={cn(
-                              "inline-flex items-center gap-1 text-[10px] font-black uppercase px-2.5 py-1 rounded-lg border",
-                              o.status === "paga" && "bg-emerald-500/10 text-emerald-600 border-emerald-500/30",
-                              o.status === "pendente" && "bg-amber-500/10 text-amber-600 border-amber-500/30",
-                              o.status === "atrasada" && "bg-rose-500/10 text-rose-600 border-rose-500/30",
-                              o.status === "trial" && "bg-blue-500/10 text-blue-600 border-blue-500/30",
-                              (o.status === "cancelada" || o.status === "sem_cobranca") && "bg-muted text-muted-foreground border-border",
-                              o.status === "erro" && "bg-rose-500/10 text-rose-500 border-rose-500/40",
-                            )}>
-                              {o.status === "paga" && <CheckCircle2 size={10} />}
-                              {o.status === "pendente" && <Clock size={10} />}
-                              {o.status === "atrasada" && <AlertTriangle size={10} />}
-                              {o.status === "erro" && <AlertTriangle size={10} />}
-                              {o.status === "paga" ? "Paga" : o.status === "pendente" ? "Pendente" : o.status === "atrasada" ? "Atrasada" : o.status === "trial" ? "Trial" : o.status === "cancelada" ? "Cancelada" : o.status === "erro" ? "Erro na consulta" : "Sem cobrança"}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 font-black text-foreground">{o.value != null ? formatBRL(o.value) : "—"}</td>
-                          <td className="px-4 py-3 text-xs text-muted-foreground">{o.dueDate ? o.dueDate.split("-").reverse().join("/") : "—"}</td>
-                          <td className="px-4 py-3 text-xs text-emerald-600 font-bold">
-                            {o.paymentDate ? String(o.paymentDate).slice(0, 10).split("-").reverse().join("/") : "—"}
-                          </td>
+                          {[...billing.range].reverse().map((r: any) => {
+                            const m = o.months?.[r.key] ?? { status: "sem_cobranca", value: null };
+                            return (
+                              <td key={r.key} className="px-3 py-3 text-center">
+                                <div className="flex flex-col items-center gap-0.5" title={m.dueDate ? `Venc. ${m.dueDate.split("-").reverse().join("/")}${m.paymentDate ? ` · pago ${m.paymentDate.slice(0, 10).split("-").reverse().join("/")}` : ""}` : undefined}>
+                                  {statusBadge(m.status, "xs")}
+                                  {m.value != null && <span className="text-[9px] font-bold text-muted-foreground">{formatBRL(m.value)}</span>}
+                                </div>
+                              </td>
+                            );
+                          })}
                           <td className="px-4 py-3 text-center text-xs font-black text-foreground">{o.activeStudents}</td>
                           <td className="px-4 py-3 text-xs text-muted-foreground">
                             {o.lastSignedIn ? new Date(o.lastSignedIn).toLocaleDateString("pt-BR") : "nunca"}
@@ -522,12 +595,13 @@ function SuperAdminPanel() {
                     </tbody>
                   </table>
                 </div>
-                {billing.orgs.filter((o: any) => billingStatusFilter === "all" || o.status === billingStatusFilter).length === 0 && (
+                {filteredOrgs.length === 0 && (
                   <div className="py-10 text-center text-xs text-muted-foreground font-medium italic">Nenhuma escola para este filtro.</div>
                 )}
               </div>
             </>
-          )}
+            );
+          })()}
         </div>
       )}
 
@@ -676,14 +750,22 @@ function SuperAdminPanel() {
                   </div>
 
                   {/* Ação: Alterar Status */}
-                  <div className="border-t border-border pt-4">
+                  <div className="border-t border-border pt-4 space-y-3">
                     <p className="text-xs font-bold text-muted-foreground mb-2">ALTERAR STATUS DA ASSINATURA</p>
                     <div className="grid grid-cols-2 gap-2">
                       {(['active', 'trialing', 'pending', 'inactive', 'suspended'] as const).map(s => (
                         <button
                           key={s}
-                          disabled={updateOrgSub.isPending || selectedSchool.subscriptionStatus === s}
-                          onClick={() => updateOrgSub.mutate({ orgId: selectedSchool.id, subscriptionStatus: s })}
+                          disabled={updateOrgSub.isPending}
+                          onClick={() => {
+                            if (s === 'trialing' && selectedSchool.subscriptionStatus !== 'trialing') {
+                              // PRD_TRIAL_PERIOD: abre a escolha do período de teste gratuito
+                              setTrialPeriodOpen(true);
+                              return;
+                            }
+                            setTrialPeriodOpen(false);
+                            updateOrgSub.mutate({ orgId: selectedSchool.id, subscriptionStatus: s });
+                          }}
                           className={`px-3 py-2 rounded-lg text-xs font-bold border transition-colors
                             ${selectedSchool.subscriptionStatus === s
                               ? 'bg-primary text-white border-primary cursor-default'
@@ -693,6 +775,76 @@ function SuperAdminPanel() {
                         </button>
                       ))}
                     </div>
+
+                    {/* Trial atual (quando já estiver em trial) */}
+                    {selectedSchool.subscriptionStatus === 'trialing' && selectedSchool.trialEndsAt && (
+                      <p className="text-[10px] font-bold text-blue-600 bg-blue-500/10 border border-blue-500/20 rounded-lg px-3 py-2">
+                        🕒 Teste gratuito até <strong>{new Date(selectedSchool.trialEndsAt).toLocaleDateString("pt-BR")}</strong>
+                        {(() => {
+                          const days = Math.ceil((new Date(selectedSchool.trialEndsAt).getTime() - Date.now()) / 86400000);
+                          return days > 0 ? ` (${days} dia${days === 1 ? "" : "s"} restantes)` : " (expirado)";
+                        })()}
+                      </p>
+                    )}
+
+                    {/* PRD_TRIAL_PERIOD: painel do período de teste gratuito */}
+                    {trialPeriodOpen && (
+                      <div className="rounded-xl border border-blue-500/30 bg-blue-500/5 p-3 space-y-3 animate-in fade-in">
+                        <p className="text-[11px] font-black text-foreground uppercase tracking-wider">
+                          🎁 Definir período de teste gratuito
+                        </p>
+                        <div className="flex items-center gap-2">
+                          <select
+                            value={trialUnit}
+                            onChange={(e) => setTrialUnit(e.target.value as "dias" | "meses")}
+                            className="h-9 rounded-lg border border-border bg-card px-2 text-xs font-bold text-foreground"
+                          >
+                            <option value="dias">Dias</option>
+                            <option value="meses">Meses</option>
+                          </select>
+                          <select
+                            value={trialAmount}
+                            onChange={(e) => setTrialAmount(Number(e.target.value))}
+                            className="h-9 flex-1 rounded-lg border border-border bg-card px-2 text-xs font-bold text-foreground"
+                          >
+                            {trialUnit === "dias"
+                              ? [7, 14, 21, 30, 45, 60, 90].map(n => <option key={n} value={n}>{n} dias</option>)
+                              : [1, 2, 3, 6, 12].map(n => <option key={n} value={n}>{n} {n === 1 ? "mês" : "meses"}</option>)}
+                          </select>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            size="sm"
+                            disabled={updateOrgSub.isPending}
+                            onClick={() => updateOrgSub.mutate({
+                              orgId: selectedSchool.id,
+                              subscriptionStatus: "trialing",
+                              trialPeriod: { unit: trialUnit, amount: trialAmount },
+                            })}
+                            className="h-9 rounded-lg gap-1.5 text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white"
+                          >
+                            {updateOrgSub.isPending && <Loader2 size={12} className="animate-spin" />}
+                            Aplicar trial
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            disabled={updateOrgSub.isPending}
+                            onClick={() => setTrialPeriodOpen(false)}
+                            className="h-9 rounded-lg text-muted-foreground"
+                          >
+                            Cancelar
+                          </Button>
+                        </div>
+                        <p className="text-[10px] text-muted-foreground">
+                          A escola fica liberada como "Trial" até <strong>{(() => {
+                            const d = new Date();
+                            if (trialUnit === "dias") d.setDate(d.getDate() + trialAmount); else d.setMonth(d.getMonth() + trialAmount);
+                            return d.toLocaleDateString("pt-BR");
+                          })()}</strong> — sem cobrança no período.
+                        </p>
+                      </div>
+                    )}
                   </div>
 
                   {/* Zona de Perigo: Excluir */}

@@ -254,14 +254,16 @@ export function AppHeader({ onMobileMenuOpen, onToggleSidebar, sidebarCollapsed 
              <span className="absolute -top-1 -right-1 w-2 h-2 bg-primary rounded-full scale-0 group-hover:scale-100 transition-transform" />
            </button>
 
-           {/* Botão de Acesso Rápido para Configurações (Mobile & Desktop) */}
-           <button
-             className="w-8 h-8 sm:w-9 sm:h-9 lg:w-10 lg:h-10 rounded-xl text-muted-foreground hover:text-foreground hover:bg-card transition-all shadow-sm flex items-center justify-center active:scale-90 relative group"
-             onClick={() => navigate("/configuracoes")}
-             title="Configurações do Sistema"
-           >
-             <Settings size={20} className="text-indigo-400" />
-           </button>
+            {/* Botão de Acesso Rápido para Configurações (Mobile & Desktop) */}
+            {/* BUG FIX: aluno não tem /configuracoes (área admin) — o catch-all
+                do portal redirecionava de volta ao dashboard. Aluno → /aluno/perfil */}
+            <button
+              className="w-8 h-8 sm:w-9 sm:h-9 lg:w-10 lg:h-10 rounded-xl text-muted-foreground hover:text-foreground hover:bg-card transition-all shadow-sm flex items-center justify-center active:scale-90 relative group"
+              onClick={() => navigate(user?.role === 'aluno' ? "/aluno/perfil" : "/configuracoes")}
+              title={user?.role === 'aluno' ? "Meu Perfil e Configurações" : "Configurações do Sistema"}
+            >
+              <Settings size={20} className="text-indigo-400" />
+            </button>
 
            <DropdownMenu>
              <DropdownMenuTrigger asChild>

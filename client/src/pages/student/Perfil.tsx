@@ -25,6 +25,8 @@ import { ptBR } from "date-fns/locale";
 import { useState, useRef } from "react";
 import { toast } from "sonner";
 import { EditProfileModal } from "@/components/EditProfileModal";
+import { NotificationsSettingsCard } from "@/components/student/NotificationsSettingsCard";
+import { PwaInstallSection } from "@/components/settings/PwaInstallSection";
 import { motion } from "framer-motion";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -213,6 +215,12 @@ export default function StudentProfile() {
               </div>
             </CardContent>
           </Card>
+
+          {/* PRD_NOTIFICACAO_ALUNO: configuração de notificações + registro do token */}
+          <NotificationsSettingsCard />
+
+          {/* PRD_INSTALAR_APP: botão de instalação como PWA (tela de início) */}
+          <PwaInstallSection />
         </motion.div>
 
         {/* Detailed Info & Achievements Column */}

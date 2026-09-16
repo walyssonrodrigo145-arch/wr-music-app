@@ -26,6 +26,15 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: "2026.09.16.5",
+    date: "2026-09-16",
+    title: "Instale o MusicPro no seu celular",
+    summary: "O app agora pode ser instalado direto da tela de perfil — ícone na tela inicial, sem loja de aplicativos.",
+    items: [
+      { type: "novo", title: "Instalar o app", description: "No perfil do aluno (e nas configurações da escola) apareceu o botão 'Instalar o App': toque e o MusicPro fica instalado como aplicativo na tela inicial do celular, abrindo em tela cheia como um app de verdade. No iPhone/iPad aparecem os passos do Safari — necessário para receber notificações no iOS." },
+    ],
+  },
+  {
     version: "2026.09.16.4",
     date: "2026-09-16",
     title: "Novo relatório de Clientes Ativos no Super Admin",

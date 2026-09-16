@@ -54,7 +54,36 @@ export function PwaInstallSection() {
 
   if (isInstalled) return null;
 
-  const isFirefox = (typeof navigator !== 'undefined') && navigator.userAgent.toLowerCase().includes('firefox');
+  const ua = (typeof navigator !== "undefined") ? navigator.userAgent.toLowerCase() : "";
+  const isFirefox = ua.includes("firefox");
+  const isIos = /ipad|iphone|ipod/.test(ua) || (navigator.platform === "MacIntel" && (navigator as any).maxTouchPoints > 1);
+  const isIosStandalone = isIos && ((window as any).navigator?.standalone === true || window.matchMedia("(display-mode: standalone)").matches);
+
+  // iOS: o Safari NÃO dispara beforeinstallprompt — instrução manual (o app só
+  // recebe push instalado como PWA — ver firebaseConfig.isIosStandalone).
+  if (isIos && !isIosStandalone) {
+    return (
+      <div className="p-4 bg-indigo-500/10 rounded-xl border border-indigo-500/20 space-y-3">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-indigo-500/15 flex items-center justify-center text-indigo-600">
+            <Smartphone size={16} />
+          </div>
+          <div>
+            <p className="text-xs font-semibold text-foreground">Instalar no iPhone/iPad</p>
+            <p className="text-[10px] text-muted-foreground">Necessário para receber notificações no iOS.</p>
+          </div>
+        </div>
+        <div className="space-y-2 p-2 bg-indigo-500/5 rounded-lg border border-indigo-500/10">
+          <p className="text-[10px] text-foreground font-medium">Siga os passos no Safari:</p>
+          <ol className="text-[10px] text-muted-foreground space-y-1 list-decimal pl-4">
+            <li>Toque no botão <strong>Compartilhar</strong> ⬆️ (quadrado com seta).</li>
+            <li>Selecione <strong>"Adicionar à Tela de Início"</strong>.</li>
+            <li>Confirme <strong>"Adicionar"</strong> — o ícone do app aparecerá na tela inicial.</li>
+          </ol>
+        </div>
+      </div>
+    );
+  }
 
   if (isFirefox) {
     return (
@@ -94,7 +123,7 @@ export function PwaInstallSection() {
           </div>
         </div>
         <p className="text-[10px] text-muted-foreground leading-relaxed italic">
-          * Dica: Se o botão não aparecer, use a opção "Instalar Aplicativo" ou "Adicionar à tela inicial" no menu do seu navegador Chrome.
+          * Dica: se o botão não aparecer, use a opção "Instalar aplicativo" ou "Adicionar à tela inicial" no menu do seu navegador (Chrome/Edge).
         </p>
       </div>
     );
@@ -103,17 +132,17 @@ export function PwaInstallSection() {
   return (
     <div className="p-4 bg-indigo-500/10 rounded-xl border border-indigo-500/20 space-y-4">
       <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-indigo-500/100 flex items-center justify-center text-white shadow-lg shadow-indigo-500/30">
+        <div className="w-10 h-10 rounded-xl bg-indigo-500 flex items-center justify-center text-white shadow-lg shadow-indigo-500/30">
           <Download size={20} />
         </div>
         <div>
-          <p className="text-sm font-bold text-foreground">Instalar WR Music App</p>
+          <p className="text-sm font-bold text-foreground">Instalar o App</p>
           <p className="text-xs text-muted-foreground">Acesse como um aplicativo real na sua tela inicial.</p>
         </div>
       </div>
       <Button 
         onClick={handleInstall}
-        className="w-full h-10 rounded-xl bg-indigo-500/100 hover:bg-indigo-600 text-white font-bold shadow-md shadow-indigo-500/20 transition-all hover:scale-[1.02] active:scale-95"
+        className="w-full h-10 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white font-bold shadow-md shadow-indigo-500/20 transition-all hover:scale-[1.02] active:scale-95"
       >
         INSTALAR AGORA
       </Button>
