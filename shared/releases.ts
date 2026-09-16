@@ -26,6 +26,16 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: "2026.09.16.3",
+    date: "2026-09-16",
+    title: "Hotfix: horários do link funcionam em qualquer escola",
+    summary: "Escolas operadas apenas pela conta do administrador voltam a ter horários no link de matrícula.",
+    items: [
+      { type: "correcao", title: "Horários para escolas sem ficha de professor", description: "O passo de horários do link de matrícula parava de carregar em escolas que não possuem professores cadastrados (operadas só pelo admin). Agora o sistema resolve o professor automaticamente: ficha de professor → usuário professor → conta administrativa da escola." },
+      { type: "correcao", title: "Matrícula conclui e já agenda", description: "O mesmo critério é usado ao confirmar a matrícula — o horário escolhido é reservado exatamente para quem vai dar a aula, sem erro de 'professor não disponível'." },
+    ],
+  },
+  {
     version: "2026.09.16.2",
     date: "2026-09-16",
     title: "Matrícula multi-uso, recibo de mensalidade e horários corrigidos",

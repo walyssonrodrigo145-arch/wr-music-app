@@ -14,7 +14,7 @@ import { ENV } from "./_core/env";
 import { nanoid } from "nanoid";
 import { firstRecurringLessonDate } from "./services/EnrollmentGenerationService";
 import { parseSchoolHours, generateDaySlots, type SchoolDayConfig } from "./services/ScheduleAvailabilityService";
-import { pickSettingsForHours } from "./services/EnrollmentHoursService";
+import { pickSettingsForHours, resolveEnrollmentTeacher } from "./services/EnrollmentHoursService";
 
 export const enrollmentRouter = router({
   // 1. Gera um link de auto-matrícula exclusivo (Admin/CRM)
@@ -256,24 +256,9 @@ export const enrollmentRouter = router({
       const [inst] = await db.select().from(instruments).where(eq(instruments.id, input.instrumentId)).limit(1);
       if (!inst) throw new Error("Instrumento não encontrado");
 
-      // Busca professores da escola e tenta filtrar pelo instrumento
-      const allTeachers = await db
-        .select({
-          id: professores.id,
-          userId: professores.userId,
-          name: users.name,
-          especialidade: professores.especialidade,
-        })
-        .from(professores)
-        .leftJoin(users, eq(professores.userId, users.id))
-        .where(eq(professores.organizationId, orgId));
-
-      const targetTeacher =
-        allTeachers.find(t =>
-          (t.especialidade || "").toLowerCase().includes(inst.name.toLowerCase())
-        ) || allTeachers[0];
-
-      if (!targetTeacher) {
+      // RF-002 (fix produção): cadeia professores → users professor → dono/admin
+      const targetTeacher = await resolveEnrollmentTeacher(db, orgId, inst.name);
+      if (!targetTeacher.userId) {
         throw new Error("Nenhum professor disponível para este instrumento.");
       }
 
@@ -381,11 +366,10 @@ export const enrollmentRouter = router({
       const [inst] = await db.select().from(instruments).where(eq(instruments.id, input.instrumentId)).limit(1);
       if (!inst) throw new Error("Instrumento não encontrado");
 
-      const allTeachers = await db.select({
-        id: professores.id, userId: professores.userId, name: users.name, especialidade: professores.especialidade,
-      }).from(professores).leftJoin(users, eq(professores.userId, users.id)).where(eq(professores.organizationId, orgId));
-      const targetTeacher = allTeachers.find(t => (t.especialidade || "").toLowerCase().includes(inst.name.toLowerCase())) || allTeachers[0];
-      if (!targetTeacher) throw new Error("Nenhum professor disponível para este instrumento.");
+      // RF-002 (fix produção): cadeia professores → users professor → dono/admin.
+      // Antes: escolas sem ficha de professor quebravam o passo de horários.
+      const targetTeacher = await resolveEnrollmentTeacher(db, orgId, inst.name);
+      if (!targetTeacher.userId) throw new Error("Nenhum professor disponível para este instrumento.");
 
       const rooms = await db.select().from(studioRooms).where(and(eq(studioRooms.organizationId, orgId), eq(studioRooms.active, true)));
 
@@ -781,12 +765,13 @@ export const enrollmentRouter = router({
       const planById = new Map<number, any>(orgPlans.map((p: any) => [p.id, p]));
       const orgInstruments = await db.select().from(instruments).where(eq(instruments.organizationId, orgId));
       const instrumentsById = new Map<number, any>(orgInstruments.map((i: any) => [i.id, i]));
-      const orgTeachers = await db.select({ userId: professores.userId, especialidade: professores.especialidade }).from(professores).where(eq(professores.organizationId, orgId));
-      const resolveTeacher = (instrumentId: number, teacherUserId?: number): number | null => {
+      // RF-002 (fix produção): mesma cadeia do picker (professores → professor → admin)
+      // para garantir que o slot mostrado e o slot reservado pertençam ao MESMO professor.
+      const resolveTeacher = async (instrumentId: number, teacherUserId?: number): Promise<number | null> => {
         if (teacherUserId) return teacherUserId;
-        const name = (instrumentsById.get(instrumentId)?.name || "").toLowerCase();
-        const t = orgTeachers.find((x: any) => (x.especialidade || "").toLowerCase().includes(name)) || orgTeachers[0];
-        return t?.userId ?? null;
+        const name = instrumentsById.get(instrumentId)?.name || "";
+        const t = await resolveEnrollmentTeacher(db, orgId, name);
+        return t.userId;
       };
 
       const enrichedCourses = coursesToEnroll.map((c) => {
@@ -806,7 +791,7 @@ export const enrollmentRouter = router({
       // Valida professor de CADA curso ANTES de criar o aluno (evita curso sem aulas)
       const teacherByCourse = new Map<number, number>();
       for (const c of enrichedCourses) {
-        const t = resolveTeacher(c.instrumentId, c.teacherUserId);
+        const t = await resolveTeacher(c.instrumentId, c.teacherUserId);
         if (!t) throw new Error("Há um curso selecionado sem professor disponível. Escolha outro curso ou contate a escola.");
         teacherByCourse.set(c.instrumentId, t);
       }

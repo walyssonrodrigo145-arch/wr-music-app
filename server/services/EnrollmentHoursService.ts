@@ -6,7 +6,9 @@
 // Regra: usa a linha que de fato TIVER dias ativos configurados; fallback
 // escolar padrão seg-sex 08:00-18:00 (mesma regra do ScheduleAvailabilityService).
 
+import { eq, and, asc } from "drizzle-orm";
 import { parseSchoolHours, type SchoolDayConfig } from "./ScheduleAvailabilityService";
+import { professores, users } from "../../drizzle/schema";
 
 export interface SettingsHoursLite {
   schoolHours: string | null;
@@ -65,4 +67,58 @@ export function pickSettingsForHours(
       : { active: true, start: "08:00", end: "18:00" },
     hoursConfigured: false,
   };
+}
+
+/**
+ * PRD_MATRICULA_HORARIOS — RF-002 (fix produção 16/09): cadeia de resolução do
+ * professor efetivo para o link de matrícula. Antes, escolas operadas por uma
+ * única conta admin (sem registros em `professores` nem usuários role=professor)
+ * quebravam o passo de horários ("Nenhum professor disponível") e a própria
+ * matrícula. Cadeia:
+ *   1) registros de `professores` da org (especialidade compatível → primeiro);
+ *   2) usuários com role='professor' da org;
+ *   3) dono/admin da org (aulas ficam vinculadas à conta administrativa).
+ * Mesma cadeia usada pelo picker (getWeekdaySlots/getAvailableSlots) e pelo
+ * submitEnrollment — garante que o slot mostrado e o slot reservado batem.
+ */
+export async function resolveEnrollmentTeacher(
+  db: any,
+  organizationId: number,
+  instrumentName?: string | null
+): Promise<{ userId: number | null; name: string | null }> {
+  // 1. Registros formais de professores da escola
+  const profs = await db
+    .select({ userId: professores.userId, name: users.name, especialidade: professores.especialidade })
+    .from(professores)
+    .leftJoin(users, eq(professores.userId, users.id))
+    .where(eq(professores.organizationId, organizationId));
+
+  if (profs.length > 0) {
+    const wanted = (instrumentName || "").toLowerCase();
+    const match = profs.find((p: any) => (p.especialidade || "").toLowerCase().includes(wanted));
+    const chosen = match || profs[0];
+    return { userId: chosen.userId ?? null, name: chosen.name ?? null };
+  }
+
+  // 2. Usuários com perfil de professor (mesmo sem ficha em `professores`)
+  const profUsers = await db
+    .select({ id: users.id, name: users.name })
+    .from(users)
+    .where(and(eq(users.organizationId, organizationId), eq(users.role, "professor")));
+  if (profUsers.length > 0) {
+    return { userId: profUsers[0].id, name: profUsers[0].name };
+  }
+
+  // 3. Escola operada por uma única conta: dono/admin assume as aulas do link
+  const admins = await db
+    .select({ id: users.id, name: users.name })
+    .from(users)
+    .where(and(eq(users.organizationId, organizationId), eq(users.role, "admin")))
+    .orderBy(asc(users.id))
+    .limit(1);
+  if (admins.length > 0) {
+    return { userId: admins[0].id, name: admins[0].name };
+  }
+
+  return { userId: null, name: null };
 }
