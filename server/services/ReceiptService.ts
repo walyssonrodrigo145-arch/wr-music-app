@@ -9,6 +9,8 @@ export interface PaymentReceiptData {
   schoolName: string;
   schoolPhone?: string | null;
   schoolEmail?: string | null;
+  // PRD_RECIBO_LOGO: logo da escola (data URL base64 OU URL http) estampada no PDF
+  logoDataUrl?: string | null;
   studentName: string;
   studentPhone?: string | null;
   dueId: number;
@@ -90,6 +92,37 @@ export async function renderPaymentReceiptPdf(data: PaymentReceiptData): Promise
   };
 
   let y = PAGE_HEIGHT - margin;
+
+  // PRD_RECIBO_LOGO: logo da escola no topo direito (data URL base64 ou http).
+  // Falha no embed NUNCA quebra o recibo — apenas segue sem logo.
+  try {
+    const logo = (data.logoDataUrl || "").trim();
+    let bytes: Uint8Array | null = null;
+    let isPng = false;
+    if (/^data:image\/png;base64,/i.test(logo)) {
+      bytes = Buffer.from(logo.split(",")[1], "base64");
+      isPng = true;
+    } else if (/^data:image\/jpe?g;base64,/i.test(logo)) {
+      bytes = Buffer.from(logo.split(",")[1], "base64");
+      isPng = false;
+    } else if (/^https?:\/\//i.test(logo)) {
+      const res = await fetch(logo, { signal: AbortSignal.timeout(5000) });
+      if (res.ok) {
+        bytes = new Uint8Array(await res.arrayBuffer());
+        const ct = String(res.headers.get("content-type") || "");
+        isPng = ct.includes("png") || logo.toLowerCase().endsWith(".png");
+      }
+    }
+    if (bytes && bytes.length > 0) {
+      const img = isPng ? await pdfDoc.embedPng(bytes) : await pdfDoc.embedJpg(bytes);
+      const maxW = 150, maxH = 56;
+      const scale = Math.min(maxW / img.width, maxH / img.height, 1);
+      const w = img.width * scale, h = img.height * scale;
+      page.drawImage(img, { x: PAGE_WIDTH - margin - w, y: PAGE_HEIGHT - margin - h + 6, width: w, height: h });
+    }
+  } catch (e) {
+    console.warn("[Recibo] Falha ao estampar a logo no PDF (recibo segue sem logo):", e);
+  }
 
   // Cabeçalho
   draw("RECIBO DE PAGAMENTO", { y, size: 20, font: bold, color: primary });

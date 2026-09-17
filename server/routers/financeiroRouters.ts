@@ -709,6 +709,8 @@ export const financeiroRouters = {
           const pdf = await renderPaymentReceiptPdf({
             schoolName: (schoolSet as any)?.schoolName || "Escola de Música",
             schoolPhone: (schoolSet as any)?.schoolPhone || (schoolSet as any)?.phone || null,
+            // PRD_RECIBO_LOGO: logo do perfil da escola estampada no PDF
+            logoDataUrl: (schoolSet as any)?.logoUrl || null,
             studentName: due.studentName || "Aluno",
             studentPhone: due.studentPhone || due.guardianPhone || null,
             dueId: due.id,
@@ -721,7 +723,7 @@ export const financeiroRouters = {
             paymentMethod,
           });
 
-          const { url } = await storagePut(
+          const { url, key: receiptKey } = await storagePut(
             `receipts/org_${orgId}/due_${due.id}/recibo-${buildReceiptNumber(due.id, due.year)}-${nanoid(6)}.pdf`,
             pdf,
             "application/pdf"
@@ -738,12 +740,22 @@ export const financeiroRouters = {
             if (target && (schoolSet as any)?.whatsappBotUrl) {
               try {
                 const monthName = MONTHS_PT[Math.max(0, Math.min(11, due.month - 1))];
+                // BUG FIX (cacabug): a Evolution baixa a mídia SEM cookie de sessão —
+                // a URL protegida /uploads retornava 401 e o PDF não era anexado.
+                // Usa a rota pública assinada /uploads-token (validade 30 min).
+                const { createFileToken } = await import("../_core/fileTokens");
+                const appUrl = (ENV.appUrl && !ENV.appUrl.includes("localhost"))
+                  ? ENV.appUrl.replace(/\/+$/, "")
+                  : "https://wrmusicpro.com.br";
+                const publicReceiptUrl = `${appUrl}/uploads-token/${createFileToken(receiptKey)}/${receiptKey.split("/").pop()}`;
                 const sendRes = await sendWhatsAppMessage({
                   url: (schoolSet as any).whatsappBotUrl,
                   token: (schoolSet as any).whatsappBotToken,
                   phone: target,
                   message: `Olá ${due.studentName || "aluno"}! 📄\n\nSegue o recibo da sua mensalidade de ${monthName}/${due.year} (${formatMoney(due.amount)}).\nQualquer dúvida, estamos à disposição!`,
-                  mediaUrl: url,
+                  mediaUrl: publicReceiptUrl,
+                  mediaType: "document",
+                  fileName: `${buildReceiptNumber(due.id, due.year)}.pdf`,
                   sessionId: `prof_${ctx.user.id}`,
                 });
                 whatsappSent = sendRes.success;

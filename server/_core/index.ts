@@ -1029,12 +1029,24 @@ async function startServer() {
       return res.status(401).json({ error: "Unauthorized" });
     }
     res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
-    res.setHeader("Content-Disposition", "inline");
+    // FIX (cacabug): PDFs com "inline" abrem em branco (about:blank) em WebViews
+    // Android/WhatsApp — attachment força o download e o arquivo abre no leitor.
+    res.setHeader(
+      "Content-Disposition",
+      req.path.toLowerCase().endsWith(".pdf")
+        ? `attachment; filename="${path.basename(req.path)}"`
+        : "inline"
+    );
     next();
   }, express.static("uploads", {
-    setHeaders: (res) => {
+    setHeaders: (res, filePath) => {
       res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
-      res.setHeader("Content-Disposition", "inline");
+      res.setHeader(
+        "Content-Disposition",
+        String(filePath || "").toLowerCase().endsWith(".pdf")
+          ? `attachment; filename="${path.basename(String(filePath))}"`
+          : "inline"
+      );
     }
   }));
 
@@ -1063,7 +1075,15 @@ async function startServer() {
     }
 
     res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
-    res.setHeader("Content-Disposition", "inline");
+    // FIX (cacabug): PDF como attachment — WebViews Android/WhatsApp não
+    // renderizam PDF inline (tela preta/about:blank).
+    const fname = parts.slice(1).join("/") || path.basename(absPath);
+    res.setHeader(
+      "Content-Disposition",
+      absPath.toLowerCase().endsWith(".pdf")
+        ? `attachment; filename="${path.basename(fname)}"`
+        : "inline"
+    );
 
     return res.sendFile(absPath, (err) => {
       if (err) {

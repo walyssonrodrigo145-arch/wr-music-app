@@ -7,6 +7,10 @@ interface SendWhatsAppParams {
   phone: string;
   message: string;
   mediaUrl?: string | null;
+  // PRD_RECIBO_MENSALIDADE: PDF (e outros arquivos) precisam ir como DOCUMENTO —
+  // antes tudo era enviado como "image" e o WhatsApp descartava o anexo.
+  mediaType?: "image" | "document";
+  fileName?: string;
   sessionId?: string;
 }
 
@@ -157,7 +161,7 @@ async function withExponentialBackoff<T>(
  * Envia uma mensagem de texto ou mídia via Evolution API.
  * Endpoint: POST /message/sendText/{instanceName} ou /message/sendMedia/{instanceName}
  */
-export async function sendWhatsAppMessage({ url, token, phone, message, mediaUrl, sessionId }: SendWhatsAppParams): Promise<{ success: boolean; messageId?: string; error?: string }> {
+export async function sendWhatsAppMessage({ url, token, phone, message, mediaUrl, mediaType, fileName, sessionId }: SendWhatsAppParams): Promise<{ success: boolean; messageId?: string; error?: string }> {
   try {
     const baseUrl = (url || EVOLUTION_API_URL).replace(/\/+$/, "");
     const activeToken = token || EVOLUTION_API_KEY;
@@ -175,6 +179,7 @@ export async function sendWhatsAppMessage({ url, token, phone, message, mediaUrl
 
     const instanceName = sessionId || DEFAULT_INSTANCE;
     const isMedia = !!(mediaUrl && mediaUrl.trim());
+    const mt = mediaType || "image";
     const endpoint = isMedia 
       ? `${baseUrl}/message/sendMedia/${instanceName}`
       : `${baseUrl}/message/sendText/${instanceName}`;
@@ -186,14 +191,21 @@ export async function sendWhatsAppMessage({ url, token, phone, message, mediaUrl
     const trySend = async (phoneToTry: string) => {
       // ANTI-BAN: delay de digitação aleatório entre 2s e 6s simulando pessoa digitando
       const typingDelay = Math.floor(Math.random() * 4000) + 2000;
+      // Payload de documento (PDF): mediatype document + mimetype + fileName —
+      // enviar PDF como "image" fazia o WhatsApp descartar o anexo.
+      const mediaExtra = mt === "document"
+        ? { mimetype: "application/pdf", fileName: fileName || "documento.pdf" }
+        : {};
       const payload: any = isMedia ? {
         number: phoneToTry,
         options: { delay: typingDelay, presence: "composing" },
-        mediatype: "image",
+        mediatype: mt,
+        ...mediaExtra,
         media: mediaUrl,
         caption: message,
         mediaMessage: {
-          mediatype: "image",
+          mediatype: mt,
+          ...mediaExtra,
           caption: message,
           media: mediaUrl
         }
