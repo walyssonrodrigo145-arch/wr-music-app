@@ -1383,6 +1383,7 @@ export const portalRouters = {
           studentConfirmation: lessons.studentConfirmation,
           studentName: students.name,
           scheduledAt: lessons.scheduledAt,
+          studentProfessorId: students.professorId,
         }).from(lessons)
           .leftJoin(students, eq(lessons.studentId, students.id))
           .where(and(eq(lessons.id, input.lessonId), eq(lessons.studentId, studentId), eq(lessons.organizationId, orgId)))
@@ -1418,15 +1419,22 @@ export const portalRouters = {
           const teacherUserId = lesson.userId;
           const title = input.status === 'confirmado' ? "✅ Presença Confirmada" : "⚠️ Aluno não irá à aula";
           const message = buildTeacherNotificationMessage(lesson.studentName || "Aluno", lesson.title, input.status === 'confirmado');
-          await db.insert(notifications).values({
-            organizationId: orgId,
-            userId: teacherUserId,
-            title,
-            message,
-            type: input.status === 'confirmado' ? "success" : "warning",
-            actionUrl: "/aulas",
-          });
-          notifyUser(teacherUserId, { title, content: message, url: "/aulas" }).catch(e => console.error("Falha no push de confirmação:", e));
+          // BUG FIX (cacabug): notifica o PROFESSOR EFETIVO da aluna + criador da
+          // aula (antes só o criador/admin recebia — a professora não via nada).
+          const recipients = Array.from(new Set<number>(
+            [teacherUserId, (lesson as any).studentProfessorId].filter((v): v is number => typeof v === "number" && v > 0)
+          ));
+          for (const recipientId of recipients) {
+            await db.insert(notifications).values({
+              organizationId: orgId,
+              userId: recipientId,
+              title,
+              message,
+              type: input.status === 'confirmado' ? "success" : "warning",
+              actionUrl: "/aulas",
+            });
+            notifyUser(recipientId, { title, content: message, url: "/aulas" }).catch(e => console.error("Falha no push de confirmação:", e));
+          }
 
           // BUG FIX (cacabug): confirmação pelo PORTAL também responde no
           // WhatsApp do aluno (ela não via retorno algum ao confirmar no portal).

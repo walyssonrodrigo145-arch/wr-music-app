@@ -445,6 +445,7 @@ async function handleLessonConfirmation(
   // 1. Resolve o aluno pelo telefone (org-scoped — nunca pelo params do botão)
   const allStudents = await ctx.db.select({
     id: students.id, name: students.name, phone: students.phone, guardianPhone: students.guardianPhone,
+    professorId: students.professorId,
   }).from(students)
     .where(eq(students.organizationId, ctx.organizationId))
     .limit(1000);
@@ -456,7 +457,7 @@ async function handleLessonConfirmation(
       organizationId: ctx.organizationId, userId: ctx.userId, phone: ctx.phone,
       menu: "lembrete_aula", title: "Não foi possível registrar",
       body: "Este número não corresponde a um aluno ativo da escola. Fale com a recepção para atualizar o cadastro.",
-      buttons: [btn("btn_menu", "🏠 Menu principal", "main_menu", {}, 1)],
+      buttons: [],
       instanceName: ctx.instanceName, baseUrl: ctx.baseUrl, apiKey: ctx.apiKey,
       forceText: true,
     });
@@ -481,7 +482,7 @@ async function handleLessonConfirmation(
       organizationId: ctx.organizationId, userId: ctx.userId, phone: ctx.phone,
       menu: "lembrete_aula", title: "Aula indisponível",
       body: "Essa aula não está mais agendada. Fale com seu professor para combinar outra data.",
-      buttons: [btn("btn_menu", "🏠 Menu principal", "main_menu", {}, 1)],
+      buttons: [],
       instanceName: ctx.instanceName, baseUrl: ctx.baseUrl, apiKey: ctx.apiKey,
       forceText: true,
     });
@@ -517,37 +518,44 @@ async function handleLessonConfirmation(
       menu: "lembrete_aula",
       title: confirmed ? "Presença já confirmada ✅" : "Ausência já avisada ✅",
       body: `Sua resposta para a aula de ${lesson.title} (${when}) já estava registrada.`,
-      buttons: [btn("btn_menu", "🏠 Menu principal", "main_menu", {}, 1)],
+      buttons: [],
       instanceName: ctx.instanceName, baseUrl: ctx.baseUrl, apiKey: ctx.apiKey,
       forceText: true,
     });
     return true;
   }
 
-  // 4. Notifica o professor (in-app + push — mesmo comportamento do portal)
+  // 4. Notifica o PROFESSOR EFETIVO da aluna + criador da aula (sem duplicar).
+  // BUG FIX (cacabug): antes só o criador (admin) era notificado — a professora
+  // da aluna não recebia nada.
+  const recipients = Array.from(new Set<number>(
+    [lesson.userId, (matched as any).professorId].filter((v): v is number => typeof v === "number" && v > 0)
+  ));
   const title = confirmed ? "✅ Presença Confirmada (WhatsApp)" : "⚠️ Aluno não irá à aula (WhatsApp)";
   const message = confirmed
     ? `${matched.name} confirmou presença na aula "${lesson.title}".`
     : `${matched.name} avisou que NÃO poderá ir à aula "${lesson.title}". Combine uma reposição ou nova data se necessário.`;
-  try {
-    await ctx.db.insert(notifications).values({
-      organizationId: ctx.organizationId,
-      userId: lesson.userId,
-      title,
-      message,
-      type: confirmed ? "success" : "warning",
-      actionUrl: "/aulas",
-    });
-  } catch (e) {
-    console.error("[Interactive] Falha ao notificar professor (registro mantido):", e);
+  for (const recipientId of recipients) {
+    try {
+      await ctx.db.insert(notifications).values({
+        organizationId: ctx.organizationId,
+        userId: recipientId,
+        title,
+        message,
+        type: confirmed ? "success" : "warning",
+        actionUrl: "/aulas",
+      });
+    } catch (e) {
+      console.error(`[Interactive] Falha ao notificar professor ${recipientId} (registro mantido):`, e);
+    }
+    try {
+      const { notifyUser } = await import("../../../_core/notification");
+      notifyUser(recipientId, { title, content: message, url: "/aulas" })
+        .catch((e: any) => console.error("[Interactive] Falha no push de confirmação:", e));
+    } catch { /* push é best-effort */ }
   }
-  try {
-    const { notifyUser } = await import("../../../_core/notification");
-    notifyUser(lesson.userId, { title, content: message, url: "/aulas" })
-      .catch((e: any) => console.error("[Interactive] Falha no push de confirmação:", e));
-  } catch { /* push é best-effort */ }
 
-  // 5. Confirmação amigável ao contato
+  // 5. Confirmação amigável ao contato (mensagem pura, sem menu)
   const when = new Date(lesson.scheduledAt).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
   await sendInteractive(ctx.db, {
     organizationId: ctx.organizationId, userId: ctx.userId, phone: ctx.phone,
@@ -556,7 +564,7 @@ async function handleLessonConfirmation(
     body: confirmed
       ? `Até a aula de ${lesson.title} em ${when}. 🎵`
       : `Seu professor foi avisado de que você não irá à aula de ${lesson.title} (${when}). Ele pode combinar reposição ou nova data com você.`,
-    buttons: [btn("btn_menu", "🏠 Menu principal", "main_menu", {}, 1)],
+    buttons: [],
     instanceName: ctx.instanceName, baseUrl: ctx.baseUrl, apiKey: ctx.apiKey,
     forceText: true,
   });

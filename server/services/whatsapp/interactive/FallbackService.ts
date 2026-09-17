@@ -7,6 +7,10 @@ const NUMBER_EMOJI = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6�
 
 /** Fallback textual: o número escolhido é mapeado de volta ao botão via parseFallbackChoice. */
 export function buildFallbackText(title: string, body: string, buttons: InteractiveButton[]): string {
+  // Sem opções (ex.: resposta de confirmação) → mensagem pura, sem instrução de menu
+  if (!buttons || buttons.length === 0) {
+    return [`*${title}*`.trim(), "", body.trim()].join("\n");
+  }
   const lines = [
     `*${title}*`.trim(),
     "",
