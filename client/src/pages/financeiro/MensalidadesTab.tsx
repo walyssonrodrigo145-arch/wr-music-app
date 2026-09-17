@@ -717,40 +717,52 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
   });
 
   // ── PRD_RECIBO_MENSALIDADE: gera PDF do recibo (+ opcional envio WhatsApp) ──
-  // BUG FIX (cacabug): "não aparecia nada" — o window.open disparava DEPOIS da
-  // mutation async e o bloqueador de pop-up engolia o PDF. A aba é aberta no
-  // clique (gesto do usuário) e recebe a URL quando o recibo fica pronto.
-  const receiptWindowRef = useRef<Window | null>(null);
+  // BUG FIX (cacabug round 2): a aba pré-aberta ficava presa em "about:blank"
+  // (tela preta) porque o PDF agora baixa como attachment. Solução definitiva:
+  // DOWNLOAD DIRETO via <a download> — sem aba em branco, sem pop-up blocker.
   const generateReceiptMutation = trpc.paymentDues.generateReceipt.useMutation({
     onSuccess: (data: any, variables) => {
       utils.paymentDues.invalidate();
       if (variables.sendWhatsapp) {
         if (data?.whatsappSent) toast.success("Recibo gerado e enviado por WhatsApp!");
-        else toast.warning("Recibo gerado, mas o envio por WhatsApp falhou. Abra o link e envie manualmente.");
+        else toast.warning("Recibo gerado, mas o envio por WhatsApp falhou. Baixe o PDF e envie manualmente.");
       } else {
-        toast.success("Recibo gerado!");
+        toast.success("Recibo baixado! Verifique os downloads do seu aparelho.");
       }
       if (data?.url) {
-        if (receiptWindowRef.current) {
-          try { receiptWindowRef.current.location.href = data.url; } catch { window.open(data.url, "_blank"); }
-          receiptWindowRef.current = null;
-        } else {
+        try {
+          const a = document.createElement("a");
+          a.href = data.url;
+          a.download = data.fileName || "recibo.pdf";
+          a.rel = "noopener";
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+        } catch {
           window.open(data.url, "_blank");
         }
       }
     },
-    onError: (e: any) => {
-      if (receiptWindowRef.current) { try { receiptWindowRef.current.close(); } catch { /* já fechada */ } receiptWindowRef.current = null; }
-      toast.error("Erro ao gerar recibo: " + e.message);
-    },
+    onError: (e: any) => toast.error("Erro ao gerar recibo: " + e.message),
   });
 
   const handleGenerateReceipt = (paymentId: number, sendWhatsapp: boolean) => {
-    if (!sendWhatsapp) {
-      // Abre a aba AGORA (dentro do gesto do clique) p/ escapar do pop-up blocker
-      receiptWindowRef.current = window.open("", "_blank");
-    }
     generateReceiptMutation.mutate({ paymentDueId: paymentId, sendWhatsapp });
+  };
+
+  // Download direto de arquivos (PDFs vêm como attachment — sem aba about:blank)
+  const downloadFile = (url: string, fileName?: string) => {
+    try {
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = fileName || "arquivo.pdf";
+      a.rel = "noopener";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } catch {
+      window.open(url, "_blank");
+    }
   };
 
   const receiptMutationFor: number | null = generateReceiptMutation.variables?.paymentDueId ?? null;
@@ -1091,12 +1103,12 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
                                  </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end" className="w-56 rounded-xl p-2 border-border">
-                                 {payment.receiptUrl ? (
-                                   <DropdownMenuItem className="gap-2 rounded-lg" onClick={() => window.open(payment.receiptUrl!, "_blank")}>
-                                      <FileCheck className="w-4 h-4 text-emerald-500" />
-                                      <span className="text-xs font-bold text-muted-foreground">Ver Comprovante</span>
-                                   </DropdownMenuItem>
-                                 ) : (
+                                  {payment.receiptUrl ? (
+                                    <DropdownMenuItem className="gap-2 rounded-lg" onClick={() => downloadFile(payment.receiptUrl!, `recibo-${payment.id}.pdf`)}>
+                                       <FileCheck className="w-4 h-4 text-emerald-500" />
+                                       <span className="text-xs font-bold text-muted-foreground">Baixar Comprovante</span>
+                                    </DropdownMenuItem>
+                                  ) : (
                                    <DropdownMenuItem className="gap-2 rounded-lg" onClick={() => {
                                      setUploadingFor(payment.id);
                                      setTimeout(() => fileInputRef.current?.click(), 100);

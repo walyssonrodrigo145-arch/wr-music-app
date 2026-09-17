@@ -26,6 +26,16 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: "2026.09.17.1",
+    date: "2026-09-17",
+    title: "Link de matrícula com pagamento via Pix direto",
+    summary: "Escolas que não usam checkout (Asaas/Mercado Pago/InfinitePay) agora matriculam com Pix simples — e o link no WhatsApp já vai com a chave e o valor.",
+    items: [
+      { type: "novo", title: "Matrícula sem checkout, pagando via Pix", description: "Se a escola não tem gateway configurado e preencheu a Chave PIX em Configurações, o link de matrícula mostra apenas Curso → Dados → Horário. Ao final aparece a chave Pix e o valor a pagar, com botão de copiar e orientação para enviar o comprovante." },
+      { type: "novo", title: "Chave Pix na mensagem do link (WhatsApp)", description: "Ao gerar o link com envio automático por WhatsApp, a mensagem já inclui a chave Pix e o valor da matrícula para o aluno pagar direto ao professor." },
+    ],
+  },
+  {
     version: "2026.09.17",
     date: "2026-09-17",
     title: "Lembretes com a logo da escola",

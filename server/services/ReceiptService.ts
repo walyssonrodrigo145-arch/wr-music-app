@@ -92,6 +92,9 @@ export async function renderPaymentReceiptPdf(data: PaymentReceiptData): Promise
   };
 
   let y = PAGE_HEIGHT - margin;
+  // BUG FIX (cacabug): o traço do cabeçalho passava POR CIMA da logo. Quando há
+  // logo, a linha termina antes dela (nunca cruza a imagem).
+  let headerLineEndX = PAGE_WIDTH - margin;
 
   // PRD_RECIBO_LOGO: logo da escola no topo direito (data URL base64 ou http).
   // Falha no embed NUNCA quebra o recibo — apenas segue sem logo.
@@ -118,7 +121,10 @@ export async function renderPaymentReceiptPdf(data: PaymentReceiptData): Promise
       const maxW = 150, maxH = 56;
       const scale = Math.min(maxW / img.width, maxH / img.height, 1);
       const w = img.width * scale, h = img.height * scale;
-      page.drawImage(img, { x: PAGE_WIDTH - margin - w, y: PAGE_HEIGHT - margin - h + 6, width: w, height: h });
+      const logoX = PAGE_WIDTH - margin - w;
+      page.drawImage(img, { x: logoX, y: PAGE_HEIGHT - margin - h + 6, width: w, height: h });
+      // linha do cabeçalho termina 10pt antes da logo
+      headerLineEndX = Math.min(headerLineEndX, logoX - 10);
     }
   } catch (e) {
     console.warn("[Recibo] Falha ao estampar a logo no PDF (recibo segue sem logo):", e);
@@ -131,7 +137,7 @@ export async function renderPaymentReceiptPdf(data: PaymentReceiptData): Promise
   y -= 8;
   page.drawLine({
     start: { x: margin, y },
-    end: { x: PAGE_WIDTH - margin, y },
+    end: { x: headerLineEndX, y },
     thickness: 1.5,
     color: primary,
   });

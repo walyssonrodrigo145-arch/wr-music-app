@@ -74,7 +74,26 @@ export const enrollmentRouter = router({
               || allSettings[0];
 
             const { sendWhatsAppMessage } = await import("./utils/whatsapp");
-            const messageText = `Olá ${lead.name}! 🎵\n\nAqui está o seu link exclusivo para realizar sua matrícula na nossa escola de música:\n\n👉 ${fullUrl}\n\nAcesse o link acima para escolher o melhor dia e horário para suas aulas!`;
+            let messageText = `Olá ${lead.name}! 🎵\n\nAqui está o seu link exclusivo para realizar sua matrícula na nossa escola de música:\n\n👉 ${fullUrl}\n\nAcesse o link acima para escolher o melhor dia e horário para suas aulas!`;
+
+            // PRD_PIX_DIRETO: escola sem gateway de checkout → anexa a chave Pix
+            // e o valor da matrícula direto na mensagem (pagamento ao professor).
+            try {
+              const activeGw = resolveActivePaymentGateway(schoolSet);
+              const pixKey = (schoolSet as any)?.pixKey as string | null | undefined;
+              if (activeGw === "none" && pixKey) {
+                const valorFmt = resolvedFee
+                  ? resolvedFee.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
+                  : null;
+                messageText += `\n\n💰 *Pagamento via PIX*\n🔑 Chave Pix: ${pixKey}`;
+                messageText += valorFmt
+                  ? `\n💵 Valor da matrícula (1ª mensalidade): ${valorFmt}`
+                  : `\n💵 Combine o valor da 1ª mensalidade com a escola`;
+                messageText += `\n\nApós o pagamento, envie o comprovante por aqui. ✅`;
+              }
+            } catch (e) {
+              console.error("[generateLink] Falha ao montar bloco Pix (mensagem segue):", e);
+            }
             
             // Tenta enviar com a sessão do usuário logado (prof_${ctx.user.id})
             let sendRes = await sendWhatsAppMessage({
@@ -221,6 +240,10 @@ export const enrollmentRouter = router({
         lead: leadData,
         instruments: allInstruments,
         paymentGateway: activeGateway,
+        // PRD_PIX_DIRETO: escola SEM gateway de checkout — matrícula direta com
+        // pagamento via chave Pix para o professor (fluxo: Curso → Dados → Horário).
+        pixOnly: activeGateway === "none" && !!(schoolSet as any)?.pixKey,
+        pixKey: activeGateway === "none" ? ((schoolSet as any)?.pixKey || null) : null,
         schoolHours: parsedSchoolHours,
         contractEnabled: Boolean(assinafy),
         contractTemplateId: link.contractTemplateId ?? null,
@@ -637,6 +660,13 @@ export const enrollmentRouter = router({
           billingType: input.billingType,
           paymentRef,
         };
+      }
+
+      // ── PRD_PIX_DIRETO: escola sem gateway de checkout, mas com chave Pix —
+      // a matrícula segue sem cobrança online; a chave e o valor ficam
+      // disponíveis para pagamento direto ao professor.
+      if ((schoolSet as any)?.pixKey) {
+        return { skipPayment: true, gateway: "pix", value: chargeAmount, pixKey: (schoolSet as any).pixKey };
       }
 
       // Sem gateway configurado na escola

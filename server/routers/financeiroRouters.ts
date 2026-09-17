@@ -766,7 +766,7 @@ export const financeiroRouters = {
             }
           }
 
-          return { success: true, url, whatsappSent };
+          return { success: true, url, fileName: `${buildReceiptNumber(due.id, due.year)}.pdf`, whatsappSent };
         } catch (error) {
           return handleDbError(error, "gerar o recibo");
         }

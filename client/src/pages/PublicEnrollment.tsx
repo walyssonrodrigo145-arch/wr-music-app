@@ -16,7 +16,7 @@ import {
   Music, Calendar, Clock, CheckCircle2, User, Phone,
   Mail, Sparkles, Loader2, Copy, ExternalLink,
   ChevronRight, CreditCard, ArrowLeft, BadgeCheck, QrCode,
-  FileSignature, MessageCircle, Info,
+  FileSignature, MessageCircle, Info, KeyRound,
 } from "lucide-react";
 
 // Fluxo: Curso → Dados + Pagamento → Horário → Confirmação → Sucesso
@@ -447,9 +447,12 @@ export default function PublicEnrollment() {
   }
 
   // ─── Steps config ─────────────────────────────────────────────────────────────
+  // PRD_PIX_DIRETO: escola sem gateway de checkout → fluxo Curso → Dados → Horário
+  // (pagamento via Pix é orientado ao final, direto para o professor).
+  const pixMode = details.paymentGateway === "none" && !!(details as any).pixOnly;
   const STEPS = [
     { key: "course",   label: "Curso" },
-    { key: "payment",  label: "Dados & Pagamento" },
+    { key: "payment",  label: pixMode ? "Dados" : "Dados & Pagamento" },
     { key: "schedule", label: "Horário" },
   ];
   const currentIdx = STEPS.findIndex(s => s.key === step);
@@ -681,12 +684,20 @@ export default function PublicEnrollment() {
                     <Info size={12} /> Como funciona sua matrícula
                   </p>
                   <ol className="space-y-2">
-                    {[
-                      { n: 1, t: "Escolha seus cursos e planos", d: "Selecione um ou mais instrumentos e o plano de cada um." },
-                      { n: 2, t: "Preencha seus dados", d: "Informe seus dados para criar sua matrícula." },
-                      { n: 3, t: "Faça o primeiro pagamento", d: `Pague a 1ª mensalidade${enrollmentFeeTotal > 0 ? " + taxa de inscrição" : ""} (${formatBRL(totalToPay)}).` },
-                      { n: 4, t: "Escolha seus horários", d: "Após o pagamento, escolha o dia e horário de cada curso." },
-                    ].map((s) => (
+                    {(pixMode
+                      ? [
+                          { n: 1, t: "Escolha seus cursos e planos", d: "Selecione um ou mais instrumentos e o plano de cada um." },
+                          { n: 2, t: "Preencha seus dados", d: "Informe seus dados para criar sua matrícula." },
+                          { n: 3, t: "Escolha seus horários", d: "Defina o dia e o horário de cada curso." },
+                          { n: 4, t: "Pague via Pix para a escola", d: `Ao final aparece a chave Pix e o valor (${formatBRL(totalToPay)}). Envie o comprovante para a escola.` },
+                        ]
+                      : [
+                          { n: 1, t: "Escolha seus cursos e planos", d: "Selecione um ou mais instrumentos e o plano de cada um." },
+                          { n: 2, t: "Preencha seus dados", d: "Informe seus dados para criar sua matrícula." },
+                          { n: 3, t: "Faça o primeiro pagamento", d: `Pague a 1ª mensalidade${enrollmentFeeTotal > 0 ? " + taxa de inscrição" : ""} (${formatBRL(totalToPay)}).` },
+                          { n: 4, t: "Escolha seus horários", d: "Após o pagamento, escolha o dia e horário de cada curso." },
+                        ]
+                    ).map((s) => (
                       <li key={s.n} className="flex items-start gap-2.5">
                         <span className="w-5 h-5 rounded-full bg-emerald-500 text-white text-[10px] font-black flex items-center justify-center shrink-0 mt-0.5">{s.n}</span>
                         <div>
@@ -723,8 +734,8 @@ export default function PublicEnrollment() {
                       <ArrowLeft size={14} />
                     </button>
                     <div>
-                      <h2 className="text-xl font-black text-foreground">Seus dados e pagamento</h2>
-                      <p className="text-xs text-muted-foreground">Preencha para garantir sua vaga</p>
+                      <h2 className="text-xl font-black text-foreground">{pixMode ? "Seus dados" : "Seus dados e pagamento"}</h2>
+                      <p className="text-xs text-muted-foreground">{pixMode ? "Preencha para criar sua matrícula" : "Preencha para garantir sua vaga"}</p>
                     </div>
                   </div>
 
@@ -853,8 +864,10 @@ export default function PublicEnrollment() {
                     className="w-full h-12 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-bold text-sm shadow-lg shadow-emerald-500/20 disabled:opacity-40"
                   >
                     {createChargeMutation.isPending
-                      ? <><Loader2 size={16} className="animate-spin" /> Gerando cobrança...</>
-                      : <><CreditCard size={16} /> Pagar {formatBRL(totalToPay)} e matricular</>}
+                      ? <><Loader2 size={16} className="animate-spin" /> {pixMode ? "Salvando..." : "Gerando cobrança..."}</>
+                      : pixMode
+                        ? <><ChevronRight size={16} /> Enviar dados e escolher horários</>
+                        : <><CreditCard size={16} /> Pagar {formatBRL(totalToPay)} e matricular</>}
                   </Button>
                 </>
               )}
@@ -1074,6 +1087,41 @@ export default function PublicEnrollment() {
                   </div>
                 </div>
               </Card>
+
+              {/* PRD_PIX_DIRETO: escola sem checkout — chave Pix + valor para pagamento direto */}
+              {pixMode && (details as any).pixKey && (
+                <Card className="w-full p-5 rounded-2xl bg-emerald-500/5 border-emerald-500/20 text-left space-y-3">
+                  <p className="text-[10px] font-black text-emerald-600 uppercase tracking-wider flex items-center gap-1.5">
+                    <KeyRound size={12} /> Pagamento via PIX para a escola
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Envie o valor abaixo para a chave Pix da escola e mande o comprovante pelo WhatsApp para confirmar sua vaga.
+                  </p>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between gap-2 p-3 rounded-xl bg-card border border-border/50">
+                      <div className="min-w-0">
+                        <p className="text-[9px] font-black uppercase tracking-wider text-muted-foreground">Chave Pix</p>
+                        <p className="text-sm font-bold text-foreground truncate">{(details as any).pixKey}</p>
+                      </div>
+                      <button
+                        onClick={async () => {
+                          try {
+                            await navigator.clipboard.writeText((details as any).pixKey);
+                            toast.success("Chave Pix copiada!");
+                          } catch { toast.error("Não foi possível copiar a chave."); }
+                        }}
+                        className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 text-[10px] font-black uppercase shrink-0"
+                      >
+                        <Copy size={12} /> Copiar
+                      </button>
+                    </div>
+                    <div className="flex items-center justify-between p-3 rounded-xl bg-card border border-border/50">
+                      <p className="text-[9px] font-black uppercase tracking-wider text-muted-foreground">Valor a pagar</p>
+                      <p className="text-lg font-black text-emerald-500">{formatBRL(totalToPay)}</p>
+                    </div>
+                  </div>
+                </Card>
+              )}
 
               {details.contractEnabled && !confirmMutation.data?.contractSignUrl && (
                 <p className="text-[11px] text-muted-foreground text-center max-w-xs">
