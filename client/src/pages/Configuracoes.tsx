@@ -1969,13 +1969,12 @@ export default function Configuracoes() {
                           )}
                         </div>
                         <p className="text-[10px] text-muted-foreground font-medium leading-relaxed">
-                          Menus com botões clicáveis para contatos identificados como alunos: Alunos, Agenda e Financeiro. Com fallback automático em lista numerada se o celular não suportar botões. Requer o Robô de Autoatendimento ativo.
+                          Menus com botões clicáveis e confirmação de presença nos lembretes de aula: o aluno responde direto no WhatsApp, sem entrar na plataforma. Com fallback automático em lista numerada se o celular não suportar botões. Funciona com ou sem o robô de conversa.
                         </p>
                       </div>
                     </div>
                     <Toggle
                       checked={whatsappInteractiveEnabled}
-                      disabled={!chatbotEnabled}
                       onChange={handleToggleInteractive}
                     />
                   </div>

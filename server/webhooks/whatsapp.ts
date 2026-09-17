@@ -381,6 +381,36 @@ router.post("/", async (req, res) => {
     // É o próprio professor mandando mensagem para o seu próprio número?
     const isProfessorChat = (cleanProfPhone.length > 8 && cleanMsgPhone.endsWith(cleanProfPhone.slice(-8)));
 
+    // ── PRD_WHATSAPP_INTERACTIVE (BUG FIX cacabug): a camada de botões roda
+    // ANTES do gate do chatbot — lembretes com botões funcionam mesmo com o
+    // robô de CONVERSA desligado (reminders seguem pelo automation, que é
+    // independente). Cliques em botão e textos de sessão interativa são
+    // consumidos aqui; textos livres caem no fluxo abaixo como antes.
+    if (profSettings.whatsappInteractiveEnabled === 1 && profSettings.organizationId != null && !isProfessorChat) {
+      try {
+        const [instUser] = await db
+          .select({ role: users.role })
+          .from(users)
+          .where(eq(users.id, professorUserId))
+          .limit(1);
+        const handled = await handleInteractiveIncoming({
+          db,
+          messageData,
+          phone,
+          instanceName: instanceName || "prof_1",
+          organizationId: profSettings.organizationId,
+          userId: professorUserId,
+          role: instUser?.role || "professor",
+          baseUrl: profSettings.whatsappBotUrl || process.env.EVOLUTION_API_URL || "http://179.197.76.174:8080",
+          apiKey: profSettings.whatsappBotToken || process.env.EVOLUTION_API_KEY || "",
+        });
+        if (handled) return res.status(200).json({ ok: true });
+      } catch (intErr) {
+        console.error("[Interactive] Falha ao processar mensagem interativa (modo degradado):", intErr);
+        // segue para o pipeline existente
+      }
+    }
+
     // Mensagens fromMe em chats de terceiros são classificadas mais abaixo
     // (eco do bot × resposta manual do professor) após identificar o contato.
 
@@ -474,34 +504,6 @@ router.post("/", async (req, res) => {
       });
       debugLog(`[Chatbot] Notificação enviada ao professor (${profSettings.phone}): success=${result.success}`);
     };
-
-    // ── PRD_WHATSAPP_INTERACTIVE: botões/menus interativos (opt-in por escola) ──
-    // Roda ANTES do pipeline de chatbot; se consumir a mensagem, o fluxo
-    // existente não roda (sem duplicidade). Falha cai no modo degradado.
-    if (profSettings.whatsappInteractiveEnabled === 1 && profSettings.organizationId != null && !isProfessorChat) {
-      try {
-        const [instUser] = await db
-          .select({ role: users.role })
-          .from(users)
-          .where(eq(users.id, professorUserId))
-          .limit(1);
-        const handled = await handleInteractiveIncoming({
-          db,
-          messageData,
-          phone,
-          instanceName: instanceName || "prof_1",
-          organizationId: profSettings.organizationId,
-          userId: professorUserId,
-          role: instUser?.role || "professor",
-          baseUrl: profSettings.whatsappBotUrl || process.env.EVOLUTION_API_URL || "http://179.197.76.174:8080",
-          apiKey: profSettings.whatsappBotToken || process.env.EVOLUTION_API_KEY || "",
-        });
-        if (handled) return res.status(200).json({ ok: true });
-      } catch (intErr) {
-        console.error("[Interactive] Falha ao processar mensagem interativa (modo degradado):", intErr);
-        // segue para o pipeline existente
-      }
-    }
 
     // ── Identificar aluno cadastrado (pelo telefone do aluno OU do responsável) ──
     const allStudents = await db
