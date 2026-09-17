@@ -64,6 +64,7 @@ export interface WhatsAppSendResult {
 /** Contrato abstrato — permite trocar Evolution por Meta/Cloud API no futuro. */
 export interface WhatsAppProvider {
   sendText(instanceName: string, phone: string, text: string): Promise<WhatsAppSendResult>;
+  sendMedia(instanceName: string, phone: string, mediaUrl: string, caption: string): Promise<WhatsAppSendResult>;
   sendButtons(instanceName: string, phone: string, opts: { title?: string; body: string; footer?: string; buttons: InteractiveButton[] }): Promise<WhatsAppSendResult>;
   sendList(instanceName: string, phone: string, opts: { title?: string; body: string; footerText: string; buttonText: string; buttons: InteractiveButton[] }): Promise<WhatsAppSendResult>;
 }

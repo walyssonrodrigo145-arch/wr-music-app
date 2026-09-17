@@ -679,6 +679,8 @@ async function runAutomation() {
                 instanceName: `prof_${userId}`,
                 baseUrl: userSettings.whatsappBotUrl,
                 apiKey: userSettings.whatsappBotToken || "",
+                // PRD_LEMBRETE_COM_LOGO: toggle da escola (padrão ligado) + logo do perfil
+                logoUrl: (userSettings as any).whatsappReminderLogo === 1 ? (userSettings.logoUrl || null) : null,
               });
               if (interactiveRes.success) {
                 await db.update(reminders)
@@ -719,7 +721,8 @@ async function runAutomation() {
             token: userSettings.whatsappBotToken,
             phone: targetPhone,
             message: msgToSend,
-            mediaUrl: schoolLogo,
+            // PRD_LEMBRETE_COM_LOGO: respeita o toggle da escola no caminho textual
+            mediaUrl: (userSettings as any).whatsappReminderLogo === 1 ? schoolLogo : null,
             sessionId: `prof_${userId}`,
           });
 
@@ -787,6 +790,8 @@ async function runAutomation() {
           whatsappBotToken: settings.whatsappBotToken,
       whatsappAutoSend: settings.whatsappAutoSend,
       whatsappInteractiveEnabled: settings.whatsappInteractiveEnabled,
+      whatsappReminderLogo: settings.whatsappReminderLogo,
+      logoUrl: settings.logoUrl,
           pixKey: settings.pixKey,
           paymentGateway: settings.paymentGateway,
           asaasApiKey: settings.asaasApiKey,
@@ -1223,6 +1228,8 @@ async function runAutomation() {
                         reminderMessage: message, lessonId: lesson.id,
                         instanceName: `prof_${userId}`,
                         baseUrl: userSet.whatsappBotUrl, apiKey: userSet.whatsappBotToken || "",
+                        // PRD_LEMBRETE_COM_LOGO: toggle da escola (padrão ligado)
+                        logoUrl: (userSet as any).whatsappReminderLogo === 1 ? ((userSet as any).logoUrl || null) : null,
                       });
                       if (res.success) {
                         const [newRem2] = await db.select({ id: reminders.id }).from(reminders).where(eq(reminders.refId, refId)).limit(1);

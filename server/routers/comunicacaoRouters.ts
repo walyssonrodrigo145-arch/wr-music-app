@@ -627,6 +627,8 @@ export const comunicacaoRouters = {
           studentUserId: students.studentUserId,
           // PRD_WHATSAPP_INTERACTIVE: botões de presença nos lembretes de aula
           whatsappInteractiveEnabled: settings.whatsappInteractiveEnabled,
+          // PRD_LEMBRETE_COM_LOGO: toggle + logo (já selecionada acima em logoUrl)
+          whatsappReminderLogo: settings.whatsappReminderLogo,
         })
         .from(reminders)
         .leftJoin(students, and(eq(reminders.studentId, students.id), eq(students.organizationId, orgId)))
@@ -699,6 +701,8 @@ export const comunicacaoRouters = {
               instanceName: `prof_${ctx.user.id}`,
               baseUrl: botUrl,
               apiKey: botToken,
+              // PRD_LEMBRETE_COM_LOGO: toggle da escola (padrão ligado)
+              logoUrl: (rem as any).whatsappReminderLogo === 1 ? (rem.logoUrl || null) : null,
             });
             if (interactiveRes.success) {
               await db.update(reminders)
@@ -731,7 +735,8 @@ export const comunicacaoRouters = {
           token: botToken,
           phone: targetPhone,
           message: msgToSend,
-          mediaUrl: schoolLogo,
+          // PRD_LEMBRETE_COM_LOGO: respeita o toggle da escola no caminho textual
+          mediaUrl: (rem as any).whatsappReminderLogo === 1 ? schoolLogo : null,
           sessionId: `prof_${ctx.user.id}`,
         });
 

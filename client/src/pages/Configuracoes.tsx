@@ -253,6 +253,7 @@ export default function Configuracoes() {
       setWhatsappAutoSend(settings.whatsappAutoSend === 1);
       setChatbotEnabled((settings as any).chatbotEnabled === 1);
       setWhatsappInteractiveEnabled((settings as any).whatsappInteractiveEnabled === 1);
+      setReminderLogoEnabled((settings as any).whatsappReminderLogo !== 0);
       setAutoAdvanceSlotsEnabled((settings as any).autoAdvanceSlotsEnabled === 1);
       setAsaasApiKey(settings.asaasApiKey ?? "");
       setAsaasEnabled(settings.asaasEnabled === 1);
@@ -374,6 +375,20 @@ export default function Configuracoes() {
   const handleToggleInteractive = (val: boolean) => {
     setWhatsappInteractiveEnabled(val);
     toggleInteractiveMutation.mutate({ enabled: val });
+  };
+
+  // PRD_LEMBRETE_COM_LOGO: logo da escola nos lembretes (padrão LIGADO)
+  const [reminderLogoEnabled, setReminderLogoEnabled] = useState(true);
+  const toggleReminderLogoMutation = trpc.settings.toggleReminderLogo.useMutation({
+    onSuccess: (data) => {
+      toast.success(data.enabled ? "🖼️ Lembretes com a logo da escola ATIVADOS!" : "Lembretes agora só com texto.");
+      utils.settings.get.invalidate();
+    },
+    onError: (e) => toast.error("Erro ao alterar a logo dos lembretes: " + e.message),
+  });
+  const handleToggleReminderLogo = (val: boolean) => {
+    setReminderLogoEnabled(val);
+    toggleReminderLogoMutation.mutate({ enabled: val });
   };
 
   const toggleAutoAdvanceMutation = trpc.settings.toggleAutoAdvanceSlots.useMutation({
@@ -1976,6 +1991,43 @@ export default function Configuracoes() {
                     <Toggle
                       checked={whatsappInteractiveEnabled}
                       onChange={handleToggleInteractive}
+                    />
+                  </div>
+
+                  {/* ── PRD_LEMBRETE_COM_LOGO: Toggle Lembretes com Logo ── */}
+                  <div className={cn(
+                    "flex items-center justify-between p-5 rounded-2xl border transition-all duration-300",
+                    reminderLogoEnabled
+                      ? "bg-amber-500/10 border-amber-500/30"
+                      : "bg-muted border-border"
+                  )}>
+                    <div className="flex items-center gap-4 pr-4">
+                      <div className={cn(
+                        "w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-all duration-300 text-lg",
+                        reminderLogoEnabled
+                          ? "bg-amber-500 text-white shadow-lg shadow-amber-500/30"
+                          : "bg-muted-foreground/20"
+                      )}>
+                        🖼️
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <p className="text-xs font-black text-foreground uppercase tracking-widest">Lembretes com a Logo da Escola</p>
+                          {reminderLogoEnabled && (
+                            <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-600 text-[9px] font-black uppercase tracking-wider">
+                              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping" />
+                              ATIVO
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[10px] text-muted-foreground font-medium leading-relaxed">
+                          Envia os lembretes de aula com a <strong>logo cadastrada no perfil da escola</strong> como imagem + mensagem — visual profissional. Desligado, os lembretes saem somente com texto. Usa a rota de imagem da Evolution (fallback automático para texto se a imagem falhar).
+                        </p>
+                      </div>
+                    </div>
+                    <Toggle
+                      checked={reminderLogoEnabled}
+                      onChange={handleToggleReminderLogo}
                     />
                   </div>
 

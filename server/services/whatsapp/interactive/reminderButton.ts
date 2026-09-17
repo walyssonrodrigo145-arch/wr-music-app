@@ -15,6 +15,9 @@ export interface LessonReminderInteractiveOpts {
   instanceName: string;
   baseUrl: string;
   apiKey: string;
+  // PRD_LEMBRETE_COM_LOGO: logo da escola (settings.logoUrl) — enviada como
+  // imagem com a mensagem na legenda quando o toggle da escola está ligado.
+  logoUrl?: string | null;
   // Lembretes disparam até 1 dia antes → validade do clique = 24h
   buttonExpirationMinutes?: number;
 }
@@ -66,5 +69,7 @@ export async function sendLessonReminderInteractive(
     apiKey: opts.apiKey,
     buttonExpirationMinutes: opts.buttonExpirationMinutes ?? 1440,
     forceText: true, // confiabilidade total: texto numerado em qualquer aparelho
+    // PRD_LEMBRETE_COM_LOGO: imagem com legenda (fallback automático p/ texto)
+    mediaUrl: opts.logoUrl || null,
   });
 }

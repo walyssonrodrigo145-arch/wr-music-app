@@ -460,6 +460,16 @@ export const plataformaRouters = {
       return { success: true, enabled: input.enabled };
     }),
 
+    // PRD_LEMBRETE_COM_LOGO: liga/desliga a logo da escola nos lembretes (padrão ON)
+    toggleReminderLogo: protectedProcedure.input(z.object({
+      enabled: z.boolean(),
+    })).mutation(async ({ ctx, input }) => {
+      await upsertSettings(ctx.user.organizationId!, ctx.user.id, {
+        whatsappReminderLogo: input.enabled ? 1 : 0,
+      });
+      return { success: true, enabled: input.enabled };
+    }),
+
     updateWhatsAppBot: protectedProcedure.input(z.object({
       whatsappBotUrl: z.string().optional(),
       whatsappBotToken: z.string().optional(),

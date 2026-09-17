@@ -284,6 +284,9 @@ export const settings = pgTable("settings", {
   // PRD_WHATSAPP_INTERACTIVE: botões/menus interativos (Evolution/Baileys) por escola.
   // Padrão desligado — opt-in por escola + master no ambiente.
   whatsappInteractiveEnabled: integer("whatsappInteractiveEnabled").default(0).notNull(),
+  // PRD_LEMBRETE_COM_LOGO: enviar a logo da escola (imagem) nos lembretes de
+  // aula — padrão LIGADO (identidade visual profissional). Desligável por escola.
+  whatsappReminderLogo: integer("whatsappReminderLogo").default(1).notNull(),
   // Recepcionista Virtual (IA conversacional no WhatsApp)
   conversationalMode: integer("conversationalMode").default(1).notNull(),
   attendancePersonaName: varchar("attendancePersonaName", { length: 60 }),

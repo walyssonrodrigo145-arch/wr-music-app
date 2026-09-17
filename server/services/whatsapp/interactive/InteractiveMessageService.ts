@@ -25,6 +25,9 @@ export interface SendInteractiveParams {
   baseUrl: string;            // settings.whatsappBotUrl da escola
   apiKey: string;             // settings.whatsappBotToken
   forceText?: boolean;        // §29 modo degradado forçado
+  // PRD_LEMBRETE_COM_LOGO: quando presente (logo da escola), o fallback textual
+  // sai como IMAGEM com legenda pela rota /message/sendMedia da Evolution.
+  mediaUrl?: string | null;
   // Sobrescreve o env WHATSAPP_BUTTON_EXPIRATION_MINUTES (ex.: lembrete de aula = 24h)
   buttonExpirationMinutes?: number;
 }
@@ -76,9 +79,16 @@ export async function sendInteractive(
       console.warn(`[Interactive] sendList falhou (${result.error}) — tentando texto.`);
     }
 
-    // 3. Fallback textual (§7)
+    // 3. Fallback textual (§7) — com logo da escola vira imagem + legenda
     if (INTERACTIVE_CONFIG.fallback()) {
       const text = buildFallbackText(opts.title, opts.body, cleanButtons);
+      const logo = (opts.mediaUrl || "").trim();
+      if (logo.startsWith("http")) {
+        // PRD_LEMBRETE_COM_LOGO: legenda limitada p/ não ser cortada pelo WhatsApp
+        result = await provider.sendMedia(opts.instanceName, opts.phone, logo, text.slice(0, 1024));
+        if (result.success) { type = "text"; return true; }
+        console.warn(`[Interactive] sendMedia com logo falhou (${result.error}) — enviando texto puro.`);
+      }
       result = await provider.sendText(opts.instanceName, opts.phone, text);
       if (result.success) { type = "text"; return true; }
     }

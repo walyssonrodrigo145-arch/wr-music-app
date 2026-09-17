@@ -26,6 +26,16 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: "2026.09.17",
+    date: "2026-09-17",
+    title: "Lembretes com a logo da escola",
+    summary: "Os lembretes de aula agora podem sair com a logo da escola — visual profissional configurável.",
+    items: [
+      { type: "novo", title: "Logo nos lembretes de aula", description: "Os lembretes chegam com a logo cadastrada no perfil da escola como imagem + mensagem de confirmação de presença. Dá um ar profissional ao atendimento." },
+      { type: "novo", title: "Ligue ou desligue quando quiser", description: "Em Configurações → Robô do WhatsApp há o interruptor 'Lembretes com a Logo da Escola': ligado envia com imagem, desligado envia somente o texto." },
+    ],
+  },
+  {
     version: "2026.09.16.5",
     date: "2026-09-16",
     title: "Instale o MusicPro no seu celular",

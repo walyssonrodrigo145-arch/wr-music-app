@@ -612,6 +612,8 @@ export async function runAutoMigrations() {
       )` },
       { table: 'interactive_action_logs', sql: `CREATE UNIQUE INDEX IF NOT EXISTS "interactive_action_logs_dedupe" ON "interactive_action_logs" ("messageId", "buttonId")` },
       { table: 'interactive_action_logs', sql: `CREATE INDEX IF NOT EXISTS "interactive_action_logs_org_idx" ON "interactive_action_logs" ("organizationId", "createdAt")` },
+      // ── PRD_LEMBRETE_COM_LOGO: lembretes com a logo da escola (padrão ON) ──
+      { table: 'settings', sql: `ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "whatsappReminderLogo" integer DEFAULT 1 NOT NULL` },
     ];
 
     for (const m of migrations) {
