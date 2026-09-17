@@ -144,64 +144,62 @@ export async function handleInteractiveIncoming(c: InteractiveIncomingCtx): Prom
 
   const isMenuCommand = /^(menu|olá|ola|oi|bom dia|boa tarde|boa noite)$/i.test(text);
 
-  // §20 — gatilho inicial: ALUNO da escola manda "menu" e não há sessão ativa.
+  // ── 2a. RESPOSTA DE LEMBRETE (BUG FIX cacabug): o lembrete de aula NÃO cria
+  // sessão de menu — a resposta "1"/"2" deve casar com a ÚLTIMA mensagem
+  // interativa do contato (registro em interactive_messages), dentro da
+  // validade. Sem isso, a resposta era ignorada (pipeline antigo desligado).
+  const [lastMsg] = await c.db.select().from(interactiveMessages)
+    .where(and(eq(interactiveMessages.phone, c.phone)))
+    .orderBy(desc(interactiveMessages.createdAt)).limit(1);
+  const buttons = Array.isArray(lastMsg?.buttons) ? lastMsg.buttons : [];
+  const lastValid = !!lastMsg && (!lastMsg.expiresAt || new Date(lastMsg.expiresAt).getTime() > Date.now());
+  const idx = (lastValid && buttons.length > 0) ? parseFallbackChoice(text, buttons) : null;
+
+  if (idx) {
+    const chosen = buttons[idx - 1];
+
+    // §14 — idempotência por mensagem textual recebida (replay do webhook)
+    const dedupeKey = `text-${normalizeMessageIdForDedupe(c.messageData)}`;
+    const inserted = await c.db.insert(interactiveActionLogs)
+      .values({
+        organizationId: c.organizationId,
+        userId: c.userId,
+        phone: c.phone,
+        messageId: dedupeKey,
+        buttonId: chosen.id,
+        action: chosen.action,
+        payload: { text, via: "fallback_text" },
+        status: "processed",
+      })
+      .onConflictDoNothing()
+      .returning({ id: interactiveActionLogs.id });
+    if (!inserted || inserted.length === 0) return true;
+
+    const normalizedText: NormalizedInteractiveResponse = {
+      phone: c.phone,
+      messageId: dedupeKey,
+      type: "text",
+      buttonId: chosen.id,
+      displayText: text,
+      action: chosen.action,
+      params: chosen.params || {},
+    };
+    await handleAction(buildCtx(c), normalizedText, chosen);
+    return true;
+  }
+
+  // §20 — gatilho inicial: ALUNO da escola manda "menu".
   // Leads/estranhos seguem no pipeline existente (IA/chatbot) — não expõe dados.
-  if (!session) {
-    if (!isMenuCommand) return false;
+  if (isMenuCommand) {
     if (!(await isStudentOfOrg(c.db, c.organizationId, c.phone))) return false;
     await renderMenuFor(c, "main");
     return true;
   }
 
-  // Sessão ativa → comando de menu reinicia; texto vira escolha da última grade.
-  if (isMenuCommand) {
-    await renderMenuFor(c, "main");
-    return true;
-  }
-
-  const [lastMsg] = await c.db.select().from(interactiveMessages)
-    .where(and(eq(interactiveMessages.phone, c.phone)))
-    .orderBy(desc(interactiveMessages.createdAt)).limit(1);
-  const buttons = Array.isArray(lastMsg?.buttons) ? lastMsg.buttons : [];
-
-  const idx = parseFallbackChoice(text, buttons);
-  if (!idx) {
-    // BUG FIX (cacabug): texto livre NÃO é sequestrado — o contato pode estar
-    // conversando com a IA/chatbot (a sessão interativa não impede conversa).
-    // O pipeline existente cuida da resposta (§31 — sem quebrar funcionalidades).
-    return false;
-  }
-
-  const chosen = buttons[idx - 1];
-
-  // §14 — idempotência por mensagem textual recebida (replay do webhook)
-  const dedupeKey = `text-${normalizeMessageIdForDedupe(c.messageData)}`;
-  const inserted = await c.db.insert(interactiveActionLogs)
-    .values({
-      organizationId: c.organizationId,
-      userId: c.userId,
-      phone: c.phone,
-      messageId: dedupeKey,
-      buttonId: chosen.id,
-      action: chosen.action,
-      payload: { text, via: "fallback_text" },
-      status: "processed",
-    })
-    .onConflictDoNothing()
-    .returning({ id: interactiveActionLogs.id });
-  if (!inserted || inserted.length === 0) return true;
-
-  const normalizedText: NormalizedInteractiveResponse = {
-    phone: c.phone,
-    messageId: dedupeKey,
-    type: "text",
-    buttonId: chosen.id,
-    displayText: text,
-    action: chosen.action,
-    params: chosen.params || {},
-  };
-  await handleAction(buildCtx(c), normalizedText, chosen);
-  return true;
+  // Texto livre NÃO é sequestrado — o contato pode estar conversando com a
+  // IA/chatbot (a sessão interativa não impede conversa). Pipeline existente
+  // cuida da resposta (§31 — sem quebrar funcionalidades).
+  return false;
 }
 
 /** Renderiza um menu pelo nome (respeita permissões dentro do renderMenu). */
