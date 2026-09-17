@@ -4,6 +4,7 @@
 
 import { sendInteractive } from "./InteractiveMessageService";
 import { WhatsAppSendResult } from "./types";
+import { canonicalizeWaPhone } from "../../../utils/whatsapp";
 
 export interface LessonReminderInteractiveOpts {
   organizationId: number;
@@ -18,14 +19,31 @@ export interface LessonReminderInteractiveOpts {
   buttonExpirationMinutes?: number;
 }
 
+/**
+ * BUG FIX (cacabug): o provider interativo precisa do MESMO normalizador do
+ * caminho textual — sem isso, números nacionais de 10/11 dígitos saíam sem o
+ * "55" e o WhatsApp interpretava o DDD como código de país (ex.: "33" → França),
+ * respondendo exists:false e caindo no fallback textual (era o caso da Iatsa).
+ */
+function normalizeWaNumber(phone: string): string {
+  let digits = (phone || "").replace(/\D/g, "");
+  if (!digits) return "";
+  if (digits.length === 10 || digits.length === 11) digits = "55" + digits;
+  return canonicalizeWaPhone(digits);
+}
+
 export async function sendLessonReminderInteractive(
   db: any,
   opts: LessonReminderInteractiveOpts
 ): Promise<WhatsAppSendResult> {
+  const phone = normalizeWaNumber(opts.phone);
+  if (!phone) {
+    return { success: false, error: "Telefone inválido para envio do lembrete interativo." };
+  }
   return sendInteractive(db, {
     organizationId: opts.organizationId,
     userId: opts.userId,
-    phone: opts.phone,
+    phone,
     menu: "lembrete_aula",
     title: "📚 Lembrete de aula",
     body: opts.reminderMessage.slice(0, 900),
