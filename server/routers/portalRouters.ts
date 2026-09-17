@@ -1382,6 +1382,7 @@ export const portalRouters = {
           status: lessons.status,
           studentConfirmation: lessons.studentConfirmation,
           studentName: students.name,
+          scheduledAt: lessons.scheduledAt,
         }).from(lessons)
           .leftJoin(students, eq(lessons.studentId, students.id))
           .where(and(eq(lessons.id, input.lessonId), eq(lessons.studentId, studentId), eq(lessons.organizationId, orgId)))
@@ -1426,6 +1427,33 @@ export const portalRouters = {
             actionUrl: "/aulas",
           });
           notifyUser(teacherUserId, { title, content: message, url: "/aulas" }).catch(e => console.error("Falha no push de confirmação:", e));
+
+          // BUG FIX (cacabug): confirmação pelo PORTAL também responde no
+          // WhatsApp do aluno (ela não via retorno algum ao confirmar no portal).
+          // Best-effort, sem bloquear a resposta da mutation.
+          (async () => {
+            try {
+              const [contact] = await db.select({ phone: students.phone, guardianPhone: students.guardianPhone })
+                .from(students).where(eq(students.id, studentId)).limit(1);
+              const targetPhone = contact?.phone || contact?.guardianPhone || null;
+              if (!targetPhone) return;
+              const [teacherSettings] = await db.select({ whatsappBotUrl: settings.whatsappBotUrl, whatsappBotToken: settings.whatsappBotToken })
+                .from(settings).where(eq(settings.userId, teacherUserId)).limit(1);
+              if (!teacherSettings?.whatsappBotUrl) return;
+              const when = new Date(lesson.scheduledAt).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+              await sendWhatsAppMessage({
+                url: teacherSettings.whatsappBotUrl,
+                token: teacherSettings.whatsappBotToken || undefined,
+                phone: targetPhone,
+                message: input.status === "confirmado"
+                  ? `✅ *Presença confirmada!*\n\nSua aula de ${lesson.title} em ${when} está confirmada. Até lá! 🎵`
+                  : `📋 *Aviso registrado!*\n\nSeu professor foi avisado de que você não irá à aula de ${lesson.title} (${when}).`,
+                sessionId: `prof_${teacherUserId}`,
+              });
+            } catch (e) {
+              console.error("Falha ao responder confirmação no WhatsApp do aluno (não impeditivo):", e);
+            }
+          })();
         }
 
         return { success: true, studentConfirmation: input.status };

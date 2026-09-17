@@ -22,6 +22,9 @@ export interface InteractiveIncomingCtx {
   role: string;
   baseUrl: string;   // settings.whatsappBotUrl
   apiKey: string;    // settings.whatsappBotToken
+  // BUG FIX: o id da mensagem RECEBIDA vive em payload.data.key.id (fora do
+  // messageData) — sem ele o dedupe virava "text-null" e bloqueava respostas.
+  incomingMessageId?: string | null;
 }
 
 function buildCtx(c: InteractiveIncomingCtx) {
@@ -110,7 +113,7 @@ export async function handleInteractiveIncoming(c: InteractiveIncomingCtx): Prom
     }
 
     // §14 — idempotência: duplo clique/replay não re-executa
-    const dedupeKey = normalizeMessageIdForDedupe(c.messageData) || `resp-${Date.now()}`;
+    const dedupeKey = normalizeMessageIdForDedupe(c.messageData, c.incomingMessageId) || `resp-${Date.now()}`;
     const inserted = await c.db.insert(interactiveActionLogs)
       .values({
         organizationId: c.organizationId,
@@ -159,7 +162,7 @@ export async function handleInteractiveIncoming(c: InteractiveIncomingCtx): Prom
     const chosen = buttons[idx - 1];
 
     // §14 — idempotência por mensagem textual recebida (replay do webhook)
-    const dedupeKey = `text-${normalizeMessageIdForDedupe(c.messageData)}`;
+    const dedupeKey = `text-${normalizeMessageIdForDedupe(c.messageData, c.incomingMessageId)}`;
     const inserted = await c.db.insert(interactiveActionLogs)
       .values({
         organizationId: c.organizationId,
@@ -226,8 +229,8 @@ async function isStudentOfOrg(db: any, organizationId: number, phone: string): P
 }
 
 /** id da mensagem RECEBIDA do usuário (dedupe do webhook §14). */
-function normalizeMessageIdForDedupe(messageData: any): string | null {
-  const id = messageData?.key?.id || messageIdFrom(messageData);
+function normalizeMessageIdForDedupe(messageData: any, incomingMessageId?: string | null): string | null {
+  const id = incomingMessageId || messageData?.key?.id || messageIdFrom(messageData);
   return id ? String(id).slice(0, 250) : null;
 }
 
@@ -239,7 +242,7 @@ async function logExpiredOrInvalid(c: InteractiveIncomingCtx, kind: "expired" | 
         organizationId: c.organizationId,
         userId: c.userId,
         phone: c.phone,
-        messageId: normalizeMessageIdForDedupe(c.messageData) || `${kind}-${Date.now()}`,
+        messageId: normalizeMessageIdForDedupe(c.messageData, c.incomingMessageId) || `${kind}-${Date.now()}`,
         buttonId: kind,
         action: kind,
         payload: null,

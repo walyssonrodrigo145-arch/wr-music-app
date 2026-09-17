@@ -383,6 +383,8 @@ router.post("/", async (req, res) => {
           role: instUser?.role || "professor",
           baseUrl: profSettings.whatsappBotUrl || process.env.EVOLUTION_API_URL || "http://179.197.76.174:8080",
           apiKey: profSettings.whatsappBotToken || process.env.EVOLUTION_API_KEY || "",
+          // BUG FIX: id real da mensagem recebida (vive em payload.data.key.id)
+          incomingMessageId: payload.data?.key?.id || null,
         });
         if (handled) return res.status(200).json({ ok: true });
       } catch (intErr) {
