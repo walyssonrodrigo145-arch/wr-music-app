@@ -717,6 +717,10 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
   });
 
   // ── PRD_RECIBO_MENSALIDADE: gera PDF do recibo (+ opcional envio WhatsApp) ──
+  // BUG FIX (cacabug): "não aparecia nada" — o window.open disparava DEPOIS da
+  // mutation async e o bloqueador de pop-up engolia o PDF. A aba é aberta no
+  // clique (gesto do usuário) e recebe a URL quando o recibo fica pronto.
+  const receiptWindowRef = useRef<Window | null>(null);
   const generateReceiptMutation = trpc.paymentDues.generateReceipt.useMutation({
     onSuccess: (data: any, variables) => {
       utils.paymentDues.invalidate();
@@ -726,10 +730,28 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
       } else {
         toast.success("Recibo gerado!");
       }
-      if (data?.url) window.open(data.url, "_blank");
+      if (data?.url) {
+        if (receiptWindowRef.current) {
+          try { receiptWindowRef.current.location.href = data.url; } catch { window.open(data.url, "_blank"); }
+          receiptWindowRef.current = null;
+        } else {
+          window.open(data.url, "_blank");
+        }
+      }
     },
-    onError: (e: any) => toast.error("Erro ao gerar recibo: " + e.message),
+    onError: (e: any) => {
+      if (receiptWindowRef.current) { try { receiptWindowRef.current.close(); } catch { /* já fechada */ } receiptWindowRef.current = null; }
+      toast.error("Erro ao gerar recibo: " + e.message);
+    },
   });
+
+  const handleGenerateReceipt = (paymentId: number, sendWhatsapp: boolean) => {
+    if (!sendWhatsapp) {
+      // Abre a aba AGORA (dentro do gesto do clique) p/ escapar do pop-up blocker
+      receiptWindowRef.current = window.open("", "_blank");
+    }
+    generateReceiptMutation.mutate({ paymentDueId: paymentId, sendWhatsapp });
+  };
 
   const receiptMutationFor: number | null = generateReceiptMutation.variables?.paymentDueId ?? null;
   const receiptPending = (sendWhatsapp: boolean) =>
@@ -1102,10 +1124,27 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
                                     <Pencil className="w-4 h-4 text-blue-500" />
                                     <span className="text-xs font-bold text-muted-foreground">Editar Registro</span>
                                  </DropdownMenuItem>
-                                 <DropdownMenuItem className="gap-2 rounded-lg" onClick={() => emitNfseMutation.mutate({ paymentId: payment.id })}>
-                                    <Receipt className="w-4 h-4 text-emerald-500" />
-                                    <span className="text-xs font-bold text-muted-foreground">Emitir NFS-e</span>
-                                 </DropdownMenuItem>
+                                  <DropdownMenuItem className="gap-2 rounded-lg" onClick={() => emitNfseMutation.mutate({ paymentId: payment.id })}>
+                                     <Receipt className="w-4 h-4 text-emerald-500" />
+                                     <span className="text-xs font-bold text-muted-foreground">Emitir NFS-e</span>
+                                  </DropdownMenuItem>
+                                  {/* PRD_RECIBO_MENSALIDADE: recibo em PDF + envio por WhatsApp */}
+                                  <DropdownMenuItem
+                                    className="gap-2 rounded-lg"
+                                    disabled={generateReceiptMutation.isPending}
+                                    onClick={() => handleGenerateReceipt(payment.id, false)}
+                                  >
+                                     <FileCheck className="w-4 h-4 text-primary" />
+                                     <span className="text-xs font-bold text-muted-foreground">Gerar Recibo (PDF)</span>
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    className="gap-2 rounded-lg"
+                                    disabled={generateReceiptMutation.isPending}
+                                    onClick={() => handleGenerateReceipt(payment.id, true)}
+                                  >
+                                     <Send className="w-4 h-4 text-emerald-500" />
+                                     <span className="text-xs font-bold text-muted-foreground">Enviar Recibo por WhatsApp</span>
+                                  </DropdownMenuItem>
                                  <DropdownMenuSeparator className="bg-muted" />
                                   {!payment.asaasId && !payment.mpPaymentId && !payment.infinitepayPaymentLink ? (
                                      isGatewayEnabled && (
@@ -1256,13 +1295,13 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
                       <Button variant="ghost" size="sm"
                         className="h-9 px-2 rounded-lg text-[10px] font-bold text-primary hover:bg-primary/10 shrink-0"
                         disabled={generateReceiptMutation.isPending}
-                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); generateReceiptMutation.mutate({ paymentDueId: payment.id, sendWhatsapp: false }); }}>
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleGenerateReceipt(payment.id, false); }}>
                         {receiptPending(false) ? <Loader2 size={12} className="mr-1 animate-spin" /> : <FileCheck size={12} className="mr-1" />} Recibo
                       </Button>
                       <Button variant="ghost" size="sm"
                         className="h-9 px-2 rounded-lg text-[10px] font-bold text-emerald-600 hover:bg-emerald-500/10 shrink-0"
                         disabled={generateReceiptMutation.isPending}
-                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); generateReceiptMutation.mutate({ paymentDueId: payment.id, sendWhatsapp: true }); }}>
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleGenerateReceipt(payment.id, true); }}>
                         {receiptPending(true) ? <Loader2 size={12} className="mr-1 animate-spin" /> : <Send size={12} className="mr-1" />} Enviar
                       </Button>
 
