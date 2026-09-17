@@ -40,14 +40,23 @@ export async function sendLessonReminderInteractive(
   if (!phone) {
     return { success: false, error: "Telefone inválido para envio do lembrete interativo." };
   }
+
+  // ── DECISÃO DE PRODUTO (evidência real 17/09): sendButtons da Evolution 2.3.7
+  // retorna success mas o WhatsApp do ALUNO não renderiza os botões (limitação
+  // conhecida do Baileys — desaparecem silenciosamente em vários aparelhos).
+  // Para o lembrete de aula, confirmação PRECISA chegar: envia o texto numerado
+  // (1️⃣/2️⃣) que funciona em 100% dos dispositivos — a resposta "1"/"2" é
+  // processada pela camada interativa (sem login, notifica o professor).
+  const portalUrl = `${process.env.APP_PUBLIC_URL || "https://wrmusicpro.com.br"}/aluno/aulas?confirmar=${opts.lessonId}`;
+  const body = `${opts.reminderMessage.slice(0, 800)}\n\n✅ Confirme também pelo Portal: ${portalUrl}`;
+
   return sendInteractive(db, {
     organizationId: opts.organizationId,
     userId: opts.userId,
     phone,
     menu: "lembrete_aula",
     title: "📚 Lembrete de aula",
-    body: opts.reminderMessage.slice(0, 900),
-    footer: `Confira também: ${process.env.APP_PUBLIC_URL || "https://wrmusicpro.com.br"}`,
+    body,
     buttons: [
       { id: `lesson_confirm_${opts.lessonId}`, text: "✅ Vou comparecer", action: "confirmar_presenca_aula", params: { lessonId: opts.lessonId }, order: 1 },
       { id: `lesson_novai_${opts.lessonId}`, text: "❌ Não poderei ir", action: "nao_vai_aula", params: { lessonId: opts.lessonId }, order: 2 },
@@ -56,5 +65,6 @@ export async function sendLessonReminderInteractive(
     baseUrl: opts.baseUrl,
     apiKey: opts.apiKey,
     buttonExpirationMinutes: opts.buttonExpirationMinutes ?? 1440,
+    forceText: true, // confiabilidade total: texto numerado em qualquer aparelho
   });
 }
