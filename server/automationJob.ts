@@ -648,23 +648,16 @@ async function runAutomation() {
             try {
               // ANTI-BAN: mesmo delay humanizado do caminho textual
               await humanDelay(3000, 7000);
-              const { sendInteractive } = await import("./services/whatsapp/interactive/InteractiveMessageService");
-              const interactiveRes = await sendInteractive(db, {
+              const { sendLessonReminderInteractive } = await import("./services/whatsapp/interactive/reminderButton");
+              const interactiveRes = await sendLessonReminderInteractive(db, {
                 organizationId: orgId,
                 userId,
                 phone: targetPhone,
-                menu: "lembrete_aula",
-                title: "📚 Lembrete de aula",
-                body: rem.message.slice(0, 900),
-                footer: `Confira também: ${process.env.APP_PUBLIC_URL || "https://wrmusicpro.com.br"}`,
-                buttons: [
-                  { id: `lesson_confirm_${rem.lessonId}`, text: "✅ Vou comparecer", action: "confirmar_presenca_aula", params: { lessonId: rem.lessonId }, order: 1 },
-                  { id: `lesson_novai_${rem.lessonId}`, text: "❌ Não poderei ir", action: "nao_vai_aula", params: { lessonId: rem.lessonId }, order: 2 },
-                ],
+                reminderMessage: rem.message,
+                lessonId: rem.lessonId!,
                 instanceName: `prof_${userId}`,
                 baseUrl: userSettings.whatsappBotUrl,
                 apiKey: userSettings.whatsappBotToken || "",
-                buttonExpirationMinutes: 1440, // 24h — reminders disparam até 1 dia antes
               });
               if (interactiveRes.success) {
                 await db.update(reminders)
@@ -1175,6 +1168,54 @@ async function runAutomation() {
                 });
 
                 // Envia e marca como "enviado" imediatamente — impede que o main dispatch loop reenvie no próximo ciclo
+                // ── PRD_LEMBRETE_INTERATIVO (BUG FIX cacabug): regras de AULA também
+                // ganham botões de presença quando o toggle da escola está ativo.
+                const interactiveOn = (userSet as any).whatsappInteractiveEnabled === 1;
+                let interactiveHandled = false;
+                if (interactiveOn && userSet.whatsappAutoSend === 1 && userSet.whatsappBotUrl && lesson.studentId) {
+                  try {
+                    // Resolve o destinatário como o routing faz:
+                    // - regra só p/ responsável → responsável; senão aluno
+                    //   (com override do responsável para menores de idade)
+                    const toGuardianOnly = (rule as any).sendToStudent === 0 && (rule as any).sendToGuardian === 1;
+                    let targetPhone: string | null = toGuardianOnly
+                      ? (lesson.guardianPhone?.trim() || null)
+                      : (lesson.studentPhone || null);
+                    if (!toGuardianOnly && targetPhone && lesson.birthDate) {
+                      const bd = new Date(lesson.birthDate);
+                      const today = new Date();
+                      let age = today.getFullYear() - bd.getFullYear();
+                      if (today.getMonth() < bd.getMonth() || (today.getMonth() === bd.getMonth() && today.getDate() < bd.getDate())) age--;
+                      if (age < 18 && (rule as any).sendToGuardian === 1 && lesson.guardianPhone?.trim()) {
+                        targetPhone = lesson.guardianPhone;
+                      }
+                    }
+                    if (targetPhone?.trim() && (await canSendWhatsApp(userId, orgId))) {
+                      await humanDelay(3000, 7000);
+                      const { sendLessonReminderInteractive } = await import("./services/whatsapp/interactive/reminderButton");
+                      const res = await sendLessonReminderInteractive(db, {
+                        organizationId: orgId, userId, phone: targetPhone,
+                        reminderMessage: message, lessonId: lesson.id,
+                        instanceName: `prof_${userId}`,
+                        baseUrl: userSet.whatsappBotUrl, apiKey: userSet.whatsappBotToken || "",
+                      });
+                      if (res.success) {
+                        const [newRem2] = await db.select({ id: reminders.id }).from(reminders).where(eq(reminders.refId, refId)).limit(1);
+                        if (newRem2) {
+                          await db.update(reminders).set({
+                            status: "enviado", sentAt: new Date(), errorMessage: null, updatedAt: new Date(),
+                          }).where(eq(reminders.id, newRem2.id));
+                        }
+                        debugLog(`[Interactive] Lembrete (regra ${rule.id}) enviado com botões (${res.type}) para ${targetPhone}`);
+                        interactiveHandled = true;
+                      }
+                    }
+                  } catch (e) {
+                    console.error("[Automation] Falha no envio interativo da regra (fallback textual mantido):", e);
+                  }
+                }
+                if (interactiveHandled) continue;
+
                 if (userSet.whatsappAutoSend === 1 && userSet.whatsappBotUrl && await canSendWhatsApp(userId, orgId)) {
                   const routingRes = await sendSmartWhatsAppNotification({
                     sendToStudent: (rule as any).sendToStudent === 1 || (rule as any).sendToStudent === undefined,

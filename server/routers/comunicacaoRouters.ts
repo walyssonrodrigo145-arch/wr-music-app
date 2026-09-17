@@ -625,6 +625,8 @@ export const comunicacaoRouters = {
           type: reminders.type,
           lessonId: reminders.lessonId,
           studentUserId: students.studentUserId,
+          // PRD_WHATSAPP_INTERACTIVE: botões de presença nos lembretes de aula
+          whatsappInteractiveEnabled: settings.whatsappInteractiveEnabled,
         })
         .from(reminders)
         .leftJoin(students, and(eq(reminders.studentId, students.id), eq(students.organizationId, orgId)))
@@ -665,6 +667,46 @@ export const comunicacaoRouters = {
             msgToSend = appendConfirmationLink(msgToSend, rem.lessonId!);
           } catch (e) {
             console.error("[Reminders] Falha ao anexar link de confirmação (não impeditivo):", e);
+          }
+        }
+
+        // ── PRD_LEMBRETE_INTERATIVO: envio MANUAL também com botões de presença ──
+        if (isLessonReminder && (rem as any).whatsappInteractiveEnabled === 1) {
+          try {
+            const { sendLessonReminderInteractive } = await import("../services/whatsapp/interactive/reminderButton");
+            const interactiveRes = await sendLessonReminderInteractive(db, {
+              organizationId: orgId,
+              userId: ctx.user.id,
+              phone: targetPhone,
+              reminderMessage: rem.message,
+              lessonId: rem.lessonId!,
+              instanceName: `prof_${ctx.user.id}`,
+              baseUrl: botUrl,
+              apiKey: botToken,
+            });
+            if (interactiveRes.success) {
+              await db.update(reminders)
+                .set({ status: "enviado", sentAt: new Date(), externalMessageId: interactiveRes.messageId ?? null, errorMessage: null, updatedAt: new Date() })
+                .where(eq(reminders.id, input.id));
+              await notifyUser(ctx.user.id, {
+                title: "Mensagem Enviada (com botões)",
+                content: `Lembrete com botões enviado para ${rem.studentName || "Aluno"} (${targetPhone}).`,
+              });
+              try {
+                const { requestAttendanceConfirmation } = await import("../services/attendanceConfirmation");
+                await requestAttendanceConfirmation({
+                  organizationId: orgId,
+                  lessonId: rem.lessonId!,
+                  studentUserId: rem.studentUserId,
+                });
+              } catch (e) {
+                console.error("[Comunicacao] Falha ao pedir confirmação de presença (não impeditivo):", e);
+              }
+              return { success: true, messageId: interactiveRes.messageId, interactive: true };
+            }
+            console.warn("[Reminders] Envio interativo falhou — caindo para texto com link.");
+          } catch (e) {
+            console.error("[Comunicacao] Falha no envio interativo (fallback textual mantido):", e);
           }
         }
 
