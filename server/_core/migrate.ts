@@ -564,6 +564,54 @@ export async function runAutoMigrations() {
       // ── PRD_MATRICULA_MULTIUSO: link aceita N alunos (claim atômico) ──
       { table: 'enrollment_links', sql: `ALTER TABLE "enrollment_links" ADD COLUMN IF NOT EXISTS "maxUses" integer DEFAULT 1 NOT NULL` },
       { table: 'enrollment_links', sql: `ALTER TABLE "enrollment_links" ADD COLUMN IF NOT EXISTS "usesCount" integer DEFAULT 0 NOT NULL` },
+      // ── PRD_WHATSAPP_INTERACTIVE: sessões, mensagens e idempotência de ações ──
+      { table: 'settings', sql: `ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "whatsappInteractiveEnabled" integer DEFAULT 0 NOT NULL` },
+      { table: 'interactive_sessions', sql: `CREATE TABLE IF NOT EXISTS "interactive_sessions" (
+        "id" serial PRIMARY KEY NOT NULL,
+        "organizationId" integer NOT NULL,
+        "userId" integer NOT NULL,
+        "phone" varchar(30) NOT NULL,
+        "currentMenu" varchar(60) DEFAULT 'main' NOT NULL,
+        "previousMenu" varchar(60),
+        "context" jsonb,
+        "lastMessageId" varchar(255),
+        "status" varchar(20) DEFAULT 'active' NOT NULL,
+        "expiresAt" timestamp NOT NULL,
+        "createdAt" timestamp DEFAULT now() NOT NULL,
+        "updatedAt" timestamp DEFAULT now() NOT NULL
+      )` },
+      { table: 'interactive_sessions', sql: `CREATE UNIQUE INDEX IF NOT EXISTS "interactive_sessions_phone_unique" ON "interactive_sessions" ("phone")` },
+      { table: 'interactive_messages', sql: `CREATE TABLE IF NOT EXISTS "interactive_messages" (
+        "id" serial PRIMARY KEY NOT NULL,
+        "organizationId" integer NOT NULL,
+        "userId" integer NOT NULL,
+        "phone" varchar(30) NOT NULL,
+        "messageId" varchar(255),
+        "type" varchar(20) DEFAULT 'buttons' NOT NULL,
+        "menu" varchar(60),
+        "title" varchar(120),
+        "buttons" jsonb DEFAULT '[]' NOT NULL,
+        "expiresAt" timestamp,
+        "createdAt" timestamp DEFAULT now() NOT NULL
+      )` },
+      { table: 'interactive_messages', sql: `CREATE INDEX IF NOT EXISTS "interactive_messages_message_id_idx" ON "interactive_messages" ("messageId")` },
+      { table: 'interactive_messages', sql: `CREATE INDEX IF NOT EXISTS "interactive_messages_phone_idx" ON "interactive_messages" ("phone", "createdAt")` },
+      { table: 'interactive_action_logs', sql: `CREATE TABLE IF NOT EXISTS "interactive_action_logs" (
+        "id" serial PRIMARY KEY NOT NULL,
+        "organizationId" integer NOT NULL,
+        "userId" integer NOT NULL,
+        "phone" varchar(30) NOT NULL,
+        "messageId" varchar(255),
+        "buttonId" varchar(120),
+        "action" varchar(80) NOT NULL,
+        "payload" jsonb,
+        "status" varchar(20) DEFAULT 'processed' NOT NULL,
+        "error" text,
+        "createdAt" timestamp DEFAULT now() NOT NULL,
+        "processedAt" timestamp DEFAULT now() NOT NULL
+      )` },
+      { table: 'interactive_action_logs', sql: `CREATE UNIQUE INDEX IF NOT EXISTS "interactive_action_logs_dedupe" ON "interactive_action_logs" ("messageId", "buttonId")` },
+      { table: 'interactive_action_logs', sql: `CREATE INDEX IF NOT EXISTS "interactive_action_logs_org_idx" ON "interactive_action_logs" ("organizationId", "createdAt")` },
     ];
 
     for (const m of migrations) {

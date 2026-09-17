@@ -3,14 +3,16 @@ import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 
 // ─── Toggle Switch ────────────────────────────────────────────────────────────
-export function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
+export function Toggle({ checked, onChange, disabled }: { checked: boolean; onChange: (v: boolean) => void; disabled?: boolean }) {
   return (
     <button
       type="button"
-      onClick={() => onChange(!checked)}
+      disabled={disabled}
+      onClick={() => !disabled && onChange(!checked)}
       className={cn(
         "relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
-        checked ? "bg-primary" : "bg-muted-foreground/30"
+        checked ? "bg-primary" : "bg-muted-foreground/30",
+        disabled && "opacity-50 cursor-not-allowed"
       )}
     >
       <span

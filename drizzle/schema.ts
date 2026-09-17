@@ -281,6 +281,9 @@ export const settings = pgTable("settings", {
   whatsappAutoSend: integer("whatsappAutoSend").default(0).notNull(),
   // Chatbot (Robô de Autoatendimento WhatsApp)
   chatbotEnabled: integer("chatbotEnabled").default(0).notNull(),
+  // PRD_WHATSAPP_INTERACTIVE: botões/menus interativos (Evolution/Baileys) por escola.
+  // Padrão desligado — opt-in por escola + master no ambiente.
+  whatsappInteractiveEnabled: integer("whatsappInteractiveEnabled").default(0).notNull(),
   // Recepcionista Virtual (IA conversacional no WhatsApp)
   conversationalMode: integer("conversationalMode").default(1).notNull(),
   attendancePersonaName: varchar("attendancePersonaName", { length: 60 }),
@@ -712,6 +715,65 @@ export const chatbotLogs = pgTable("chatbot_logs", {
   durationMs: integer("durationMs").default(0).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
+
+// ── PRD_WHATSAPP_INTERACTIVE — Botões/menus interativos (Evolution/Baileys) ──
+// Sessão de atendimento (interface → action → validação → negócio → resposta).
+// Expiração padrão 30 min (env WHATSAPP_INTERACTIVE_SESSION_MINUTES).
+export const interactiveSessions = pgTable("interactive_sessions", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organizationId").notNull(),
+  userId: integer("userId").notNull(), // dono da instância (prof_X)
+  phone: varchar("phone", { length: 30 }).notNull(),
+  currentMenu: varchar("currentMenu", { length: 60 }).default("main").notNull(),
+  previousMenu: varchar("previousMenu", { length: 60 }),
+  context: jsonb("context"), // parâmetros do menu (ex.: filtros/página)
+  lastMessageId: varchar("lastMessageId", { length: 255 }),
+  status: varchar("status", { length: 20 }).default("active").notNull(), // active | expired
+  expiresAt: timestamp("expiresAt").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
+}, (table) => [
+  uniqueIndex("interactive_sessions_phone_unique").on(table.phone),
+]);
+
+// Mensagens interativas ENVIADAS — fonte da verdade p/ mapear buttonId↔action
+// e validar expiração do clique (nunca confiar no texto/id recebido).
+export const interactiveMessages = pgTable("interactive_messages", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organizationId").notNull(),
+  userId: integer("userId").notNull(),
+  phone: varchar("phone", { length: 30 }).notNull(),
+  messageId: varchar("messageId", { length: 255 }),
+  type: varchar("type", { length: 20 }).default("buttons").notNull(), // buttons | list | text(fallback)
+  menu: varchar("menu", { length: 60 }),
+  title: varchar("title", { length: 120 }),
+  buttons: jsonb("buttons").default([]).notNull(), // [{id, text, action, params, order}]
+  expiresAt: timestamp("expiresAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (table) => [
+  index("interactive_messages_message_id_idx").on(table.messageId),
+  index("interactive_messages_phone_idx").on(table.phone, table.createdAt),
+]);
+
+// Log de AÇÕES processadas — idempotência por (messageId, buttonId/texto):
+// duplo clique e replay do webhook não re-executam a ação.
+export const interactiveActionLogs = pgTable("interactive_action_logs", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organizationId").notNull(),
+  userId: integer("userId").notNull(),
+  phone: varchar("phone", { length: 30 }).notNull(),
+  messageId: varchar("messageId", { length: 255 }),
+  buttonId: varchar("buttonId", { length: 120 }),
+  action: varchar("action", { length: 80 }).notNull(),
+  payload: jsonb("payload"),
+  status: varchar("status", { length: 20 }).default("processed").notNull(), // processed | expired | duplicate | unauthorized | error
+  error: text("error"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  processedAt: timestamp("processedAt").defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex("interactive_action_logs_dedupe").on(table.messageId, table.buttonId),
+  index("interactive_action_logs_org_idx").on(table.organizationId, table.createdAt),
+]);
 
 export const schoolKnowledgeBase = pgTable("school_knowledge_base", {
   id: serial("id").primaryKey(),

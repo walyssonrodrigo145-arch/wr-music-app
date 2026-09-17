@@ -13,6 +13,8 @@ import { callGemini } from "../utils/gemini";
 import { sendPushNotification } from "../firebaseAdmin";
 import { getDefaultFlow, ChatbotFlowData } from "../chatbotFlowRouter";
 import { ENV } from "../_core/env";
+import { users } from "../../drizzle/schema";
+import { handleInteractiveIncoming } from "../services/whatsapp/interactive";
 
 const router = Router();
 
@@ -102,6 +104,15 @@ function extractMessageText(messageObj: any): string {
   if (messageObj.extendedTextMessage?.text) return messageObj.extendedTextMessage.text;
   if (messageObj.imageMessage?.caption) return messageObj.imageMessage.caption;
   return "";
+}
+
+/** PRD_WHATSAPP_INTERACTIVE: a resposta é um clique em botão/lista interativa? */
+function isInteractiveMessage(messageObj: any): boolean {
+  return !!(
+    messageObj?.buttonsResponseMessage ||
+    messageObj?.listResponseMessage ||
+    messageObj?.interactiveResponseMessage
+  );
 }
 
 /** Compara opção digitada */
@@ -295,7 +306,11 @@ router.post("/", async (req, res) => {
     // Mensagens sem texto são processadas apenas se vierem do próprio número
     // conectado (fromMe) — podem ser resposta manual do professor com mídia.
     // De alunos/leads seguem sendo ignoradas (comportamento original).
-    if (!textMsg && !payload.data.key?.fromMe) return res.status(200).json({ ok: true });
+    // EXCEÇÃO (PRD_WHATSAPP_INTERACTIVE): cliques em botões/listas NÃO têm texto
+    // e precisam passar para a camada interativa.
+    if (!textMsg && !payload.data.key?.fromMe && !isInteractiveMessage(messageData)) {
+      return res.status(200).json({ ok: true });
+    }
 
     debugLog(`[Chatbot] Mensagem de ${phone}: ${textMsg}`);
 
@@ -321,6 +336,7 @@ router.post("/", async (req, res) => {
         conversationalMode: settings.conversationalMode,
         attendancePersonaName: settings.attendancePersonaName,
         attendanceTone: settings.attendanceTone,
+        whatsappInteractiveEnabled: settings.whatsappInteractiveEnabled,
         phone: settings.phone,
         organizationId: settings.organizationId,
         geminiApiKey: settings.geminiApiKey,
@@ -458,6 +474,34 @@ router.post("/", async (req, res) => {
       });
       debugLog(`[Chatbot] Notificação enviada ao professor (${profSettings.phone}): success=${result.success}`);
     };
+
+    // ── PRD_WHATSAPP_INTERACTIVE: botões/menus interativos (opt-in por escola) ──
+    // Roda ANTES do pipeline de chatbot; se consumir a mensagem, o fluxo
+    // existente não roda (sem duplicidade). Falha cai no modo degradado.
+    if (profSettings.whatsappInteractiveEnabled === 1 && profSettings.organizationId != null && !isProfessorChat) {
+      try {
+        const [instUser] = await db
+          .select({ role: users.role })
+          .from(users)
+          .where(eq(users.id, professorUserId))
+          .limit(1);
+        const handled = await handleInteractiveIncoming({
+          db,
+          messageData,
+          phone,
+          instanceName: instanceName || "prof_1",
+          organizationId: profSettings.organizationId,
+          userId: professorUserId,
+          role: instUser?.role || "professor",
+          baseUrl: profSettings.whatsappBotUrl || process.env.EVOLUTION_API_URL || "http://179.197.76.174:8080",
+          apiKey: profSettings.whatsappBotToken || process.env.EVOLUTION_API_KEY || "",
+        });
+        if (handled) return res.status(200).json({ ok: true });
+      } catch (intErr) {
+        console.error("[Interactive] Falha ao processar mensagem interativa (modo degradado):", intErr);
+        // segue para o pipeline existente
+      }
+    }
 
     // ── Identificar aluno cadastrado (pelo telefone do aluno OU do responsável) ──
     const allStudents = await db

@@ -252,6 +252,7 @@ export default function Configuracoes() {
       setWhatsappBotToken(settings.whatsappBotToken ?? "");
       setWhatsappAutoSend(settings.whatsappAutoSend === 1);
       setChatbotEnabled((settings as any).chatbotEnabled === 1);
+      setWhatsappInteractiveEnabled((settings as any).whatsappInteractiveEnabled === 1);
       setAutoAdvanceSlotsEnabled((settings as any).autoAdvanceSlotsEnabled === 1);
       setAsaasApiKey(settings.asaasApiKey ?? "");
       setAsaasEnabled(settings.asaasEnabled === 1);
@@ -359,6 +360,20 @@ export default function Configuracoes() {
   const handleToggleChatbot = (val: boolean) => {
     setChatbotEnabled(val);
     toggleChatbotMutation.mutate({ enabled: val });
+  };
+
+  // PRD_WHATSAPP_INTERACTIVE: botões/menus interativos no WhatsApp (opt-in)
+  const [whatsappInteractiveEnabled, setWhatsappInteractiveEnabled] = useState(false);
+  const toggleInteractiveMutation = trpc.settings.toggleWhatsappInteractive.useMutation({
+    onSuccess: (data) => {
+      toast.success(data.enabled ? "🔘 Botões interativos ATIVADOS!" : "Botões interativos desativados.");
+      utils.settings.get.invalidate();
+    },
+    onError: (e) => toast.error("Erro ao alterar os botões interativos: " + e.message),
+  });
+  const handleToggleInteractive = (val: boolean) => {
+    setWhatsappInteractiveEnabled(val);
+    toggleInteractiveMutation.mutate({ enabled: val });
   };
 
   const toggleAutoAdvanceMutation = trpc.settings.toggleAutoAdvanceSlots.useMutation({
@@ -1924,6 +1939,44 @@ export default function Configuracoes() {
                     <Toggle
                       checked={chatbotEnabled}
                       onChange={handleToggleChatbot}
+                    />
+                  </div>
+
+                  {/* ── PRD_WHATSAPP_INTERACTIVE: Toggle Botões Interativos ── */}
+                  <div className={cn(
+                    "flex items-center justify-between p-5 rounded-2xl border transition-all duration-300",
+                    whatsappInteractiveEnabled
+                      ? "bg-blue-500/10 border-blue-500/30"
+                      : "bg-muted border-border"
+                  )}>
+                    <div className="flex items-center gap-4 pr-4">
+                      <div className={cn(
+                        "w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-all duration-300 text-lg",
+                        whatsappInteractiveEnabled
+                          ? "bg-blue-600 text-white shadow-lg shadow-blue-500/30"
+                          : "bg-muted-foreground/20"
+                      )}>
+                        🔘
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <p className="text-xs font-black text-foreground uppercase tracking-widest">Botões Interativos (WhatsApp)</p>
+                          {whatsappInteractiveEnabled && (
+                            <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-600 text-[9px] font-black uppercase tracking-wider">
+                              <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-ping" />
+                              ATIVO
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[10px] text-muted-foreground font-medium leading-relaxed">
+                          Menus com botões clicáveis para contatos identificados como alunos: Alunos, Agenda e Financeiro. Com fallback automático em lista numerada se o celular não suportar botões. Requer o Robô de Autoatendimento ativo.
+                        </p>
+                      </div>
+                    </div>
+                    <Toggle
+                      checked={whatsappInteractiveEnabled}
+                      disabled={!chatbotEnabled}
+                      onChange={handleToggleInteractive}
                     />
                   </div>
 

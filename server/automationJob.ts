@@ -9,7 +9,7 @@ import { eq, and, gte, lte, lt, desc, sql, or, like, inArray, isNotNull } from "
 import { notifyOwner, notifyUser } from "./_core/notification";
 import { getDb } from "./db";
 import { settings, lessons, students, instruments, reminders, reminderTemplates, paymentDues, users, notifications, contracts, schoolPlans } from "../drizzle/schema";
-import { sendWhatsAppMessage, getWhatsAppSessionStatus, reconnectWhatsAppSession } from "./utils/whatsapp";
+import { sendWhatsAppMessage, getWhatsAppSessionStatus, reconnectWhatsAppSession, humanDelay } from "./utils/whatsapp";
 import { sendSmartWhatsAppNotification } from "./utils/whatsappRouting";
 import { decryptSecret } from "./utils/integrationCrypto";
 import { BillingEngine } from "./services/BillingEngine";
@@ -640,6 +640,66 @@ async function runAutomation() {
               console.error("[Automation] Falha ao anexar link de confirmação (não impeditivo):", e);
             }
           }
+
+          // ── PRD_WHATSAPP_INTERACTIVE: lembrete de aula com BOTÕES de presença ──
+          // Opt-in por escola (settings.whatsappInteractiveEnabled). Se o envio
+          // interativo falhar, o envio textual com link abaixo continua como fallback.
+          if (isLessonReminder && (userSettings as any).whatsappInteractiveEnabled === 1) {
+            try {
+              // ANTI-BAN: mesmo delay humanizado do caminho textual
+              await humanDelay(3000, 7000);
+              const { sendInteractive } = await import("./services/whatsapp/interactive/InteractiveMessageService");
+              const interactiveRes = await sendInteractive(db, {
+                organizationId: orgId,
+                userId,
+                phone: targetPhone,
+                menu: "lembrete_aula",
+                title: "📚 Lembrete de aula",
+                body: rem.message.slice(0, 900),
+                footer: `Confira também: ${process.env.APP_PUBLIC_URL || "https://wrmusicpro.com.br"}`,
+                buttons: [
+                  { id: `lesson_confirm_${rem.lessonId}`, text: "✅ Vou comparecer", action: "confirmar_presenca_aula", params: { lessonId: rem.lessonId }, order: 1 },
+                  { id: `lesson_novai_${rem.lessonId}`, text: "❌ Não poderei ir", action: "nao_vai_aula", params: { lessonId: rem.lessonId }, order: 2 },
+                ],
+                instanceName: `prof_${userId}`,
+                baseUrl: userSettings.whatsappBotUrl,
+                apiKey: userSettings.whatsappBotToken || "",
+                buttonExpirationMinutes: 1440, // 24h — reminders disparam até 1 dia antes
+              });
+              if (interactiveRes.success) {
+                await db.update(reminders)
+                  .set({ status: "enviado", sentAt: new Date(), externalMessageId: interactiveRes.messageId ?? null, errorMessage: null, updatedAt: new Date() })
+                  .where(eq(reminders.id, rem.id));
+                sentMap.add(remKey);
+                messagesSentThisCycle++;
+
+                const timeStr = new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
+                await notifyUser(userId, {
+                  title: "✅ Enviado: Aula (com botões)",
+                  content: `👤 Aluno: ${rem.studentName || "Aluno"}\n📱 Número: ${targetPhone}\n⏰ Horário: ${timeStr}`
+                });
+
+                // RF-001 mantida: card de confirmação também no painel do aluno
+                try {
+                  const { requestAttendanceConfirmation } = await import("./services/attendanceConfirmation");
+                  await requestAttendanceConfirmation({
+                    organizationId: orgId,
+                    lessonId: rem.lessonId!,
+                    studentUserId: rem.studentUserId,
+                  });
+                } catch (e) {
+                  console.error("[Automation] Falha ao pedir confirmação de presença (não impeditivo):", e);
+                }
+
+                debugLog(`[Interactive] Lembrete de aula ${rem.lessonId} enviado com botões (${interactiveRes.type}) para ${targetPhone}`);
+                continue; // não envia o texto — mensagem interativa já entrega o lembrete
+              }
+              console.warn(`[Automation] Envio interativo falhou (${interactiveRes.error}) — caindo para texto com link.`);
+            } catch (e) {
+              console.error("[Automation] Falha no envio interativo (fallback textual mantido):", e);
+            }
+          }
+
           const sendRes = await sendWhatsAppMessage({
             url: userSettings.whatsappBotUrl,
             token: userSettings.whatsappBotToken,
@@ -711,7 +771,8 @@ async function runAutomation() {
           organizationId: settings.organizationId,
           whatsappBotUrl: settings.whatsappBotUrl,
           whatsappBotToken: settings.whatsappBotToken,
-          whatsappAutoSend: settings.whatsappAutoSend,
+      whatsappAutoSend: settings.whatsappAutoSend,
+      whatsappInteractiveEnabled: settings.whatsappInteractiveEnabled,
           pixKey: settings.pixKey,
           paymentGateway: settings.paymentGateway,
           asaasApiKey: settings.asaasApiKey,
