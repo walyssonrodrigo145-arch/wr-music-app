@@ -106,7 +106,18 @@ export default function Lembretes() {
       setPendingActionMap(m => ({ ...m, [id]: "sendBot" }));
       return { prev };
     },
-    onSuccess: () => { toast.success("Enviado via Robo com sucesso!"); invalidate(); },
+    onSuccess: (data: any) => {
+      // BUG FIX (cacabug): quando o aluno já respondeu presença, o backend
+      // cancela o lembrete — avisar o professor em vez de "enviado com sucesso".
+      if (data?.alreadyAnswered) {
+        toast.info(data.message || "Aluno já respondeu presença — lembrete cancelado.");
+      } else if (data?.interactive) {
+        toast.success("Lembrete enviado com confirmação de presença! ✅");
+      } else {
+        toast.success("Enviado via Robo com sucesso!");
+      }
+      invalidate();
+    },
     onError: (e, vars, ctx) => {
       if (ctx?.prev) utils.reminders.list.setData(undefined, ctx.prev);
       utils.reminders.pendingCount.setData(undefined, (old) => (old != null ? old + 1 : old));
