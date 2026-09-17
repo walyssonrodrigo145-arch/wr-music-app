@@ -661,6 +661,22 @@ export const comunicacaoRouters = {
         // PRD_NOTIFICACAO_ALUNO: lembrete de aula ganha link de confirmação de presença
         let msgToSend = rem.message;
         const isLessonReminder = rem.type === "aula" && !!rem.lessonId;
+
+        // BUG FIX (cacabug): aluno já respondeu presença → não reenvia lembrete manual
+        if (isLessonReminder) {
+          const [lessonState] = await db.select({ status: lessons.status, studentConfirmation: lessons.studentConfirmation })
+            .from(lessons).where(eq(lessons.id, rem.lessonId!)).limit(1);
+          if (!lessonState || lessonState.status !== "agendada" || lessonState.studentConfirmation !== "pendente") {
+            await db.update(reminders).set({
+              status: "cancelado",
+              cancelledAt: new Date(),
+              errorMessage: "Aluno já respondeu presença (ou aula não está mais agendada) — lembrete cancelado.",
+              updatedAt: new Date(),
+            }).where(eq(reminders.id, input.id));
+            return { success: true, alreadyAnswered: true, message: "Aluno já respondeu presença — lembrete cancelado." };
+          }
+        }
+
         if (isLessonReminder && rem.studentUserId) {
           try {
             const { appendConfirmationLink } = await import("../services/attendanceConfirmation");

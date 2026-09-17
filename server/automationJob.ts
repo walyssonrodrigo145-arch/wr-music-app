@@ -632,6 +632,27 @@ async function runAutomation() {
           // PRD_NOTIFICACAO_ALUNO: lembrete de aula ganha link de confirmação de presença
           let msgToSend = rem.message;
           const isLessonReminder = rem.type === "aula" && !!rem.lessonId;
+
+          // BUG FIX (cacabug): aluno JÁ respondeu presença (ou aula não está mais
+          // agendada) → não reenvia lembrete; cancela para não voltar em ciclos.
+          if (isLessonReminder) {
+            try {
+              const [lessonState] = await db.select({ status: lessons.status, studentConfirmation: lessons.studentConfirmation })
+                .from(lessons).where(eq(lessons.id, rem.lessonId!)).limit(1);
+              if (!lessonState || lessonState.status !== "agendada" || lessonState.studentConfirmation !== "pendente") {
+                await db.update(reminders).set({
+                  status: "cancelado",
+                  cancelledAt: new Date(),
+                  errorMessage: "Aluno já respondeu presença (ou aula não está mais agendada) — lembrete cancelado.",
+                  updatedAt: new Date(),
+                }).where(eq(reminders.id, rem.id));
+                continue;
+              }
+            } catch (e) {
+              console.error("[Automation] Falha ao checar confirmação do aluno (lembrete segue):", e);
+            }
+          }
+
           if (isLessonReminder && rem.studentUserId) {
             try {
               const { appendConfirmationLink } = await import("./services/attendanceConfirmation");
@@ -1111,6 +1132,8 @@ async function runAutomation() {
                   birthDate: students.birthDate,
                   allowAutoReminders: students.allowAutoReminders,
                   instrumentName: instruments.name,
+                  // BUG FIX (cacabug): não reenviar lembrete p/ aula já respondida
+                  studentConfirmation: lessons.studentConfirmation,
                 })
                 .from(lessons)
                 .leftJoin(students, and(eq(lessons.studentId, students.id), eq(students.organizationId, orgId)))
@@ -1128,6 +1151,8 @@ async function runAutomation() {
 
               for (const lesson of upcomingLessons2) {
                 if (lesson.allowAutoReminders === false) continue;
+                // BUG FIX (cacabug): aluno já respondeu presença → não cria/reenvia
+                if ((lesson as any).studentConfirmation && (lesson as any).studentConfirmation !== "pendente") continue;
                 const lessonTime = new Date(lesson.scheduledAt);
                 const triggerTime = new Date(lessonTime.getTime() + offsetMs); // offsetHours=-24 → 24h before
                 

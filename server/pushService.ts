@@ -95,6 +95,12 @@ export async function sendVapidNotification(
       // RN-004: subscrição morta — descartar no 1º sinal
       return { success: false, error: `GONE_${statusCode}`, gone: true };
     }
+    if (statusCode === 401 || statusCode === 403) {
+      // BUG FIX (cacabug): 401/403 = chave VAPID divergente (subscrição criada
+      // numa rotação antiga de chaves). Descartar para o dispositivo se
+      // re-registrar com a chave atual — sem isso o push falha em loop eterno.
+      return { success: false, error: `UNAUTHORIZED_${statusCode}`, gone: true };
+    }
     const detail = error?.message || String(error);
     console.warn(`[VAPID] Falha no envio (status ${statusCode ?? "?"}):`, detail);
     return { success: false, error: detail };

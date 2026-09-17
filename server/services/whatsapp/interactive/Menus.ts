@@ -2,7 +2,7 @@
 // por escola/role. PRINCÍPIO: INTERFACE → ACTION → VALIDATION → LOGIC → RESPONSE.
 
 import { and, asc, eq, gt, inArray, sql } from "drizzle-orm";
-import { lessons, notifications, paymentDues, students } from "../../../../drizzle/schema";
+import { lessons, notifications, paymentDues, reminders, students } from "../../../../drizzle/schema";
 import { InteractiveButton, NormalizedInteractiveResponse } from "./types";
 import { sendInteractive } from "./InteractiveMessageService";
 import { closeSession, getActiveSession, upsertSession } from "./SessionService";
@@ -496,6 +496,19 @@ async function handleLessonConfirmation(
     studentConfirmedAt: new Date(),
     updatedAt: new Date(),
   }).where(eq(lessons.id, lessonId));
+
+  // BUG FIX (cacabug): aluno já respondeu → CANCELA lembretes pendentes desta
+  // aula (sem isso, a regra/o loop reenviavam o lembrete depois da resposta).
+  try {
+    await ctx.db.update(reminders).set({
+      status: "cancelado",
+      cancelledAt: new Date(),
+      errorMessage: "Aluno já respondeu presença — lembrete cancelado.",
+      updatedAt: new Date(),
+    }).where(and(eq(reminders.lessonId, lessonId), eq(reminders.status, "pendente")));
+  } catch (e) {
+    console.error("[Interactive] Falha ao cancelar lembretes pendentes (não impeditivo):", e);
+  }
 
   if (unchanged) {
     const when = new Date(lesson.scheduledAt).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });

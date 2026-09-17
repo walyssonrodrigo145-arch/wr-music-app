@@ -1400,6 +1400,19 @@ export const portalRouters = {
           updatedAt: new Date(),
         }).where(eq(lessons.id, input.lessonId));
 
+        // BUG FIX (cacabug): aluno já respondeu → cancela lembretes pendentes
+        // desta aula (evita reenvio do lembrete depois da confirmação).
+        try {
+          await db.update(reminders).set({
+            status: "cancelado",
+            cancelledAt: new Date(),
+            errorMessage: "Aluno já respondeu presença — lembrete cancelado.",
+            updatedAt: new Date(),
+          }).where(and(eq(reminders.lessonId, input.lessonId), eq(reminders.status, "pendente")));
+        } catch (e) {
+          console.error("Falha ao cancelar lembretes pendentes (não impeditivo):", e);
+        }
+
         if (!unchanged) {
           const teacherUserId = lesson.userId;
           const title = input.status === 'confirmado' ? "✅ Presença Confirmada" : "⚠️ Aluno não irá à aula";
