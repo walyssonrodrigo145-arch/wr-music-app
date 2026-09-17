@@ -351,41 +351,21 @@ router.post("/", async (req, res) => {
       .where(eq(settings.userId, professorUserId))
       .limit(1);
 
-    if (!profSettings || !profSettings.chatbotEnabled) {
-      // Robô desativado — ignora silenciosamente
+    if (!profSettings) {
+      // Sem configuração da instância — ignora
       return res.status(200).json({ ok: true });
     }
 
-    // AUDIT FIX: as chaves de IA são armazenadas criptografadas (v1:...) pelo
-    // upsertSettings. Este webhook lê a settings diretamente (sem passar pelo
-    // getSettingsByUserId, que já descriptografa) — então descriptografa aqui.
-    try {
-      if (profSettings.geminiApiKey || profSettings.groqApiKey) {
-        const { decryptSecret } = await import("../utils/integrationCrypto");
-        if (profSettings.geminiApiKey?.startsWith("v1:")) {
-          profSettings.geminiApiKey = decryptSecret(profSettings.geminiApiKey);
-        }
-        if (profSettings.groqApiKey?.startsWith("v1:")) {
-          profSettings.groqApiKey = decryptSecret(profSettings.groqApiKey);
-        }
-      }
-    } catch (decErr) {
-      console.error("[Chatbot] Erro ao descriptografar chaves de IA:", decErr);
-    }
-
-    const schoolName = profSettings.schoolName || "nossa Escola de Música";
-
     const cleanProfPhone = profSettings.phone ? profSettings.phone.replace(/\D/g, "") : "";
     const cleanMsgPhone = phone.replace(/\D/g, "");
-    
+
     // É o próprio professor mandando mensagem para o seu próprio número?
     const isProfessorChat = (cleanProfPhone.length > 8 && cleanMsgPhone.endsWith(cleanProfPhone.slice(-8)));
 
-    // ── PRD_WHATSAPP_INTERACTIVE (BUG FIX cacabug): a camada de botões roda
-    // ANTES do gate do chatbot — lembretes com botões funcionam mesmo com o
-    // robô de CONVERSA desligado (reminders seguem pelo automation, que é
-    // independente). Cliques em botão e textos de sessão interativa são
-    // consumidos aqui; textos livres caem no fluxo abaixo como antes.
+    // ── PRD_WHATSAPP_INTERACTIVE (BUG FIX DEFINITIVO): a camada interativa roda
+    // ANTES do gate do chatbot. É por AQUI que a resposta "1"/"2" do aluno ao
+    // lembrete é processada (confirmação de presença SEM LOGIN) — funciona mesmo
+    // com o robô de CONVERSA desligado, pois os lembretes saem pelo automation.
     if (profSettings.whatsappInteractiveEnabled === 1 && profSettings.organizationId != null && !isProfessorChat) {
       try {
         const [instUser] = await db
@@ -410,6 +390,30 @@ router.post("/", async (req, res) => {
         // segue para o pipeline existente
       }
     }
+
+    if (!profSettings.chatbotEnabled) {
+      // Robô de conversa desativado — ignora silenciosamente (DEPOIS da camada interativa)
+      return res.status(200).json({ ok: true });
+    }
+
+    // AUDIT FIX: as chaves de IA são armazenadas criptografadas (v1:...) pelo
+    // upsertSettings. Este webhook lê a settings diretamente (sem passar pelo
+    // getSettingsByUserId, que já descriptografa) — então descriptografa aqui.
+    try {
+      if (profSettings.geminiApiKey || profSettings.groqApiKey) {
+        const { decryptSecret } = await import("../utils/integrationCrypto");
+        if (profSettings.geminiApiKey?.startsWith("v1:")) {
+          profSettings.geminiApiKey = decryptSecret(profSettings.geminiApiKey);
+        }
+        if (profSettings.groqApiKey?.startsWith("v1:")) {
+          profSettings.groqApiKey = decryptSecret(profSettings.groqApiKey);
+        }
+      }
+    } catch (decErr) {
+      console.error("[Chatbot] Erro ao descriptografar chaves de IA:", decErr);
+    }
+
+    const schoolName = profSettings.schoolName || "nossa Escola de Música";
 
     // Mensagens fromMe em chats de terceiros são classificadas mais abaixo
     // (eco do bot × resposta manual do professor) após identificar o contato.
