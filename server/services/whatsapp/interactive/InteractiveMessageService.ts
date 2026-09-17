@@ -83,7 +83,8 @@ export async function sendInteractive(
     if (INTERACTIVE_CONFIG.fallback()) {
       const text = buildFallbackText(opts.title, opts.body, cleanButtons);
       const logo = (opts.mediaUrl || "").trim();
-      if (logo.startsWith("http")) {
+      // Aceita URL http OU data URL base64 (padrão real das logos cadastradas)
+      if (/^https?:\/\//i.test(logo) || /^data:image\//i.test(logo)) {
         // PRD_LEMBRETE_COM_LOGO: legenda limitada p/ não ser cortada pelo WhatsApp
         result = await provider.sendMedia(opts.instanceName, opts.phone, logo, text.slice(0, 1024));
         if (result.success) { type = "text"; return true; }

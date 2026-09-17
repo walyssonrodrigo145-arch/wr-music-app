@@ -46,18 +46,27 @@ export function createEvolutionProvider(creds: EvolutionCredentials): WhatsAppPr
       return { ...r, type: "text" };
     },
 
-    // PRD_LEMBRETE_COM_LOGO: rota de imagem da Evolution (mesmo payload do
-    // sendWhatsAppMessage original — validado em produção para logos).
-    async sendMedia(instanceName, phone, mediaUrl, caption) {
+    // PRD_LEMBRETE_COM_LOGO: rota de imagem da Evolution.
+    // Aceita URL http E data URL base64 (padrão real das logos das escolas) —
+    // base64 vai sem o prefixo "data:...;base64," + mimetype/fileName.
+    async sendMedia(instanceName, phone, media, caption) {
+      const isDataUrl = /^data:image\//i.test(media);
+      const mimetype = isDataUrl
+        ? (media.match(/^data:([^;]+);/)?.[1] || "image/jpeg")
+        : undefined;
+      const mediaPayload = isDataUrl ? media.slice(media.indexOf(",") + 1) : media;
+      const extra = isDataUrl ? { mimetype, fileName: "logo.jpg" } : {};
       const r = await call(`/message/sendMedia/${instanceName}`, {
         number: phone,
         mediatype: "image",
-        media: mediaUrl,
+        ...extra,
+        media: mediaPayload,
         caption,
         mediaMessage: {
           mediatype: "image",
+          ...extra,
           caption,
-          media: mediaUrl,
+          media: mediaPayload,
         },
       });
       return { ...r, type: "text" };

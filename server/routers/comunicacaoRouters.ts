@@ -656,9 +656,13 @@ export const comunicacaoRouters = {
 
         if (!targetPhone) throw new Error("Aluno/Responsável sem telefone cadastrado.");
 
-        const schoolLogo = (rem.logoUrl && String(rem.logoUrl).trim().startsWith("http"))
-          ? String(rem.logoUrl).trim()
-          : null;
+        // PRD_LEMBRETE_COM_LOGO: aceita URL http E base64 (logos reais das escolas)
+        const rawLogo = String(rem.logoUrl || "").trim();
+        const schoolLogo = /^https?:\/\//i.test(rawLogo)
+          ? rawLogo
+          : /^data:image\//i.test(rawLogo)
+            ? rawLogo.slice(rawLogo.indexOf(",") + 1)
+            : null;
 
         // PRD_NOTIFICACAO_ALUNO: lembrete de aula ganha link de confirmação de presença
         let msgToSend = rem.message;

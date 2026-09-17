@@ -624,9 +624,14 @@ async function runAutomation() {
             continue;
           }
 
-          const schoolLogo = (userSettings.logoUrl && String(userSettings.logoUrl).trim().startsWith("http"))
-            ? String(userSettings.logoUrl).trim()
-            : null;
+          // PRD_LEMBRETE_COM_LOGO: aceita URL http E base64 (padrão real das logos
+          // das escolas — base64 vai sem o prefixo "data:...;base64,")
+          const rawLogo = String((userSettings as any).logoUrl || "").trim();
+          const schoolLogo = /^https?:\/\//i.test(rawLogo)
+            ? rawLogo
+            : /^data:image\//i.test(rawLogo)
+              ? rawLogo.slice(rawLogo.indexOf(",") + 1)
+              : null;
 
           debugLog('[Trace] Calling sendWhatsAppMessage for ', targetPhone);
           // PRD_NOTIFICACAO_ALUNO: lembrete de aula ganha link de confirmação de presença
