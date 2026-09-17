@@ -733,6 +733,15 @@ export const financeiroRouters = {
             .set({ receiptUrl: url, updatedAt: new Date() })
             .where(and(eq(paymentDues.id, due.id), eq(paymentDues.organizationId, orgId)));
 
+          // BUG FIX (cacabug): URL pública ASSINADA — downloads no celular/PWA e a
+          // Evolution vão SEM cookie de sessão: a rota protegida /uploads retornava
+          // 401 (não baixava / tela about:blank). O token vale 30 min.
+          const { createFileToken } = await import("../_core/fileTokens");
+          const appUrlPub = (ENV.appUrl && !ENV.appUrl.includes("localhost"))
+            ? ENV.appUrl.replace(/\/+$/, "")
+            : "https://wrmusicpro.com.br";
+          const publicReceiptUrl = `${appUrlPub}/uploads-token/${createFileToken(receiptKey)}/${receiptKey.split("/").pop()}`;
+
           // Envio por WhatsApp (não falha a geração do recibo)
           let whatsappSent = false;
           if (input.sendWhatsapp) {
@@ -740,14 +749,6 @@ export const financeiroRouters = {
             if (target && (schoolSet as any)?.whatsappBotUrl) {
               try {
                 const monthName = MONTHS_PT[Math.max(0, Math.min(11, due.month - 1))];
-                // BUG FIX (cacabug): a Evolution baixa a mídia SEM cookie de sessão —
-                // a URL protegida /uploads retornava 401 e o PDF não era anexado.
-                // Usa a rota pública assinada /uploads-token (validade 30 min).
-                const { createFileToken } = await import("../_core/fileTokens");
-                const appUrl = (ENV.appUrl && !ENV.appUrl.includes("localhost"))
-                  ? ENV.appUrl.replace(/\/+$/, "")
-                  : "https://wrmusicpro.com.br";
-                const publicReceiptUrl = `${appUrl}/uploads-token/${createFileToken(receiptKey)}/${receiptKey.split("/").pop()}`;
                 const sendRes = await sendWhatsAppMessage({
                   url: (schoolSet as any).whatsappBotUrl,
                   token: (schoolSet as any).whatsappBotToken,
@@ -766,10 +767,46 @@ export const financeiroRouters = {
             }
           }
 
-          return { success: true, url, fileName: `${buildReceiptNumber(due.id, due.year)}.pdf`, whatsappSent };
+          return { success: true, url, publicUrl: publicReceiptUrl, fileName: `${buildReceiptNumber(due.id, due.year)}.pdf`, whatsappSent };
         } catch (error) {
           return handleDbError(error, "gerar o recibo");
         }
+      }),
+
+    // PRD_RECIBO_MENSALIDADE (BUG FIX cacabug): assina o recibo JÁ salvo —
+    // download no celular/PWA acontece SEM cookie de sessão, então usamos a
+    // rota pública /uploads-token (validade 30 min).
+    getReceiptUrl: protectedProcedure
+      .input(z.object({ paymentDueId: z.number() }))
+      .query(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) return { url: null, fileName: null };
+        const orgId = ctx.user.organizationId!;
+        const [due] = await db.select({
+          id: paymentDues.id,
+          year: paymentDues.year,
+          receiptUrl: paymentDues.receiptUrl,
+        }).from(paymentDues)
+          .where(and(eq(paymentDues.id, input.paymentDueId), eq(paymentDues.organizationId, orgId)))
+          .limit(1);
+        if (!due?.receiptUrl) return { url: null, fileName: null };
+
+        const marker = "/uploads/";
+        const idx = due.receiptUrl.indexOf(marker);
+        if (idx < 0) {
+          // Storage externo (nuvem): URL já é pública
+          return { url: due.receiptUrl, fileName: `recibo-${due.id}.pdf` };
+        }
+        const key = due.receiptUrl.slice(idx + marker.length);
+        const { createFileToken } = await import("../_core/fileTokens");
+        const { buildReceiptNumber } = await import("../services/ReceiptService");
+        const appUrl = (ENV.appUrl && !ENV.appUrl.includes("localhost"))
+          ? ENV.appUrl.replace(/\/+$/, "")
+          : "https://wrmusicpro.com.br";
+        return {
+          url: `${appUrl}/uploads-token/${createFileToken(key)}/${key.split("/").pop()}`,
+          fileName: `${buildReceiptNumber(due.id, due.year)}.pdf`,
+        };
       }),
 
     // ─ Gerar mensalidades dos próximos 3 meses (travado) ──────────────

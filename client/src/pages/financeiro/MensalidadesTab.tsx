@@ -729,18 +729,11 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
       } else {
         toast.success("Recibo baixado! Verifique os downloads do seu aparelho.");
       }
-      if (data?.url) {
-        try {
-          const a = document.createElement("a");
-          a.href = data.url;
-          a.download = data.fileName || "recibo.pdf";
-          a.rel = "noopener";
-          document.body.appendChild(a);
-          a.click();
-          a.remove();
-        } catch {
-          window.open(data.url, "_blank");
-        }
+      if (data?.url || data?.publicUrl) {
+        // BUG FIX (cacabug): baixar SEMPRE pela URL pública assinada — a URL
+        // protegida /uploads exige cookie e falha silenciosamente no celular/PWA
+        // (ficava carregando e a tela about:blank).
+        downloadFile(data.publicUrl || data.url, data.fileName);
       }
     },
     onError: (e: any) => toast.error("Erro ao gerar recibo: " + e.message),
@@ -768,6 +761,17 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
   const receiptMutationFor: number | null = generateReceiptMutation.variables?.paymentDueId ?? null;
   const receiptPending = (sendWhatsapp: boolean) =>
     generateReceiptMutation.isPending && receiptMutationFor !== null && generateReceiptMutation.variables?.sendWhatsapp === sendWhatsapp;
+
+  // Baixar recibo JÁ salvo — obtém a URL pública assinada via backend e baixa
+  const handleDownloadSavedReceipt = async (paymentId: number) => {
+    try {
+      const r = await utils.paymentDues.getReceiptUrl.fetch({ paymentDueId: paymentId });
+      if (r?.url) downloadFile(r.url, r.fileName || `recibo-${paymentId}.pdf`);
+      else toast.error("Nenhum recibo salvo para esta mensalidade — gere um novo.");
+    } catch (e: any) {
+      toast.error("Erro ao abrir recibo: " + (e?.message || "tente novamente"));
+    }
+  };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -1104,7 +1108,7 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end" className="w-56 rounded-xl p-2 border-border">
                                   {payment.receiptUrl ? (
-                                    <DropdownMenuItem className="gap-2 rounded-lg" onClick={() => downloadFile(payment.receiptUrl!, `recibo-${payment.id}.pdf`)}>
+                                    <DropdownMenuItem className="gap-2 rounded-lg" onClick={() => handleDownloadSavedReceipt(payment.id)}>
                                        <FileCheck className="w-4 h-4 text-emerald-500" />
                                        <span className="text-xs font-bold text-muted-foreground">Baixar Comprovante</span>
                                     </DropdownMenuItem>
@@ -1291,10 +1295,9 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
 
                      <div className="flex flex-wrap items-center gap-2 mt-4">
                         {payment.receiptUrl ? (
-                         <Button variant="ghost" size="sm" className="h-9 px-2 rounded-lg text-[10px] font-bold text-emerald-600 hover:bg-emerald-500/10 shrink-0" asChild>
-                           <a href={payment.receiptUrl} target="_blank" rel="noopener noreferrer" download onClick={(e) => e.stopPropagation()}>
-                             <FileCheck size={12} className="mr-1" /> Ver
-                           </a>
+                         <Button variant="ghost" size="sm" className="h-9 px-2 rounded-lg text-[10px] font-bold text-emerald-600 hover:bg-emerald-500/10 shrink-0"
+                           onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDownloadSavedReceipt(payment.id); }}>
+                           <FileCheck size={12} className="mr-1" /> Baixar
                          </Button>
                        ) : (
                          <Button variant="ghost" size="sm" className="h-9 px-2 rounded-lg text-[10px] font-bold text-amber-600 hover:bg-amber-500/10 shrink-0"
