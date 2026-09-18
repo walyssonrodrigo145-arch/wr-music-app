@@ -18,6 +18,9 @@ interface Lesson {
   instrumentIcon?: string | null;
   description?: string | null;
   notes?: string | null;
+  lessonType?: string | null;
+  studentCount?: number;
+  studentsList?: string[];
 }
 
 interface DayLessonsModalProps {

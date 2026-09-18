@@ -8,7 +8,8 @@
   Trash2,
   CalendarDays,
   CheckCircle,
-  Beaker
+  Beaker,
+  Users
 } from "lucide-react";
 import { format } from "date-fns";
 import { motion } from "framer-motion";
@@ -37,6 +38,9 @@ interface LessonCardProps {
     instrumentIcon?: string | null;
     description?: string | null;
     notes?: string | null;
+    lessonType?: string | null;
+    studentCount?: number;
+    studentsList?: string[];
   };
   onStatusChange?: (id: number, status: string) => void;
   onDelete?: (id: number) => void;
@@ -46,6 +50,7 @@ interface LessonCardProps {
 
 export default function LessonCard({ lesson, onStatusChange, onDelete, onEdit, onClick }: LessonCardProps) {
   const date = new Date(lesson.scheduledAt);
+  const isTurma = lesson.lessonType === 'turma';
   
   const config = LESSON_STATUS_CONFIG[lesson.status] || LESSON_STATUS_CONFIG.agendada;
   const StatusIcon = config.icon;
@@ -56,11 +61,13 @@ export default function LessonCard({ lesson, onStatusChange, onDelete, onEdit, o
       onClick={() => onClick?.()}
       className={cn(
         "group relative flex items-center gap-3 p-3 md:p-4 rounded-[1.5rem] md:rounded-[2.2rem] border bg-card/50 backdrop-blur-sm transition-all hover:bg-card hover:shadow-xl hover:shadow-primary/5 cursor-pointer",
-        lesson.isExperimental ? "bg-yellow-500/10 border-yellow-500/40 shadow-lg shadow-yellow-500/5 hover:bg-yellow-500/20" : config.border
+        isTurma
+          ? "bg-purple-500/8 border-purple-500/30 hover:bg-purple-500/10 hover:shadow-purple-500/5"
+          : lesson.isExperimental ? "bg-yellow-500/10 border-yellow-500/40 shadow-lg shadow-yellow-500/5 hover:bg-yellow-500/20" : config.border
       )}
     >
       {/* ── Status Indicator Loop ── */}
-      <div className={cn("w-1 h-8 md:w-1.5 md:h-10 rounded-full", lesson.isExperimental ? "bg-yellow-500" : config.bg.replace('/10', ''))} />
+      <div className={cn("w-1 h-8 md:w-1.5 md:h-10 rounded-full", isTurma ? "bg-purple-500" : lesson.isExperimental ? "bg-yellow-500" : config.bg.replace('/10', ''))} />
 
       {/* ── Time & Duration ── */}
       <div className="flex flex-col min-w-[50px] md:min-w-[55px]">
@@ -75,14 +82,27 @@ export default function LessonCard({ lesson, onStatusChange, onDelete, onEdit, o
       {/* ── Info Content ── */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-0.5">
-           <h4 className={cn("font-bold text-sm truncate text-foreground/80 leading-tight max-w-[150px] md:max-w-none", lesson.isExperimental && "text-yellow-900")}>
-             {lesson.isExperimental ? (lesson.experimentalName || "Aula Teste") : (lesson.studentName || "Aluno")}
-           </h4>
-           
-           {lesson.isExperimental && (
-             <div className="p-1 rounded-full bg-yellow-500/20 border border-yellow-500/30 flex-shrink-0">
-               <Beaker size={10} className="text-yellow-600" />
-             </div>
+           {isTurma ? (
+             <>
+               <h4 className="font-bold text-sm truncate text-foreground leading-tight">
+                 {lesson.title || "Turma"}
+               </h4>
+               <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-purple-500/15 border border-purple-500/30 text-purple-600 dark:text-purple-400 text-[8px] font-black uppercase tracking-wider shrink-0">
+                 <Users size={9} /> Turma
+               </span>
+             </>
+           ) : (
+             <>
+               <h4 className={cn("font-bold text-sm truncate text-foreground/80 leading-tight max-w-[150px] md:max-w-none", lesson.isExperimental && "text-yellow-900")}>
+                 {lesson.isExperimental ? (lesson.experimentalName || "Aula Teste") : (lesson.studentName || "Aluno")}
+               </h4>
+               
+               {lesson.isExperimental && (
+                 <div className="p-1 rounded-full bg-yellow-500/20 border border-yellow-500/30 flex-shrink-0">
+                   <Beaker size={10} className="text-yellow-600" />
+                 </div>
+               )}
+             </>
            )}
            
            {/* ── Status Icon (Aligned with Name) ── */}
@@ -100,9 +120,18 @@ export default function LessonCard({ lesson, onStatusChange, onDelete, onEdit, o
              </div>
            )}
         </div>
+
+        {/* Turma: alunos da sessão */}
+        {isTurma && (
+          <p className="text-[10px] text-muted-foreground/60 truncate">
+            {lesson.studentCount && lesson.studentCount > 1
+              ? `${lesson.studentCount} alunos: ${(lesson.studentsList || []).slice(0, 3).join(", ")}${lesson.studentCount > 3 ? "…" : ""}`
+              : (lesson.studentsList?.[0] || lesson.studentName || "Turma")}
+          </p>
+        )}
         
         {/* Short observation preview */}
-        {(lesson.description || lesson.notes) && (
+        {!isTurma && (lesson.description || lesson.notes) && (
           <p className="text-[11px] text-muted-foreground/50 line-clamp-1 italic">
             {lesson.description || lesson.notes}
           </p>

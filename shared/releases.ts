@@ -26,6 +26,17 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: "2026.09.18",
+    date: "2026-09-18",
+    title: "Correções na agenda e nas turmas",
+    summary: "Excluir/remarcar séries futuras agora funciona de verdade, e as aulas de turma aparecem identificadas com o nome da turma.",
+    items: [
+      { type: "correcao", title: "Excluir e remarcar toda a série (futuras)", description: "Ao escolher 'toda a série (futuras)' em uma aula de turma, as semanas seguintes também são excluídas/remarcadas. Antes apenas a sessão selecionada era afetada." },
+      { type: "correcao", title: "Card de turma na agenda do dia", description: "As aulas de turma agora aparecem em roxo, com selo TURMA, o nome da turma e a quantidade de alunos — antes pareciam aula individual." },
+      { type: "correcao", title: "Menu de ações (3 pontinhos) no modal do dia", description: "O menu não abre mais atrás do modal e as opções Editar/Excluir Registro voltaram a funcionar." },
+    ],
+  },
+  {
     version: "2026.09.17.3",
     date: "2026-09-17",
     title: "Escolha do professor no link de matrícula",
