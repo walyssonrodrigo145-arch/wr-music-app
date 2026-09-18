@@ -117,7 +117,7 @@ export default function LessonCard({ lesson, onStatusChange, onDelete, onEdit, o
               <MoreHorizontal size={18} />
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-48 rounded-2xl p-1.5 shadow-2xl border-border/40">
+          <DropdownMenuContent align="end" className="w-48 rounded-2xl p-1.5 shadow-2xl border-border/40 z-[130] pointer-events-auto">
             <DropdownMenuItem onClick={() => onStatusChange?.(lesson.id, 'concluida')} className="gap-2 p-2.5 rounded-xl text-xs font-semibold uppercase">
               <CheckCircle size={16} className="text-emerald-500" />
               <span>Concluída</span>

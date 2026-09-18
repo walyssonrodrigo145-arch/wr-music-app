@@ -4,6 +4,7 @@
 //   • Mensalidades (payment_dues) para os meses seguintes, com o dia de vencimento
 //     configurado pela escola. O 1º mês é pago no ato da matrícula.
 import { and, eq, gte, lte } from "drizzle-orm";
+import { nanoid } from "nanoid";
 import { lessons, paymentDues } from "../../drizzle/schema";
 
 function pad(n: number): string { return String(n).padStart(2, "0"); }
@@ -100,6 +101,8 @@ export async function generateLessonsForEnrollment(db: any, input: EnrollmentLes
   // 3. Cria as aulas sem conflito (validação em memória)
   let created = 0;
   const inserted: { start: number; end: number }[] = [];
+  // UM groupId para a série da matrícula: permite excluir/remarcar "toda a série (futuras)"
+  const groupId = nanoid();
   for (const at of candidates) {
     const s = at.getTime();
     const e = s + input.durationMin * 60_000;
@@ -115,6 +118,7 @@ export async function generateLessonsForEnrollment(db: any, input: EnrollmentLes
       status: "agendada",
       instrumentId,
       studioRoomId: studioRoomId || undefined,
+      recurringGroupId: groupId,
     });
     inserted.push({ start: s, end: e });
     created++;

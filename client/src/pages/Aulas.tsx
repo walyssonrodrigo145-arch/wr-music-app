@@ -961,6 +961,15 @@ export default function Aulas() {
             setAgendarOpen(true);
             setDayLessonsModalDate(null);
           }}
+          onEdit={(id) => {
+            setDayLessonsModalDate(null);
+            setEditingLesson(lessons.find(l => l.id === id));
+            setAgendarOpen(true);
+          }}
+          onDelete={(id) => {
+            setDayLessonsModalDate(null);
+            handleDeleteRequest(id);
+          }}
         />
 
         {/* Dialog de confirmação para ações recorrentes */}

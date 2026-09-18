@@ -28,6 +28,8 @@ interface DayLessonsModalProps {
   onStatusChange: (id: number, status: string) => void;
   onOpenDetail: (lesson: Lesson) => void;
   onAddLesson: (day: Date) => void;
+  onEdit?: (id: number) => void;
+  onDelete?: (id: number) => void;
 }
 
 export default function DayLessonsModal({
@@ -38,6 +40,8 @@ export default function DayLessonsModal({
   onStatusChange,
   onOpenDetail,
   onAddLesson,
+  onEdit,
+  onDelete,
 }: DayLessonsModalProps) {
   return (
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
@@ -83,6 +87,8 @@ export default function DayLessonsModal({
                   lesson={l}
                   onStatusChange={onStatusChange}
                   onClick={() => onOpenDetail(l)}
+                  onEdit={onEdit}
+                  onDelete={onDelete}
                 />
               ))
             ) : (

@@ -623,14 +623,19 @@ export const lessonsRouters = {
               ));
           }
 
-          // Se for para atualizar a série toda
-          if (updateSeries && currentLesson.recurringGroupId) {
+          // Se for para atualizar a série toda (individual por groupId; turma também por título)
+          if (updateSeries && (currentLesson.recurringGroupId || currentLesson.lessonType === 'turma')) {
             const timeOffset = scheduledAt.getTime() - new Date(currentLesson.scheduledAt).getTime();
             
             // Buscar aulas futuras da série
             const futureLessons = await db.select().from(lessons).where(and(
               eq(lessons.organizationId, orgId),
-              eq(lessons.recurringGroupId, currentLesson.recurringGroupId),
+              currentLesson.lessonType === 'turma'
+                ? or(
+                    eq(lessons.recurringGroupId, currentLesson.recurringGroupId ?? '__none__'),
+                    and(eq(lessons.title, currentLesson.title), eq(lessons.lessonType, 'turma'))
+                  )
+                : eq(lessons.recurringGroupId, currentLesson.recurringGroupId ?? '__none__'),
               isUserAdmin ? undefined : eq(lessons.userId, ctx.user.id),
               gte(lessons.scheduledAt, currentLesson.scheduledAt),
               sql`id != ${id}`
@@ -657,7 +662,7 @@ export const lessonsRouters = {
                 ));
             }
           }
-        } else if (updateSeries && currentLesson.recurringGroupId) {
+        } else if (updateSeries && (currentLesson.recurringGroupId || currentLesson.lessonType === 'turma')) {
           // Se mudou apenas texto (título/notas) e quer atualizar a série
           await db.update(lessons).set({
             title: data.title,
@@ -667,7 +672,12 @@ export const lessonsRouters = {
             updatedAt: new Date()
           }).where(and(
             eq(lessons.organizationId, orgId),
-            eq(lessons.recurringGroupId, currentLesson.recurringGroupId),
+            currentLesson.lessonType === 'turma'
+              ? or(
+                  eq(lessons.recurringGroupId, currentLesson.recurringGroupId ?? '__none__'),
+                  and(eq(lessons.title, currentLesson.title), eq(lessons.lessonType, 'turma'))
+                )
+              : eq(lessons.recurringGroupId, currentLesson.recurringGroupId ?? '__none__'),
             isUserAdmin ? undefined : eq(lessons.userId, ctx.user.id),
             gte(lessons.scheduledAt, currentLesson.scheduledAt)
           ));
@@ -726,6 +736,7 @@ export const lessonsRouters = {
           scheduledAt: lessons.scheduledAt,
           duration: lessons.duration,
           lessonType: lessons.lessonType,
+          title: lessons.title,
           recurringGroupId: lessons.recurringGroupId,
           studioRoomId: lessons.studioRoomId,
           status: lessons.status,
@@ -819,14 +830,19 @@ export const lessonsRouters = {
               ));
           }
 
-          // Se for para atualizar a série toda
-          if (input.updateSeries && currentLesson.recurringGroupId) {
+          // Se for para atualizar a série toda (individual por groupId; turma também por título)
+          if (input.updateSeries && (currentLesson.recurringGroupId || currentLesson.lessonType === 'turma')) {
             const timeOffset = newDate.getTime() - new Date(currentLesson.scheduledAt).getTime();
             
             // Buscar aulas futuras da série
             const futureLessons = await db.select().from(lessons).where(and(
               eq(lessons.organizationId, orgId),
-              eq(lessons.recurringGroupId, currentLesson.recurringGroupId),
+              currentLesson.lessonType === 'turma'
+                ? or(
+                    eq(lessons.recurringGroupId, currentLesson.recurringGroupId ?? '__none__'),
+                    and(eq(lessons.title, currentLesson.title), eq(lessons.lessonType, 'turma'))
+                  )
+                : eq(lessons.recurringGroupId, currentLesson.recurringGroupId ?? '__none__'),
               gte(lessons.scheduledAt, currentLesson.scheduledAt),
               sql`id != ${input.id}`
             ));
@@ -990,8 +1006,31 @@ export const lessonsRouters = {
           // Identificar todas as aulas a serem excluídas da série
           let targetLessons: Array<{ id: number }> = [];
 
-          if (currentLesson.recurringGroupId) {
-            // Caso 1: Pertence a um grupo recorrente
+          if (currentLesson.lessonType === 'turma') {
+            // Caso 1: TURMA — a "série" são as sessões futuras da mesma turma.
+            // Turmas legadas tinham um recurringGroupId por semana; filtrar apenas
+            // por ele excluía só a sessão atual e deixava as futuras. Por isso o
+            // título entra como critério (mesma semântica da UI, que já oferece
+            // "Excluir toda a série (futuras)" para turmas).
+            targetLessons = await db.select({ id: lessons.id })
+              .from(lessons)
+              .leftJoin(students, eq(lessons.studentId, students.id))
+              .where(and(
+                eq(lessons.organizationId, orgId),
+                eq(lessons.lessonType, 'turma'),
+                eq(lessons.status, 'agendada'),
+                gte(lessons.scheduledAt, currentLesson.scheduledAt),
+                or(
+                  eq(lessons.recurringGroupId, currentLesson.recurringGroupId ?? '__none__'),
+                  eq(lessons.title, currentLesson.title)
+                ),
+                isAdmin ? undefined : or(
+                  eq(lessons.userId, ctx.user.id),
+                  eq(students.professorId, ctx.user.id)
+                )
+              ));
+          } else if (currentLesson.recurringGroupId) {
+            // Caso 2: Pertence a um grupo recorrente (série individual)
             targetLessons = await db.select({ id: lessons.id })
               .from(lessons)
               .leftJoin(students, eq(lessons.studentId, students.id))
@@ -1005,7 +1044,7 @@ export const lessonsRouters = {
                 )
               ));
           } else if (currentLesson.studentId) {
-            // Caso 2: Sem recurringGroupId explícito mas é aula de aluno - excluir todas as aulas futuras agendadas do mesmo aluno
+            // Caso 3: Sem recurringGroupId explícito mas é aula de aluno - excluir todas as aulas futuras agendadas do mesmo aluno
             targetLessons = await db.select({ id: lessons.id })
               .from(lessons)
               .leftJoin(students, eq(lessons.studentId, students.id))
@@ -1019,20 +1058,8 @@ export const lessonsRouters = {
                   eq(students.professorId, ctx.user.id)
                 )
               ));
-          } else if (currentLesson.lessonType === 'turma') {
-            // Caso 3: Turma sem recurringGroupId - excluir todas as turmas futuras com o mesmo título
-            targetLessons = await db.select({ id: lessons.id })
-              .from(lessons)
-              .where(and(
-                eq(lessons.organizationId, orgId),
-                eq(lessons.title, currentLesson.title),
-                eq(lessons.lessonType, 'turma'),
-                eq(lessons.status, 'agendada'),
-                gte(lessons.scheduledAt, currentLesson.scheduledAt),
-                isAdmin ? undefined : eq(lessons.userId, ctx.user.id)
-              ));
           } else {
-            // Caso 4: Aula avulsa avulsa
+            // Caso 4: Aula avulsa
             targetLessons = [{ id: currentLesson.id }];
           }
 
@@ -1358,13 +1385,15 @@ export const lessonsRouters = {
         
         const rowsToInsert = [];
         const baseDate = new Date(input.scheduledAt);
+        // UM groupId para a série inteira (todas as semanas): permite excluir/remarcar
+        // "toda a série (futuras)" de forma consistente. Antes cada semana ganhava um
+        // groupId próprio e o filtro por groupId deixava as semanas seguintes para trás.
+        const groupId = nanoid();
         
         for (let w = 0; w < input.weeksCount; w++) {
           const d = new Date(baseDate);
           d.setDate(baseDate.getDate() + w * 7);
           const endsAt = new Date(d.getTime() + input.duration * 60000);
-          
-          const groupId = nanoid(); // Cada sessão/data de turma ganha um groupId unificado
 
           // Checar conflito de sala e professor antes de processar os alunos
           if (input.studioRoomId) {

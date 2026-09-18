@@ -313,6 +313,29 @@ describe("lessons CRUD", () => {
     const result = await caller.lessons.delete({ id: 99 });
     expect(result).toHaveProperty("success", true);
   });
+
+  it("deleteSeries apaga a série futura por recurringGroupId (individual)", async () => {
+    const ctx = createAuthContext();
+    const caller = appRouter.createCaller(ctx);
+    // Fila: [aula atual da série], [aulas futuras da mesma série]
+    enqueueSelectResult([{ id: 5, recurringGroupId: "g1", scheduledAt: new Date("2026-09-20T10:00:00"), studentId: 1, lessonType: "individual", title: "Aula de Violão", userId: 1 }]);
+    enqueueSelectResult([{ id: 5 }, { id: 6 }, { id: 7 }]);
+    const result = await caller.lessons.delete({ id: 5, deleteSeries: true });
+    expect(result).toHaveProperty("success", true);
+    expect((result as any).count).toBe(3);
+  });
+
+  it("deleteSeries em TURMA usa o escopo da turma (legado com groupId por semana)", async () => {
+    const ctx = createAuthContext();
+    const caller = appRouter.createCaller(ctx);
+    // Fila: [sessão atual da turma — tem studentId e groupId só da semana]
+    enqueueSelectResult([{ id: 20, recurringGroupId: "week1", scheduledAt: new Date("2026-09-21T19:00:00"), studentId: 1, lessonType: "turma", title: "Turma de Teclado", userId: 1 }]);
+    // [sessões futuras da mesma turma (outras semanas/groupId)]
+    enqueueSelectResult([{ id: 20 }, { id: 21 }, { id: 22 }, { id: 23 }]);
+    const result = await caller.lessons.delete({ id: 20, deleteSeries: true });
+    expect(result).toHaveProperty("success", true);
+    expect((result as any).count).toBe(4);
+  });
 });
 
 describe("instruments CRUD", () => {
