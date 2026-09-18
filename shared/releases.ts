@@ -26,6 +26,27 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: "2026.09.17.3",
+    date: "2026-09-17",
+    title: "Escolha do professor no link de matrícula",
+    summary: "Ao gerar o link de matrícula você agora escolhe o professor responsável — o aluno vê os horários dele e a matrícula é vinculada a ele.",
+    items: [
+      { type: "novo", title: "Professor Responsável no link de matrícula", description: "No modal 'Link de Matrícula' apareceu o campo Professor Responsável. Em Automático o sistema segue escolhendo pelo instrumento; ao selecionar, os horários exibidos ao aluno, as aulas e a matrícula ficam vinculados ao professor escolhido." },
+      { type: "melhoria", title: "Nome do professor na mensagem do WhatsApp", description: "Quando um professor é escolhido, o nome dele é incluído na mensagem enviada ao aluno (no envio automático e no botão Enviar no WhatsApp)." },
+    ],
+  },
+  {
+    version: "2026.09.17.2",
+    date: "2026-09-17",
+    title: "Permissões de professor e download no app Android",
+    summary: "O professor agora vê só as páginas liberadas pelo administrador — e recibos, contratos e materiais baixam de verdade dentro do app no celular.",
+    items: [
+      { type: "correcao", title: "Professor só vê os menus liberados", description: "A tela de cadastro do professor passou a listar TODAS as páginas do sistema (Reposições, Salas, Rankings, Robô WhatsApp, Cérebro da IA, Tutoriais, Contratos etc.) e o menu lateral mostra apenas o que o administrador marcou. Digitar a URL de uma página sem permissão também é bloqueado." },
+      { type: "correcao", title: "Novidades exclusiva do administrador", description: "Professores e alunos não veem mais o item, o badge nem o modal de Novidades." },
+      { type: "correcao", title: "Download de PDF, recibo e planilha no app Android", description: "Recibos, contratos, comprovantes, materiais e relatórios agora são salvos em Downloads/MusicPro (ou compartilhados pelo Android) dentro do app — antes o download não funcionava no celular." },
+    ],
+  },
+  {
     version: "2026.09.17.1",
     date: "2026-09-17",
     title: "Link de matrícula com pagamento via Pix direto",

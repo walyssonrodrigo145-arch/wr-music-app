@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { Download, Table as TableIcon, BarChart3, LineChart as LineChartIcon, PieChart as PieChartIcon } from "lucide-react";
+import { downloadBlob } from "@/lib/nativeDownload";
 
 interface SpreadsheetData {
   title: string;
@@ -35,13 +36,7 @@ export function SpreadsheetViewer({ jsonRaw }: { jsonRaw: string }) {
     const csvContent = [header, ...rows].join("\n");
     
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.setAttribute("download", `${spreadsheet.title || "planilha"}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    void downloadBlob(blob, `${spreadsheet.title || "planilha"}.csv`);
   };
 
   return (

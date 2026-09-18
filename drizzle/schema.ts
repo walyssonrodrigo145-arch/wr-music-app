@@ -118,7 +118,7 @@ export const professores = pgTable("professores", {
   paymentType: professorPaymentTypeEnum("paymentType").default("fixo"),
   hourlyRate: decimal("hourlyRate", { precision: 10, scale: 2 }).default("0.00"),
   paymentPercentage: decimal("paymentPercentage", { precision: 5, scale: 2 }).default("0.00"),
-  permissions: jsonb("permissions").default('["aulas", "progresso", "recepcao", "ia", "lembretes", "relatorios"]'),
+  permissions: jsonb("permissions").default('["/dashboard", "/alunos", "/aulas"]'),
   // Cards do dashboard PERMITIDOS para este professor (definido pelo admin, modo trava).
   // JSON array de widget IDs; vazio = todos permitidos (retrocompatível).
   dashboardWidgets: text("dashboardWidgets").default("").notNull(),
@@ -1720,6 +1720,8 @@ export const enrollmentLinks = pgTable("enrollment_links", {
   organizationId: integer("organizationId").notNull(),
   code: varchar("code", { length: 64 }).notNull().unique(),
   instrumentId: integer("instrumentId"),
+  // Professor escolhido pelo admin ao gerar o link (null = automático por instrumento)
+  teacherUserId: integer("teacherUserId"),
   monthlyFee: decimal("monthlyFee", { precision: 10, scale: 2 }),
   leadId: integer("leadId"),
   // Modelo de contrato a ser gerado automaticamente na matrícula (opcional).

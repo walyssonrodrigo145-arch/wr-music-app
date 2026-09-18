@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { formatBRL } from "@/lib/money";
+import { downloadUrl } from "@/lib/nativeDownload";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
@@ -189,20 +190,10 @@ export default function StudentPayments() {
                           <button 
                             onClick={async () => {
                               if (!payment.receiptUrl) return;
-                              try {
-                                const response = await fetch(payment.receiptUrl);
-                                const blob = await response.blob();
-                                const url = window.URL.createObjectURL(blob);
-                                const a = document.createElement('a');
-                                a.href = url;
-                                a.download = `comprovante-${format(new Date(payment.dueDate), "MM-yyyy")}`;
-                                document.body.appendChild(a);
-                                a.click();
-                                window.URL.revokeObjectURL(url);
-                                document.body.removeChild(a);
-                              } catch (e) {
-                                window.open(payment.receiptUrl, "_blank");
-                              }
+                              await downloadUrl(
+                                payment.receiptUrl,
+                                `comprovante-${format(new Date(payment.dueDate), "MM-yyyy")}.pdf`
+                              );
                             }}
                             className={cn(
                               "w-12 h-12 rounded-2xl transition-all shadow-sm flex items-center justify-center",

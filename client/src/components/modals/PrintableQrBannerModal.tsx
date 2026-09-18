@@ -5,6 +5,7 @@ import QRCode from "react-qr-code";
 import QRCodeLib from "qrcode";
 import { Printer, Download, Music, Shield, Sparkles } from "lucide-react";
 import { toast } from "sonner";
+import { downloadBase64, isNativeApp } from "@/lib/nativeDownload";
 
 interface PrintableQrBannerModalProps {
   open: boolean;
@@ -25,6 +26,13 @@ export function PrintableQrBannerModal({
 
   // ─── 1. Impressão via Janela Dedicada (100% à prova de falhas) ───
   const handlePrint = () => {
+    if (isNativeApp()) {
+      // WebView Android não imprime (window.open/print indisponíveis):
+      // gera o PNG em alta resolução para salvar/compartilhar.
+      toast.info("Impressão não disponível no app — baixando a imagem do totem.");
+      handleDownloadPng();
+      return;
+    }
     if (!token) {
       toast.error("Token do QR Code não encontrado. Recarregue a página.");
       return;
@@ -346,14 +354,13 @@ export function PrintableQrBannerModal({
       ctx.textAlign = "center";
       ctx.fillText(`Totem Oficial  •  ${schoolName}  •  MusicPro`, canvas.width / 2, 1520);
 
-      // Exportação e Download
+      // Exportação e Download (navegador e app Android)
       const pngUrl = canvas.toDataURL("image/png");
-      const link = document.createElement("a");
-      link.href = pngUrl;
-      link.download = `totem-presenca-qrcode-${schoolName.toLowerCase().replace(/\s+/g, "-")}.png`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      void downloadBase64(
+        pngUrl,
+        `totem-presenca-qrcode-${schoolName.toLowerCase().replace(/\s+/g, "-")}.png`,
+        "image/png"
+      );
 
       toast.success("Placa QR Code baixada em alta resolução!", { id: "qr-download" });
     } catch (err) {

@@ -10,6 +10,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { exportToCSV } from "@/lib/exportUtils";
 import { parseBRL } from "@/lib/money";
+import { downloadUrl } from "@/lib/nativeDownload";
 import { useDashboardPrefs } from "@/hooks/useDashboardPrefs";
 import { motion, AnimatePresence } from "framer-motion";
 import { format } from "date-fns";
@@ -743,19 +744,10 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
     generateReceiptMutation.mutate({ paymentDueId: paymentId, sendWhatsapp });
   };
 
-  // Download direto de arquivos (PDFs vêm como attachment — sem aba about:blank)
+  // Download direto de arquivos: no app nativo salva em Downloads/compartilha
+  // (WebView não baixa sozinho); no navegador usa <a download> como antes.
   const downloadFile = (url: string, fileName?: string) => {
-    try {
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = fileName || "arquivo.pdf";
-      a.rel = "noopener";
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-    } catch {
-      window.open(url, "_blank");
-    }
+    void downloadUrl(url, fileName || "arquivo.pdf");
   };
 
   const receiptMutationFor: number | null = generateReceiptMutation.variables?.paymentDueId ?? null;

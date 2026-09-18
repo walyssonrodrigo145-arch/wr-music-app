@@ -1,6 +1,7 @@
 import { debugLog } from "../_core/logger";
 import { z } from "zod";
 import { COOKIE_NAME } from "@shared/const";
+import { normalizePermissions } from "@shared/permissions";
 import { getSessionCookieOptions } from "../_core/cookies";
 import { systemRouter } from "../_core/systemRouter";
 import { fcmRouter } from "../fcmRouter";
@@ -242,10 +243,9 @@ export const authRouters = {
             .where(eq(professores.userId, ctx.user.id))
             .limit(1);
           if (prof?.permissions) {
-            // Normaliza permissões: garante que todas tenham prefixo '/' para compatibilidade
-            // com o AppSidebar que filtra por item.href (ex: '/aulas')
-            const rawPerms = prof.permissions as string[];
-            permissions = rawPerms.map(p => p.startsWith('/') ? p : `/${p}`);
+            // Normaliza permissões (prefixo '/', aliases legados como "recepcao")
+            // para o formato canônico consumido pelo AppSidebar e guards de rota.
+            permissions = normalizePermissions(prof.permissions);
           }
         }
 

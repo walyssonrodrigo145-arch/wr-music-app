@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
+import { downloadBlob } from "@/lib/nativeDownload";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -462,13 +463,11 @@ export default function LeadsApp() {
 
                 <Button
                   onClick={() => {
-                    const csvContent = "data:text/csv;charset=utf-8," + ["Nome,Telefone,Email,Curso,Mensalidade,Estagio", ...leadsDisplayList.map((l: any) => `"${l.name}","${l.phone || ""}","${l.email || ""}","${l.instrument || ""}","${l.value || ""}","${l.stage}"`)].join("\n");
-                    const encodedUri = encodeURI(csvContent);
-                    const link = document.createElement("a");
-                    link.setAttribute("href", encodedUri);
-                    link.setAttribute("download", `leads_musicpro_${new Date().toISOString().slice(0, 10)}.csv`);
-                    document.body.appendChild(link);
-                    link.click();
+                    const csvContent = ["Nome,Telefone,Email,Curso,Mensalidade,Estagio", ...leadsDisplayList.map((l: any) => `"${l.name}","${l.phone || ""}","${l.email || ""}","${l.instrument || ""}","${l.value || ""}","${l.stage}"`)].join("\n");
+                    void downloadBlob(
+                      new Blob(["\uFEFF" + csvContent], { type: "text/csv;charset=utf-8;" }),
+                      `leads_musicpro_${new Date().toISOString().slice(0, 10)}.csv`
+                    );
                     toast.success("Planilha de Leads baixada com sucesso!");
                   }}
                   variant="outline"

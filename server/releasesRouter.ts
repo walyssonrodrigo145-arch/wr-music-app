@@ -7,8 +7,8 @@ import { LATEST_RELEASE_VERSION, hasUnseenRelease } from "@shared/releases";
 
 // "Novidades" (What's New) — conteúdo 100% automático via shared/releases.ts.
 // Só o estado "já vi" é persistido por usuário (users.lastSeenReleaseVersion).
-// Público: admin e professor (alunos não veem).
-const ALLOWED_ROLES = ["admin", "professor"];
+// Público: EXCLUSIVO admin (professores e alunos não veem badge, modal nem página).
+const ALLOWED_ROLES = ["admin"];
 
 export const releasesRouter = router({
   getStatus: protectedProcedure.query(async ({ ctx }) => {

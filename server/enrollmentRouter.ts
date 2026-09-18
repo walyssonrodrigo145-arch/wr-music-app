@@ -14,7 +14,7 @@ import { ENV } from "./_core/env";
 import { nanoid } from "nanoid";
 import { firstRecurringLessonDate } from "./services/EnrollmentGenerationService";
 import { parseSchoolHours, generateDaySlots, type SchoolDayConfig } from "./services/ScheduleAvailabilityService";
-import { pickSettingsForHours, resolveEnrollmentTeacher } from "./services/EnrollmentHoursService";
+import { pickSettingsForHours, resolveEnrollmentTeacherForLink } from "./services/EnrollmentHoursService";
 
 export const enrollmentRouter = router({
   // 1. Gera um link de auto-matrícula exclusivo (Admin/CRM)
@@ -23,6 +23,8 @@ export const enrollmentRouter = router({
       z.object({
         leadId: z.number().optional(),
         instrumentId: z.number().optional(),
+        // Professor responsável escolhido pelo admin (null = automático por instrumento)
+        teacherUserId: z.number().optional(),
         monthlyFee: z.number().optional(),
         contractTemplateId: z.number().optional(),
         autoSendWhatsapp: z.boolean().optional(),
@@ -39,6 +41,22 @@ export const enrollmentRouter = router({
       // Se não foi passado um monthlyFee, mantém undefined (o frontend mostrará o default da escola)
       const resolvedFee = input.monthlyFee;
 
+      // Anti-IDOR: professor escolhido precisa ser da mesma organização e não ser aluno
+      let teacherName: string | null = null;
+      if (input.teacherUserId) {
+        const [validTeacher] = await db
+          .select({ id: users.id, name: users.name })
+          .from(users)
+          .where(and(
+            eq(users.id, input.teacherUserId),
+            eq(users.organizationId, orgId),
+            ne(users.role, "aluno"),
+          ))
+          .limit(1);
+        if (!validTeacher) throw new Error("Professor inválido para esta escola.");
+        teacherName = validTeacher.name;
+      }
+
       const code = crypto.randomBytes(16).toString("hex");
 
       const [link] = await db
@@ -48,6 +66,7 @@ export const enrollmentRouter = router({
           code,
           leadId: input.leadId,
           instrumentId: input.instrumentId,
+          teacherUserId: input.teacherUserId,
           monthlyFee: resolvedFee ? String(resolvedFee) : undefined,
           contractTemplateId: input.contractTemplateId,
           maxUses: input.maxUses ?? 1,
@@ -75,6 +94,9 @@ export const enrollmentRouter = router({
 
             const { sendWhatsAppMessage } = await import("./utils/whatsapp");
             let messageText = `Olá ${lead.name}! 🎵\n\nAqui está o seu link exclusivo para realizar sua matrícula na nossa escola de música:\n\n👉 ${fullUrl}\n\nAcesse o link acima para escolher o melhor dia e horário para suas aulas!`;
+            if (teacherName) {
+              messageText += `\n\n👨‍🏫 Professor(a): ${teacherName}`;
+            }
 
             // PRD_PIX_DIRETO: escola sem gateway de checkout → anexa a chave Pix
             // e o valor da matrícula direto na mensagem (pagamento ao professor).
@@ -137,7 +159,7 @@ export const enrollmentRouter = router({
         }
       }
 
-      return { code: link.code, url, fullUrl, sentViaBot };
+      return { code: link.code, url, fullUrl, sentViaBot, teacherName };
     }),
 
   // 2. Rota Pública: Retorna detalhes da escola, cursos, valor da mensalidade e método de pagamento configurado
@@ -177,6 +199,16 @@ export const enrollmentRouter = router({
       }
 
       const allInstruments = await db.select().from(instruments).where(eq(instruments.organizationId, orgId));
+
+      // Professor do link (quando o admin escolheu um ao gerar o link)
+      let linkTeacher: { userId: number; name: string | null } | null = null;
+      if (link.teacherUserId) {
+        const [t] = await db.select({ userId: users.id, name: users.name })
+          .from(users)
+          .where(and(eq(users.id, link.teacherUserId), eq(users.organizationId, orgId)))
+          .limit(1);
+        if (t) linkTeacher = t;
+      }
 
       // RN-001: gateway selecionado e configurado; fallback asaas > mercadopago > infinitepay
       const activeGateway: "asaas" | "mercadopago" | "infinitepay" | "none" = resolveActivePaymentGateway(schoolSet);
@@ -237,6 +269,8 @@ export const enrollmentRouter = router({
         monthlyFee: link.monthlyFee ? Number(link.monthlyFee) : 150,
         lessonDuration: schoolSet?.lessonDuration ?? 60,
         preselectedInstrumentId: link.instrumentId,
+        preselectedTeacherId: linkTeacher?.userId ?? null,
+        teacher: linkTeacher,
         lead: leadData,
         instruments: allInstruments,
         paymentGateway: activeGateway,
@@ -279,8 +313,8 @@ export const enrollmentRouter = router({
       const [inst] = await db.select().from(instruments).where(eq(instruments.id, input.instrumentId)).limit(1);
       if (!inst) throw new Error("Instrumento não encontrado");
 
-      // RF-002 (fix produção): cadeia professores → users professor → dono/admin
-      const targetTeacher = await resolveEnrollmentTeacher(db, orgId, inst.name);
+      // Professor do link escolhido pelo admin tem prioridade; senão cadeia automática.
+      const targetTeacher = await resolveEnrollmentTeacherForLink(db, link, inst.name);
       if (!targetTeacher.userId) {
         throw new Error("Nenhum professor disponível para este instrumento.");
       }
@@ -389,9 +423,9 @@ export const enrollmentRouter = router({
       const [inst] = await db.select().from(instruments).where(eq(instruments.id, input.instrumentId)).limit(1);
       if (!inst) throw new Error("Instrumento não encontrado");
 
-      // RF-002 (fix produção): cadeia professores → users professor → dono/admin.
-      // Antes: escolas sem ficha de professor quebravam o passo de horários.
-      const targetTeacher = await resolveEnrollmentTeacher(db, orgId, inst.name);
+      // Professor do link escolhido pelo admin tem prioridade; senão cadeia automática
+      // (professores → users professor → dono/admin).
+      const targetTeacher = await resolveEnrollmentTeacherForLink(db, link, inst.name);
       if (!targetTeacher.userId) throw new Error("Nenhum professor disponível para este instrumento.");
 
       const rooms = await db.select().from(studioRooms).where(and(eq(studioRooms.organizationId, orgId), eq(studioRooms.active, true)));
@@ -797,10 +831,11 @@ export const enrollmentRouter = router({
       const instrumentsById = new Map<number, any>(orgInstruments.map((i: any) => [i.id, i]));
       // RF-002 (fix produção): mesma cadeia do picker (professores → professor → admin)
       // para garantir que o slot mostrado e o slot reservado pertençam ao MESMO professor.
+      // Professor escolhido no link tem prioridade sobre a cadeia automática.
       const resolveTeacher = async (instrumentId: number, teacherUserId?: number): Promise<number | null> => {
         if (teacherUserId) return teacherUserId;
         const name = instrumentsById.get(instrumentId)?.name || "";
-        const t = await resolveEnrollmentTeacher(db, orgId, name);
+        const t = await resolveEnrollmentTeacherForLink(db, link, name);
         return t.userId;
       };
 

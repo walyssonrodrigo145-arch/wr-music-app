@@ -122,3 +122,26 @@ export async function resolveEnrollmentTeacher(
 
   return { userId: null, name: null };
 }
+
+/**
+ * Professor efetivo do LINK de matrícula:
+ *   1) se o admin escolheu um professor ao gerar o link (link.teacherUserId),
+ *      ele tem prioridade (validado contra a organização — anti-IDOR);
+ *   2) senão, usa a cadeia automática (professores → professor → admin).
+ */
+export async function resolveEnrollmentTeacherForLink(
+  db: any,
+  link: { organizationId: number; teacherUserId?: number | null },
+  instrumentName?: string | null
+): Promise<{ userId: number | null; name: string | null }> {
+  if (link?.teacherUserId) {
+    const [chosen] = await db
+      .select({ userId: users.id, name: users.name })
+      .from(users)
+      .where(and(eq(users.id, link.teacherUserId), eq(users.organizationId, link.organizationId)))
+      .limit(1);
+    // Professor removido/inválido → cai na cadeia automática (nunca quebra o link)
+    if (chosen) return { userId: chosen.userId, name: chosen.name };
+  }
+  return resolveEnrollmentTeacher(db, link.organizationId, instrumentName);
+}

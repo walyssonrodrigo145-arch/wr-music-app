@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { parseBRL } from "@/lib/money";
+import { downloadBase64, openOrDownloadUrl } from "@/lib/nativeDownload";
 import { useDashboardPrefs } from "@/hooks/useDashboardPrefs";
 import { toast } from "sonner";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
@@ -572,10 +573,11 @@ export function DespesasTab({ viewMonth, viewYear, expenses, isLoading }: { view
     }, {
       onSuccess: (data) => {
         toast.dismiss('export-despesas');
-        const link = document.createElement("a");
-        link.href = `data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,${data.data}`;
-        link.download = `relatorio_despesas_${MONTHS_PT[viewMonth-1]}_${viewYear}.xlsx`;
-        link.click();
+        void downloadBase64(
+          data.data,
+          `relatorio_despesas_${MONTHS_PT[viewMonth-1]}_${viewYear}.xlsx`,
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        );
         toast.success("Relatório Premium gerado com sucesso!");
       },
       onError: (e) => {
@@ -938,7 +940,7 @@ export function DespesasTab({ viewMonth, viewYear, expenses, isLoading }: { view
                         {expense.receiptUrl ? (
                           <Button
                             variant="outline" size="sm"
-                            onClick={() => window.open(expense.receiptUrl, "_blank")}
+                            onClick={() => void openOrDownloadUrl(expense.receiptUrl)}
                             className="h-8 rounded-lg px-2.5 text-[11px] font-bold text-emerald-600 border-emerald-500/20 bg-emerald-500/10 hover:bg-emerald-500/20 gap-1.5"
                           >
                             <FileCheck size={14} /> Comprovante

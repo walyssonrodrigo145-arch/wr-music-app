@@ -41,6 +41,7 @@ import {
   MessageCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { isPageAllowed } from "@shared/permissions";
 import { SUPPORT_WHATSAPP_URL } from "@/lib/support";
 import { useAuth } from "@/hooks/useAuth";
 import { useWhatsNew } from "@/components/novidades/WhatsNewProvider";
@@ -94,6 +95,11 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
 
   const hiddenTabs = settings?.hiddenTabs ? settings.hiddenTabs.split(",") : [];
   const { hasUnseen: hasUnseenRelease, isAllowed: whatsNewAllowed } = useWhatsNew();
+
+  // Permissões de página do professor (admin vê tudo)
+  const isProfessor = user?.role === "professor";
+  const userPerms: string[] = (user as any)?.permissions || [];
+  const canSeePage = (href: string) => !isProfessor || isPageAllowed(userPerms, href);
 
   const logoutMutation = trpc.auth.logout.useMutation({
     onSuccess: () => { window.location.href = "/"; },
@@ -157,7 +163,8 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
         { label: "Progresso", href: "/progresso", icon: Activity },
         { label: "Recepção QR", href: "/recepcao-qr", icon: LayoutDashboard },
         { label: "Tutoriais", href: "/tutoriais", icon: GraduationCap },
-        { label: "Novidades", href: "/novidades", icon: Sparkles, dot: whatsNewAllowed && hasUnseenRelease },
+        // Novidades: EXCLUSIVO do admin (professor não vê o item, o badge nem o modal)
+        ...(user?.role === "admin" ? [{ label: "Novidades", href: "/novidades", icon: Sparkles, dot: whatsNewAllowed && hasUnseenRelease }] : []),
       ],
     },
   ];
@@ -345,8 +352,8 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
       {/* NAVEGAÇÃO CATEGORIZADA COM ÍCONES E ACORDEÃO */}
       <nav className="flex-1 px-3 py-3 space-y-4 overflow-y-auto overflow-x-hidden no-scrollbar">
         {navGroups.map((group) => {
-          // Filtrar itens ocultos
-          const visibleItems = group.items.filter((item) => !hiddenTabs.includes(item.href));
+          // Filtrar itens ocultos e páginas sem permissão (professor)
+          const visibleItems = group.items.filter((item) => !hiddenTabs.includes(item.href) && canSeePage(item.href));
           if (visibleItems.length === 0) return null;
           const isGroupCollapsed = !collapsed && !!collapsedGroups[group.groupName];
           const GroupIcon = group.groupIcon;
@@ -504,9 +511,11 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="bg-[#13102B] text-slate-200 border-indigo-950 text-xs w-44">
-                <DropdownMenuItem onClick={() => (window.location.href = "/configuracoes")} className="cursor-pointer hover:bg-white/5">
-                  <Settings size={14} className="mr-2 text-indigo-400" /> Configurações
-                </DropdownMenuItem>
+                {canSeePage("/configuracoes") && (
+                  <DropdownMenuItem onClick={() => (window.location.href = "/configuracoes")} className="cursor-pointer hover:bg-white/5">
+                    <Settings size={14} className="mr-2 text-indigo-400" /> Configurações
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem onClick={() => logoutMutation.mutate()} className="cursor-pointer text-rose-400 hover:bg-rose-500/10">
                   <LogOut size={14} className="mr-2" /> Sair
                 </DropdownMenuItem>

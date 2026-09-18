@@ -1,6 +1,7 @@
 import { useState, useRef } from "react";
 import { trpc } from "@/lib/trpc";
 import { getFixedUrl, cn } from "@/lib/utils";
+import { interceptNativeDownload } from "@/lib/nativeDownload";
 import { format } from "date-fns";
 import {
   Search,
@@ -477,6 +478,7 @@ export function BibliotecaMusical({ studentId }: { studentId: number }) {
                                 target="_blank" 
                                 rel="noopener noreferrer" 
                                 download={file.fileName}
+                                onClick={(e) => interceptNativeDownload(e, file.fileUrl, file.fileName)}
                                 className="w-8 h-8 rounded-full bg-black/40 backdrop-blur-md text-white/90 flex items-center justify-center hover:bg-indigo-500 hover:text-white transition-all shadow-sm"
                                 title="Download"
                               >
@@ -523,7 +525,7 @@ export function BibliotecaMusical({ studentId }: { studentId: number }) {
                                 target="_blank" 
                                 rel="noopener noreferrer" 
                                 download={file.fileName}
-                                onClick={(e) => e.stopPropagation()}
+                                onClick={(e) => { e.stopPropagation(); interceptNativeDownload(e, getFixedUrl(file.fileUrl), file.fileName); }}
                                 title="Download"
                                 className="h-10 w-10 rounded-xl bg-muted/50 flex items-center justify-center text-muted-foreground hover:bg-indigo-600 hover:text-white active:scale-95 transition-all"
                               >
@@ -677,7 +679,7 @@ export function BibliotecaMusical({ studentId }: { studentId: number }) {
                       variant="outline"
                       className="h-9 sm:h-10 rounded-xl border-border/80 bg-background/50 hover:bg-muted font-bold text-[11px] uppercase tracking-wider px-3 sm:px-4 shadow-sm"
                     >
-                       <a href={resolvedUrl || getFixedUrl(previewFile?.fileUrl)} target="_blank" rel="noopener noreferrer">
+                       <a href={resolvedUrl || getFixedUrl(previewFile?.fileUrl)} target="_blank" rel="noopener noreferrer" onClick={(e) => interceptNativeDownload(e, resolvedUrl || getFixedUrl(previewFile?.fileUrl), previewFile?.fileName)}>
                           <ExternalLink size={14} className="sm:mr-1.5" /> <span className="hidden sm:inline">Nova Aba</span>
                        </a>
                     </Button>
@@ -685,7 +687,7 @@ export function BibliotecaMusical({ studentId }: { studentId: number }) {
                       asChild
                       className="h-9 sm:h-10 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-[11px] font-black uppercase tracking-wider px-3 sm:px-5 shadow-lg shadow-indigo-500/20"
                     >
-                       <a href={resolvedUrl || getFixedUrl(previewFile?.fileUrl)} target="_blank" rel="noopener noreferrer" download={previewFile?.fileName}>
+                       <a href={resolvedUrl || getFixedUrl(previewFile?.fileUrl)} target="_blank" rel="noopener noreferrer" download={previewFile?.fileName} onClick={(e) => interceptNativeDownload(e, resolvedUrl || getFixedUrl(previewFile?.fileUrl), previewFile?.fileName)}>
                           <Download size={14} className="sm:mr-1.5" /> <span className="hidden sm:inline">Baixar Arquivo</span><span className="sm:hidden">Baixar</span>
                        </a>
                     </Button>

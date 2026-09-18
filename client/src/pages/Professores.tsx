@@ -26,24 +26,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { PaymentRulesDialog } from "@/components/professores/PaymentRulesDialog";
 import { EvaluacoesTab } from "@/components/professores/EvaluacoesTab";
 import { DASHBOARD_WIDGETS, ALL_WIDGET_IDS, parseWidgetList } from "@shared/dashboardWidgets";
-
-const AVAILABLE_PERMISSIONS = [
-  { id: "/dashboard", label: "Dashboard", icon: "📊" },
-  { id: "/alunos", label: "Alunos", icon: "👨‍🎓" },
-  { id: "/aulas", label: "Aulas", icon: "📅" },
-  { id: "/instrumentos", label: "Instrumentos", icon: "🎸" },
-  { id: "/relatorios", label: "Relatórios", icon: "📈" },
-  { id: "/lembretes", label: "Lembretes", icon: "🔔" },
-  { id: "/comunicados", label: "Comunicados", icon: "📢" },
-  { id: "/solicitacoes", label: "Solicitações", icon: "📋" },
-  { id: "/automacoes", label: "Automações", icon: "🤖" },
-  { id: "/ia", label: "IA Assistente", icon: "✨" },
-  { id: "/progresso", label: "Progresso", icon: "🎯" },
-  { id: "/financeiro", label: "Financeiro", icon: "💰" },
-  { id: "/folha", label: "Folha de Pagto", icon: "💼" },
-  { id: "/recepcao-qr", label: "Recepção QR", icon: "📷" },
-  { id: "/configuracoes", label: "Configurações", icon: "⚙️" },
-];
+import { PAGE_PERMISSIONS, PAGE_PERMISSION_GROUPS, DEFAULT_PROFESSOR_PERMISSIONS, normalizePermissions } from "@shared/permissions";
 
 const DATA_PERMISSIONS = [
   { id: "alunos_editar", label: "Editar dados dos alunos", desc: "Permite editar, excluir e alterar status dos alunos" },
@@ -122,7 +105,7 @@ function ProfessoresPanel() {
   const [telefone, setTelefone] = useState("");
   const [especialidade, setEspecialidade] = useState("");
   const [foto, setFoto] = useState("");
-  const [permissions, setPermissions] = useState<string[]>(["/dashboard", "/alunos", "/aulas"]);
+  const [permissions, setPermissions] = useState<string[]>(DEFAULT_PROFESSOR_PERMISSIONS);
   const [dashboardWidgets, setDashboardWidgets] = useState<string[]>(ALL_WIDGET_IDS);
   const [paymentType, setPaymentType] = useState<"fixo" | "porcentagem">("fixo");
   const [hourlyRate, setHourlyRate] = useState("");
@@ -158,7 +141,7 @@ function ProfessoresPanel() {
 
   const resetForm = () => {
     setName(""); setEmail(""); setPassword(""); setTelefone("");
-    setEspecialidade(""); setFoto(""); setPermissions(["/dashboard", "/alunos", "/aulas"]);
+    setEspecialidade(""); setFoto(""); setPermissions(DEFAULT_PROFESSOR_PERMISSIONS);
     setDashboardWidgets(ALL_WIDGET_IDS);
     setPaymentType("fixo"); setHourlyRate(""); setPaymentPercentage("");
     setEditingId(null);
@@ -172,7 +155,7 @@ function ProfessoresPanel() {
     setTelefone(prof.telefone || "");
     setEspecialidade(prof.especialidade || "");
     setFoto(prof.foto || "");
-    setPermissions(prof.permissions || []);
+    setPermissions(normalizePermissions(prof.permissions));
     const parsedWidgets = parseWidgetList(prof.dashboardWidgets);
     setDashboardWidgets(parsedWidgets.length > 0 ? parsedWidgets : ALL_WIDGET_IDS);
     setPaymentType(prof.paymentType || "fixo");
@@ -368,16 +351,27 @@ function ProfessoresPanel() {
                   <div className="w-6 h-6 rounded-lg bg-violet-500/10 flex items-center justify-center"><Shield size={13} className="text-violet-500" /></div>
                   <span className="text-xs font-black uppercase tracking-widest text-muted-foreground">Acesso às Páginas</span>
                 </div>
-                <div className="grid grid-cols-2 gap-1.5">
-                  {AVAILABLE_PERMISSIONS.map((perm) => {
-                    const active = permissions.includes(perm.id);
+                <div className="space-y-3">
+                  {PAGE_PERMISSION_GROUPS.map((group) => {
+                    const groupPerms = PAGE_PERMISSIONS.filter((p) => p.group === group);
+                    if (groupPerms.length === 0) return null;
                     return (
-                      <label key={perm.id} className={cn("flex items-center gap-2.5 cursor-pointer rounded-xl px-3 py-2.5 border transition-all select-none", active ? "bg-primary/8 border-primary/30 text-primary" : "bg-muted/20 border-border/40 hover:bg-muted/40 text-foreground/70")}>
-                        <input type="checkbox" checked={active} onChange={() => togglePermission(perm.id)} className="sr-only" />
-                        <span className="text-base leading-none">{perm.icon}</span>
-                        <span className="text-xs font-semibold">{perm.label}</span>
-                        {active && <CheckCircle2 size={12} className="ml-auto text-primary flex-shrink-0" />}
-                      </label>
+                      <div key={group} className="space-y-1.5">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">{group}</span>
+                        <div className="grid grid-cols-2 gap-1.5">
+                          {groupPerms.map((perm) => {
+                            const active = permissions.includes(perm.id);
+                            return (
+                              <label key={perm.id} className={cn("flex items-center gap-2.5 cursor-pointer rounded-xl px-3 py-2.5 border transition-all select-none", active ? "bg-primary/8 border-primary/30 text-primary" : "bg-muted/20 border-border/40 hover:bg-muted/40 text-foreground/70")}>
+                                <input type="checkbox" checked={active} onChange={() => togglePermission(perm.id)} className="sr-only" />
+                                <span className="text-base leading-none">{perm.icon}</span>
+                                <span className="text-xs font-semibold">{perm.label}</span>
+                                {active && <CheckCircle2 size={12} className="ml-auto text-primary flex-shrink-0" />}
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </div>
                     );
                   })}
                 </div>

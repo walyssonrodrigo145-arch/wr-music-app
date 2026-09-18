@@ -2,6 +2,7 @@ import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { downloadBase64 } from "@/lib/nativeDownload";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { FileSignature, Loader2, Download, Eye, RefreshCcw } from "lucide-react";
@@ -55,16 +56,7 @@ export default function StudentContracts() {
     try {
       const data = await utils.contracts.downloadSigned.fetch({ id: contract.id });
       if (!data?.base64) return;
-      const bytes = atob(data.base64);
-      const arr = new Uint8Array(bytes.length);
-      for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
-      const blob = new Blob([arr], { type: "application/pdf" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = data.fileName || "contrato.pdf";
-      a.click();
-      URL.revokeObjectURL(url);
+      await downloadBase64(data.base64, data.fileName || "contrato.pdf", "application/pdf");
     } catch (e: any) {
       toast.error(e.message || "Erro ao baixar contrato");
     } finally {

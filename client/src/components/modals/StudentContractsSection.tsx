@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { downloadBase64, previewOrDownloadBase64 } from "@/lib/nativeDownload";
 import { Button } from "@/components/ui/button";
 import {
   FileSignature, Plus, Copy, Eye, RefreshCw, Ban, Download, Loader2,
@@ -90,12 +91,7 @@ export function CreateContractModal({ open, onClose, student, onCreated }: {
         monthlyFeeOverride: monthlyFeeOverride || undefined,
       });
       if (!data?.base64) return toast.error("Não foi possível gerar a pré-visualização.");
-      const bytes = atob(data.base64);
-      const arr = new Uint8Array(bytes.length);
-      for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
-      const blob = new Blob([arr], { type: "application/pdf" });
-      const url = URL.createObjectURL(blob);
-      window.open(url, "_blank");
+      await previewOrDownloadBase64(data.base64, data.fileName || "preview-contrato.pdf");
     } catch (e: any) {
       toast.error(e.message || "Erro ao gerar pré-visualização");
     } finally {
@@ -322,16 +318,7 @@ export function StudentContractsSection({ studentId, student }: { studentId: num
     try {
       const data = await utils.contracts.downloadSigned.fetch({ id: contract.id });
       if (!data?.base64) return;
-      const bytes = atob(data.base64);
-      const arr = new Uint8Array(bytes.length);
-      for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
-      const blob = new Blob([arr], { type: "application/pdf" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = data.fileName || "contrato.pdf";
-      a.click();
-      URL.revokeObjectURL(url);
+      await downloadBase64(data.base64, data.fileName || "contrato.pdf", "application/pdf");
     } catch (e: any) {
       toast.error(e.message || "Erro ao baixar contrato");
     } finally {

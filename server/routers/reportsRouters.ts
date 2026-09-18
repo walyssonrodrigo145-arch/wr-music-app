@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { COOKIE_NAME } from "@shared/const";
+import { normalizePermissions } from "@shared/permissions";
 import { getSessionCookieOptions } from "../_core/cookies";
 import { systemRouter } from "../_core/systemRouter";
 import { fcmRouter } from "../fcmRouter";
@@ -441,7 +442,7 @@ export const reportsRouters = {
         telefone: p.professor.telefone,
         foto: p.professor.foto,
         especialidade: p.professor.especialidade,
-        permissions: p.professor.permissions,
+        permissions: normalizePermissions(p.professor.permissions),
         dashboardWidgets: p.professor.dashboardWidgets,
         paymentType: p.professor.paymentType,
         hourlyRate: p.professor.hourlyRate,
@@ -521,7 +522,7 @@ export const reportsRouters = {
             telefone: input.telefone,
             foto: input.foto,
             especialidade: input.especialidade,
-            permissions: input.permissions,
+            permissions: normalizePermissions(input.permissions),
             // Trava do dashboard: cards PERMITIDOS (vazio = todos)
             dashboardWidgets: input.dashboardWidgets && input.dashboardWidgets.length > 0 ? JSON.stringify(input.dashboardWidgets) : "",
             paymentType: input.paymentType,
@@ -579,7 +580,7 @@ export const reportsRouters = {
             paymentType: input.paymentType,
             hourlyRate: sanitizedHourlyRate,
             paymentPercentage: sanitizedPaymentPercentage,
-            ...(input.permissions ? { permissions: input.permissions } : {}),
+            ...(input.permissions ? { permissions: normalizePermissions(input.permissions) } : {}),
             ...(input.dashboardWidgets !== undefined
               ? { dashboardWidgets: input.dashboardWidgets.length > 0 ? JSON.stringify(input.dashboardWidgets) : "" }
               : {})

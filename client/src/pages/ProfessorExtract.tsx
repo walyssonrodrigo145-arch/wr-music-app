@@ -36,6 +36,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { downloadBase64File } from "../utils/downloadReport";
+import { downloadBlob } from "@/lib/nativeDownload";
 import { 
   ResponsiveContainer, 
   AreaChart, 
@@ -359,17 +360,12 @@ export default function ProfessorExtract() {
       toast.error("Nenhum registro para exportar.");
       return;
     }
-    let csv = "data:text/csv;charset=utf-8,\uFEFF";
+    let csv = "\uFEFF";
     csv += "Professor;Especialidade;Aulas Concluídas;Carga Horária;Total Bruto (R$);Descontos (R$);Líquido (R$);Status\n";
     displayPayments.forEach(p => {
       csv += `"${p.professorName}";"${p.specialty || '-'}";"${p.totalClasses}";"${formatCargaHoraria(p.totalMinutes)}";"${Number(p.totalCredits).toFixed(2)}";"${Number(p.totalDebits).toFixed(2)}";"${Number(p.totalAmount).toFixed(2)}";"${p.status}"\n`;
     });
-    const link = document.createElement("a");
-    link.href = encodeURI(csv);
-    link.download = `folha_pagamento_${viewMonth}_${viewYear}.csv`;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
+    void downloadBlob(new Blob([csv], { type: "text/csv;charset=utf-8;" }), `folha_pagamento_${viewMonth}_${viewYear}.csv`);
     toast.success("CSV exportado com sucesso!");
   };
 

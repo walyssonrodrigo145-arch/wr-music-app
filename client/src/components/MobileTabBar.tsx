@@ -1,6 +1,8 @@
 import { Link, useLocation } from "wouter";
 import { LayoutDashboard, Users, Calendar, DollarSign, Menu } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/useAuth";
+import { isPageAllowed } from "@shared/permissions";
 
 interface MobileTabBarProps {
   onMenuClick: () => void;
@@ -8,13 +10,18 @@ interface MobileTabBarProps {
 
 export function MobileTabBar({ onMenuClick }: MobileTabBarProps) {
   const [location] = useLocation();
+  const { user } = useAuth();
 
-  const tabs = [
+  const allTabs = [
     { label: "Início", href: "/dashboard", icon: LayoutDashboard },
     { label: "Alunos", href: "/alunos", icon: Users },
     { label: "Aulas", href: "/aulas", icon: Calendar },
     { label: "Finanças", href: "/financeiro", icon: DollarSign },
   ];
+
+  const isProfessor = user?.role === "professor";
+  const perms: string[] = (user as any)?.permissions || [];
+  const tabs = allTabs.filter((tab) => !isProfessor || isPageAllowed(perms, tab.href));
 
   return (
     <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-card border-t border-border px-2 py-2 flex items-center justify-between" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 0.5rem)' }}>

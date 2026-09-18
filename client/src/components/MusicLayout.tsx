@@ -4,16 +4,18 @@ import { AppHeader } from "./AppHeader";
 import { MobileTabBar } from "./MobileTabBar";
 import { useAuth } from "@/hooks/useAuth";
 import { getLoginUrl } from "@/const";
-import { Loader2, Music } from "lucide-react";
+import { Loader2, Music, ShieldAlert } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
 import { useLocation } from "wouter";
+import { firstAllowedPath, isPageAllowed } from "@shared/permissions";
 
 interface MusicLayoutProps {
   children: React.ReactNode;
 }
 
 export function MusicLayout({ children }: MusicLayoutProps) {
-  const { user, loading, isAuthenticated } = useAuth();
+  const { user, loading, isAuthenticated, logout } = useAuth();
   const { isMobile, isTablet, isDesktop, isXL, isMacBook } = useBreakpoint();
   
   // Sidebar state
@@ -37,7 +39,7 @@ export function MusicLayout({ children }: MusicLayoutProps) {
     }
   }, [isTablet, isDesktop, isXL, isMacBook]);
 
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -49,6 +51,17 @@ export function MusicLayout({ children }: MusicLayoutProps) {
       }
     }
   }, [loading, isAuthenticated, user?.role, setLocation]);
+
+  // Guard de permissão: professor só acessa páginas liberadas pelo admin.
+  // Rotas admin-only (ex.: /novidades, /marketing) são bloqueadas; rotas fora do
+  // catálogo (ex.: /checkout, /assinatura) permanecem liberadas.
+  useEffect(() => {
+    if (loading || !isAuthenticated || user?.role !== 'professor') return;
+    const perms = (user as any)?.permissions || [];
+    if (isPageAllowed(perms, location)) return;
+    const fallback = firstAllowedPath(perms);
+    if (fallback) setLocation(fallback);
+  }, [loading, isAuthenticated, user, location, setLocation]);
 
   if (loading) {
     return (
@@ -74,6 +87,22 @@ export function MusicLayout({ children }: MusicLayoutProps) {
   }
 
   if (!isAuthenticated) return null;
+
+  // Professor sem nenhuma página liberada: aviso (sem redirect — evita loop)
+  if (user?.role === 'professor' && !firstAllowedPath((user as any)?.permissions || [])) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-6">
+        <div className="max-w-md w-full text-center space-y-4">
+          <ShieldAlert className="mx-auto text-destructive" size={48} />
+          <h1 className="text-2xl font-black">Acesso restrito</h1>
+          <p className="text-muted-foreground text-sm">
+            Seu usuário ainda não tem nenhuma página liberada. Fale com o administrador da escola.
+          </p>
+          <Button variant="outline" onClick={() => { void logout(); }}>Sair</Button>
+        </div>
+      </div>
+    );
+  }
 
   const u = user as any;
   const trialEndsAt = u?.trialEndsAt ? new Date(u.trialEndsAt) : null;

@@ -24,7 +24,7 @@ export function WhatsNewProvider({ children }: { children: ReactNode }) {
   const utils = trpc.useUtils();
   const { data: status } = trpc.releases.getStatus.useQuery(undefined, {
     staleTime: 5 * 60 * 1000,
-    enabled: !!user, // não buscar em páginas públicas (login/landing)
+    enabled: user?.role === "admin", // badge/modal/página: exclusivo do admin
     retry: false, // evita retries quando bloqueado por trial/paywall
   });
 

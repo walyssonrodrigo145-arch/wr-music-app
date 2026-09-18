@@ -12,6 +12,7 @@ import { useTheme } from "@/contexts/ThemeContext";
 import { trpc } from "@/lib/trpc";
 import { useLocation } from "wouter";
 import { cn } from "@/lib/utils";
+import { isPageAllowed } from "@shared/permissions";
 import { motion, AnimatePresence } from "framer-motion";
 
 const pageTitles: Record<string, { title: string; subtitle: string }> = {
@@ -257,6 +258,7 @@ export function AppHeader({ onMobileMenuOpen, onToggleSidebar, sidebarCollapsed 
             {/* Botão de Acesso Rápido para Configurações (Mobile & Desktop) */}
             {/* BUG FIX: aluno não tem /configuracoes (área admin) — o catch-all
                 do portal redirecionava de volta ao dashboard. Aluno → /aluno/perfil */}
+            {(user?.role !== 'professor' || isPageAllowed((user as any)?.permissions || [], "/configuracoes")) && (
             <button
               className="w-8 h-8 sm:w-9 sm:h-9 lg:w-10 lg:h-10 rounded-xl text-muted-foreground hover:text-foreground hover:bg-card transition-all shadow-sm flex items-center justify-center active:scale-90 relative group"
               onClick={() => navigate(user?.role === 'aluno' ? "/aluno/perfil" : "/configuracoes")}
@@ -264,6 +266,7 @@ export function AppHeader({ onMobileMenuOpen, onToggleSidebar, sidebarCollapsed 
             >
               <Settings size={20} className="text-indigo-400" />
             </button>
+            )}
 
            <DropdownMenu>
              <DropdownMenuTrigger asChild>

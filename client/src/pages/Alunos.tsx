@@ -62,10 +62,11 @@ export default function Alunos() {
   // ── Auto-Matrícula Modal State ──────────────────────────────────────────────
   const [isEnrollmentModalOpen, setIsEnrollmentModalOpen] = useState(false);
   const [enrollmentInstrumentId, setEnrollmentInstrumentId] = useState<string>("all");
+  const [enrollmentTeacherUserId, setEnrollmentTeacherUserId] = useState<string>("auto");
   const [enrollmentFee, setEnrollmentFee] = useState<string>("");
   const [enrollmentContractTemplateId, setEnrollmentContractTemplateId] = useState<string>("auto");
   const [enrollmentMaxUses, setEnrollmentMaxUses] = useState<string>("1");
-  const [generatedEnrollmentLink, setGeneratedEnrollmentLink] = useState<{ url: string; fullUrl: string } | null>(null);
+  const [generatedEnrollmentLink, setGeneratedEnrollmentLink] = useState<{ url: string; fullUrl: string; teacherName?: string | null } | null>(null);
 
   const generateEnrollmentLinkMutation = trpc.enrollment.generateLink.useMutation({
     onSuccess: (data) => {
@@ -80,6 +81,7 @@ export default function Alunos() {
   const { data: students = [], isLoading } = trpc.students.list.useQuery();
   const { data: instruments = [] } = trpc.instruments.list.useQuery();
   const { data: contractTemplates = [] } = trpc.contractTemplates.list.useQuery(undefined, { enabled: isEnrollmentModalOpen });
+  const { data: enrollmentProfessores = [] } = trpc.professores.list.useQuery(undefined, { enabled: isEnrollmentModalOpen });
 
   // ── Controle de Acesso ──────────────────────────────────────────────────────
   const { user } = useAuth();
@@ -217,13 +219,14 @@ export default function Alunos() {
              {/* Botão Gerar Link de Matrícula (Auto-cadastro pelo aluno) */}
              {canEdit && (
                <Button
-                  onClick={() => {
-                    setGeneratedEnrollmentLink(null);
-                    setEnrollmentInstrumentId("all");
-                    setEnrollmentFee("");
-                    setEnrollmentContractTemplateId("auto");
-                    setIsEnrollmentModalOpen(true);
-                  }}
+                   onClick={() => {
+                     setGeneratedEnrollmentLink(null);
+                     setEnrollmentInstrumentId("all");
+                     setEnrollmentTeacherUserId("auto");
+                     setEnrollmentFee("");
+                     setEnrollmentContractTemplateId("auto");
+                     setIsEnrollmentModalOpen(true);
+                   }}
                  variant="outline"
                  className="h-10 rounded-xl px-3.5 lg:px-4 text-xs font-bold gap-2 border-primary/30 text-primary hover:bg-primary/10 shadow-sm shrink-0"
                  title="Gerar link de auto-matrícula para enviar ao aluno"
@@ -737,6 +740,71 @@ export default function Alunos() {
 
           {!generatedEnrollmentLink ? (
             <div className="space-y-4 py-2">
+              {/* Professor Responsável — destaque (escolha visível em cards) */}
+              <div className="rounded-2xl border-2 border-primary/30 bg-primary/5 p-3.5 space-y-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-primary/15 text-primary flex items-center justify-center shrink-0">
+                    <Users size={16} />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-black text-foreground leading-tight">Professor Responsável</p>
+                    <p className="text-[10px] text-muted-foreground">As aulas e a matrícula serão vinculadas a ele</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setEnrollmentTeacherUserId("auto")}
+                    className={cn(
+                      "relative flex items-center gap-2.5 rounded-xl border-2 px-3 py-2.5 text-left transition-all active:scale-[0.98]",
+                      enrollmentTeacherUserId === "auto"
+                        ? "border-primary bg-primary/10 shadow-sm"
+                        : "border-border/60 bg-background hover:border-primary/40 hover:bg-muted/40"
+                    )}
+                  >
+                    <div className={cn("w-8 h-8 rounded-full flex items-center justify-center shrink-0", enrollmentTeacherUserId === "auto" ? "bg-primary text-white" : "bg-muted text-muted-foreground")}>
+                      <Sparkles size={14} />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className={cn("text-[11px] font-bold truncate", enrollmentTeacherUserId === "auto" ? "text-primary" : "text-foreground")}>Automático</p>
+                      <p className="text-[9px] text-muted-foreground truncate">Escolhe pelo instrumento</p>
+                    </div>
+                    {enrollmentTeacherUserId === "auto" && <CheckCircle2 size={14} className="text-primary shrink-0" />}
+                  </button>
+                  {enrollmentProfessores.map((prof: any) => {
+                    const selected = enrollmentTeacherUserId === String(prof.userId);
+                    const initials = (prof.name || "P").split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2);
+                    return (
+                      <button
+                        key={prof.id}
+                        type="button"
+                        onClick={() => setEnrollmentTeacherUserId(String(prof.userId))}
+                        className={cn(
+                          "relative flex items-center gap-2.5 rounded-xl border-2 px-3 py-2.5 text-left transition-all active:scale-[0.98]",
+                          selected
+                            ? "border-primary bg-primary/10 shadow-sm"
+                            : "border-border/60 bg-background hover:border-primary/40 hover:bg-muted/40"
+                        )}
+                      >
+                        <div className={cn("w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-black shrink-0", selected ? "bg-primary text-white" : "bg-muted text-muted-foreground")}>
+                          {initials}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className={cn("text-[11px] font-bold truncate", selected ? "text-primary" : "text-foreground")}>{prof.name}</p>
+                          <p className="text-[9px] text-muted-foreground truncate">{prof.especialidade || "Professor(a)"}</p>
+                        </div>
+                        {selected && <CheckCircle2 size={14} className="text-primary shrink-0" />}
+                      </button>
+                    );
+                  })}
+                </div>
+                {enrollmentProfessores.length === 0 && (
+                  <p className="text-[10px] text-muted-foreground">
+                    Nenhum professor cadastrado — o sistema usará o automático por instrumento.
+                  </p>
+                )}
+              </div>
+
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-foreground">Instrumento / Curso (Opcional)</label>
                 <Select
@@ -830,6 +898,7 @@ export default function Alunos() {
                   onClick={() => {
                     generateEnrollmentLinkMutation.mutate({
                       instrumentId: enrollmentInstrumentId !== "all" ? Number(enrollmentInstrumentId) : undefined,
+                      teacherUserId: enrollmentTeacherUserId !== "auto" ? Number(enrollmentTeacherUserId) : undefined,
                       monthlyFee: enrollmentFee ? Number(enrollmentFee) : undefined,
                       contractTemplateId: enrollmentContractTemplateId !== "auto" ? Number(enrollmentContractTemplateId) : undefined,
                       maxUses: Number(enrollmentMaxUses) || 1,
@@ -850,6 +919,7 @@ export default function Alunos() {
                   Link criado com sucesso!
                 </p>
                 <p className="text-[11px] text-emerald-600/90 dark:text-emerald-400/90">
+                  {generatedEnrollmentLink.teacherName ? `Professor(a): ${generatedEnrollmentLink.teacherName}. ` : ""}
                   Envie para até {Number(enrollmentMaxUses) > 1 ? `${enrollmentMaxUses} alunos` : "1 aluno"} — cada um preenche seus dados e escolhe seu próprio horário, sem conflito.
                 </p>
               </div>
@@ -891,7 +961,9 @@ export default function Alunos() {
                 <div className="flex items-center gap-2">
                   <Button
                     onClick={() => {
-                      const text = encodeURIComponent(`Olá! 🎵\n\nAqui está o seu link exclusivo para realizar sua matrícula na nossa escola de música:\n\n👉 ${generatedEnrollmentLink.fullUrl}\n\nAcesse o link para preencher seus dados e agendar suas aulas!`);
+                      const teacher = enrollmentProfessores.find((p: any) => String(p.userId) === enrollmentTeacherUserId);
+                      const teacherLine = teacher ? `\n\n👨‍🏫 Professor(a): ${teacher.name}` : "";
+                      const text = encodeURIComponent(`Olá! 🎵\n\nAqui está o seu link exclusivo para realizar sua matrícula na nossa escola de música:\n\n👉 ${generatedEnrollmentLink.fullUrl}${teacherLine}\n\nAcesse o link para preencher seus dados e agendar suas aulas!`);
                       window.open(`https://api.whatsapp.com/send?text=${text}`, "_blank");
                     }}
                     className="h-9 px-3.5 rounded-xl text-xs bg-emerald-600 hover:bg-emerald-500 text-white font-bold gap-1.5"

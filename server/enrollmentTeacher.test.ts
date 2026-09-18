@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { resolveEnrollmentTeacher } from "./services/EnrollmentHoursService";
+import { resolveEnrollmentTeacher, resolveEnrollmentTeacherForLink } from "./services/EnrollmentHoursService";
 
 /**
  * Fake db: cada db.select() consome o próximo bucket e devolve um builder
@@ -58,5 +58,29 @@ describe("resolveEnrollmentTeacher — cadeia professores → professor → admi
     const db = makeDb([[], [], []]);
     const t = await resolveEnrollmentTeacher(db, 999, "Teclado");
     expect(t.userId).toBeNull();
+  });
+});
+
+describe("resolveEnrollmentTeacherForLink — professor escolhido no link tem prioridade", () => {
+  it("professor escolhido no link vence a cadeia automática", async () => {
+    const db = makeDb([[{ userId: 55, name: "Prof Escolhido" }]]);
+    const t = await resolveEnrollmentTeacherForLink(db, { organizationId: 28, teacherUserId: 55 }, "Teclado");
+    expect(t.userId).toBe(55);
+    expect(t.name).toBe("Prof Escolhido");
+  });
+
+  it("professor do link removido/inválido cai na cadeia automática", async () => {
+    const db = makeDb([
+      [], // users: professor do link não encontrado
+      [{ userId: 10, name: "Prof Violão", especialidade: "Violão" }],
+    ]);
+    const t = await resolveEnrollmentTeacherForLink(db, { organizationId: 28, teacherUserId: 999 }, "Violão");
+    expect(t.userId).toBe(10);
+  });
+
+  it("link sem professor escolhido usa a cadeia automática direto", async () => {
+    const db = makeDb([[{ userId: 11, name: "Prof Teclado", especialidade: "Teclado" }]]);
+    const t = await resolveEnrollmentTeacherForLink(db, { organizationId: 28, teacherUserId: null }, "Teclado");
+    expect(t.userId).toBe(11);
   });
 });
