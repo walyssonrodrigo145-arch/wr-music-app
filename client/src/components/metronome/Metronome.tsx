@@ -1,5 +1,6 @@
 import { useSyncExternalStore, useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 import { Play, Pause, RotateCcw, Minus, Plus, ChevronDown, Music2 } from "lucide-react";
 import {
   metronome, TIME_SIGNATURES, MIN_BPM, MAX_BPM,
@@ -26,6 +27,11 @@ export function Metronome({ className, compact = false }: { className?: string; 
       setBpmDraft(null);
     }
   };
+
+  // iOS FIX: antes a falha de áudio era silenciosa (botão parecia morto).
+  useEffect(() => {
+    if (state.error) toast.error(state.error, { id: "metronome-audio-error" });
+  }, [state.error]);
 
   return (
     <div
@@ -98,7 +104,7 @@ export function Metronome({ className, compact = false }: { className?: string; 
           </button>
           <button
             type="button"
-            onClick={() => metronome.toggle()}
+            onClick={() => { void metronome.toggle(); }}
             aria-label={state.playing ? "Pausar metrônomo" : "Iniciar metrônomo"}
             className={cn(
               "w-16 h-16 rounded-full flex items-center justify-center transition-all duration-300 active:scale-95 cursor-pointer hover:scale-105",
@@ -121,6 +127,13 @@ export function Metronome({ className, compact = false }: { className?: string; 
             <ChevronDown size={17} className={cn("transition-transform", showPresets && "rotate-180")} />
           </button>
         </div>
+
+        {/* iOS FIX: aviso visível quando o áudio não conseguiu iniciar */}
+        {state.error && (
+          <p className="text-[10px] font-bold text-amber-200 text-center leading-tight -mt-1">
+            {state.error}
+          </p>
+        )}
 
         {/* BPM: -, input, + (§42) */}
         <div className="flex items-center gap-2">

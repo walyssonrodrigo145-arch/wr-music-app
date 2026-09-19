@@ -26,6 +26,17 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: "2026.09.19",
+    date: "2026-09-19",
+    title: "Metrônomo funcionando no iPhone e iPad",
+    summary: "O metrônomo do Plano Diário voltou a tocar no iOS — inclusive com o celular no silencioso e depois de bloquear a tela.",
+    items: [
+      { type: "correcao", title: "Som no iPhone mesmo no modo silencioso", description: "O áudio do metrônomo agora usa a sessão de reprodução do iOS, então toca mesmo com a chave de silencioso ligada." },
+      { type: "correcao", title: "Volta a tocar depois de bloquear a tela ou receber ligação", description: "Se o sistema interromper o áudio (tela bloqueada, chamada, Siri), o metrônomo retoma sozinho ao voltar para o app." },
+      { type: "melhoria", title: "Aviso quando o áudio não inicia", description: "Se o aparelho bloquear o som, aparece um aviso orientando a tocar novamente — antes o botão parecia morto, sem explicação." },
+    ],
+  },
+  {
     version: "2026.09.18",
     date: "2026-09-18",
     title: "Correções na agenda e nas turmas",
