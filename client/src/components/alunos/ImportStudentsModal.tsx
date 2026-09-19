@@ -2,7 +2,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { downloadBlob } from "@/lib/nativeDownload";
+import { parseBRL } from "@/lib/money";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
@@ -19,7 +21,7 @@ import {
 } from "@/components/ui/select";
 import {
   Upload, FileUp, Loader2, AlertCircle, Download, FileText,
-  Trash2, ChevronLeft, ChevronRight, CheckCircle2,
+  Trash2, ChevronLeft, ChevronRight, CheckCircle2, Wallet, CalendarDays,
 } from "lucide-react";
 
 const MAX_ROWS = 300;
@@ -208,10 +210,18 @@ export function ImportStudentsModal({ open, onOpenChange }: Props) {
   const [professorId, setProfessorId] = useState<string>("");
   const [instrumentId, setInstrumentId] = useState<string>("none");
   const [level, setLevel] = useState<"iniciante" | "intermediario" | "avancado">("iniciante");
+  const [monthlyFeeText, setMonthlyFeeText] = useState<string>("");
+  const [dueDay, setDueDay] = useState<string>("none");
   const [precheckTick, setPrecheckTick] = useState(0);
 
   const { data: profs = [] } = trpc.professores.list.useQuery(undefined, { enabled: open });
   const { data: instruments = [] } = trpc.instruments.list.useQuery(undefined, { enabled: open });
+  const { data: settings } = trpc.settings.get.useQuery(undefined, { enabled: open });
+
+  const dueDays = useMemo(() => {
+    const raw = (settings?.dueDaysForecast || "5,10,15,20") as string;
+    return raw.split(",").map((d) => Number(d.trim())).filter((n) => !Number.isNaN(n) && n >= 1 && n <= 31);
+  }, [settings?.dueDaysForecast]);
 
   useEffect(() => {
     const t = setTimeout(() => setPrecheckTick((v) => v + 1), 600);
@@ -371,10 +381,25 @@ export function ImportStudentsModal({ open, onOpenChange }: Props) {
   const submit = () => {
     const payload = buildPayload();
     if (payload.length === 0) { toast.error("Nenhum aluno marcado para importar."); return; }
+    // Aceita "150", "150,00", "R$ 1.234,56" e até 0 (mensalidade zerada);
+    // texto sem nenhum dígito é considerado inválido.
+    const hasDigits = /\d/.test(monthlyFeeText);
+    const feeVal = monthlyFeeText.trim() ? parseBRL(monthlyFeeText) : undefined;
+    if (monthlyFeeText.trim() && (!hasDigits || feeVal === undefined || feeVal < 0)) {
+      toast.error("Informe um valor de mensalidade válido (ex.: 150,00).");
+      return;
+    }
+    const dayVal = dueDay !== "none" ? Number(dueDay) : undefined;
+    if (dayVal !== undefined && (!Number.isInteger(dayVal) || dayVal < 1 || dayVal > 31)) {
+      toast.error("Dia de vencimento inválido.");
+      return;
+    }
     importMutation.mutate({
       professorId: professorId ? Number(professorId) : undefined,
       instrumentId: instrumentId === "none" ? null : Number(instrumentId),
       level,
+      monthlyFee: feeVal,
+      dueDay: dayVal,
       rows: payload,
     });
   };
@@ -389,6 +414,8 @@ export function ImportStudentsModal({ open, onOpenChange }: Props) {
     setProfessorId("");
     setInstrumentId("none");
     setLevel("iniciante");
+    setMonthlyFeeText("");
+    setDueDay("none");
   };
 
   const handleOpenChange = (o: boolean) => {
@@ -524,6 +551,39 @@ export function ImportStudentsModal({ open, onOpenChange }: Props) {
                     <SelectItem value="avancado">Avançado</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+            </div>
+
+            {/* Valor da mensalidade e vencimento padrão dos importados */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
+                  <Wallet size={11} /> Valor da mensalidade (R$)
+                </label>
+                <Input
+                  value={monthlyFeeText}
+                  onChange={(e) => setMonthlyFeeText(e.target.value)}
+                  placeholder="Ex: 150,00 (vazio = mensalidade zerada)"
+                  className="h-10 rounded-xl text-xs font-bold"
+                />
+                <p className="text-[10px] text-muted-foreground">Aplicado a todos os alunos importados.</p>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
+                  <CalendarDays size={11} /> Dia de vencimento
+                </label>
+                <Select value={dueDay} onValueChange={setDueDay}>
+                  <SelectTrigger className="h-10 rounded-xl text-xs font-bold">
+                    <SelectValue placeholder="Padrão da escola" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Padrão da escola (dia 10)</SelectItem>
+                    {dueDays.map((d) => (
+                      <SelectItem key={d} value={String(d)}>Dia {d}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-[10px] text-muted-foreground">Usado ao gerar as cobranças em Finanças.</p>
               </div>
             </div>
 
@@ -702,7 +762,7 @@ export function ImportStudentsModal({ open, onOpenChange }: Props) {
               <p className="text-[10px] text-muted-foreground leading-snug flex items-start gap-1.5">
                 <FileText size={12} className="mt-0.5 shrink-0" />
                 <span>
-                  Alunos entram como <strong>ativos</strong> com mensalidade zerada — ajuste valores e cobranças depois na edição de cada aluno.
+                  Alunos entram como <strong>ativos</strong> com o valor e o vencimento definidos acima — as cobranças são geradas depois em Finanças.
                 </span>
               </p>
               <div className="flex items-center justify-end gap-2">

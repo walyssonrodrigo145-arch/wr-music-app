@@ -1039,6 +1039,9 @@ export const studentsRouters = {
       professorId: z.number().optional(),
       instrumentId: z.number().nullable().optional(),
       level: z.enum(["iniciante", "intermediario", "avancado"]).default("iniciante"),
+      // Valor da mensalidade e dia de vencimento padrão para os alunos importados
+      monthlyFee: z.number().min(0).max(100000).optional(),
+      dueDay: z.number().int().min(1).max(31).optional(),
       rows: z.array(z.object({
         name: z.string().trim().min(1).max(255),
         email: z.string().trim().email("E-mail inválido").or(z.literal("")).optional().nullable(),
@@ -1129,6 +1132,8 @@ export const studentsRouters = {
         level: input.level,
         status: "ativo" as const,
         startDate: new Date().toISOString().slice(0, 10),
+        ...(input.monthlyFee !== undefined ? { monthlyFee: input.monthlyFee.toFixed(2) } : {}),
+        ...(input.dueDay !== undefined ? { dueDay: input.dueDay } : {}),
       })));
 
       await syncOrgAsaasSubscription(db, orgId).catch(() => {});
