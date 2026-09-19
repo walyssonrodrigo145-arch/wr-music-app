@@ -55,12 +55,16 @@ export function EditMensalidadeModal({ open, onClose, payment }: EditMensalidade
   const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
 
   const updatePaymentMutation = trpc.paymentDues.update.useMutation({
-    onSuccess: () => {
+    onSuccess: (res: any) => {
       utils.paymentDues.invalidate();
       utils.dashboard.invalidate();
       utils.reminders.invalidate();
       if (!updateStudentMutation.isPending) {
-        toast.success("Mensalidade atualizada com sucesso!");
+        if (res?.chargeCancelled) {
+          toast.warning("Mensalidade atualizada! A cobrança anterior foi cancelada — gere um novo boleto/Pix com os valores atualizados.");
+        } else {
+          toast.success("Mensalidade atualizada com sucesso!");
+        }
         onClose();
       }
     },
@@ -117,7 +121,7 @@ export function EditMensalidadeModal({ open, onClose, payment }: EditMensalidade
   const isPending = updatePaymentMutation.isPending || updateStudentMutation.isPending;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
       <div className="relative bg-card rounded-[2rem] border border-border/40 shadow-2xl w-full max-w-md max-h-[calc(100dvh-8rem)] md:max-h-[95vh] overflow-hidden flex flex-col">
         

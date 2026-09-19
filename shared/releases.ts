@@ -26,6 +26,29 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: "2026.09.19.2",
+    date: "2026-09-19",
+    title: "Importar alunos por planilha ou colando os dados",
+    summary: "Novo botão Importar CSV em Alunos: cole os dados ou envie um arquivo, revise tudo numa prévia e importe de uma vez.",
+    items: [
+      { type: "novo", title: "Importação de alunos em lote", description: "Em Alunos → Importar CSV você cola os dados (Nome; Telefone; E-mail; Nascimento) ou escolhe um arquivo CSV/Excel exportado. Dá para definir professor, instrumento e nível padrão para a turma inteira." },
+      { type: "novo", title: "Prévia editável com aviso de duplicados", description: "Antes de importar, cada linha aparece editável com status: nome inválido, e-mail já cadastrado, telefone já usado ou repetido no arquivo. Linhas com erro ficam desmarcadas automaticamente." },
+      { type: "melhoria", title: "Modelo pronto e relatório dos não importados", description: "Baixe o modelo CSV, e ao final veja quantos entraram e baixe a lista dos que ficaram de fora com o motivo." },
+    ],
+  },
+  {
+    version: "2026.09.19.1",
+    date: "2026-09-19",
+    title: "Detalhe da mensalidade com Pix, boleto e histórico",
+    summary: "Clique na mensalidade em Finanças e abra a ficha completa: editar, gerar Pix copia-e-cola, boleto, link, recibo e ver o histórico financeiro do aluno.",
+    items: [
+      { type: "novo", title: "Ficha da mensalidade ao clicar na linha", description: "Abrir qualquer mensalidade agora mostra valor atualizado (com juros/multa/desconto), vencimento, situação, forma de pagamento e as ações em um só lugar." },
+      { type: "novo", title: "Pix copia-e-cola, boleto e link de pagamento", description: "Gere Pix com código copia-e-cola, boleto com linha digitável (Asaas) ou link de pagamento no Mercado Pago e InfinitePay, direto da ficha." },
+      { type: "novo", title: "Histórico financeiro do aluno", description: "Todas as mensalidades do aluno com status e totais de pago, pendente e atrasado — clique em qualquer mês para abrir na mesma ficha." },
+      { type: "melhoria", title: "Editar mensalidade com cobrança ativa", description: "Se o valor ou vencimento mudar, a cobrança antiga é cancelada automaticamente e você gera uma nova com os valores certos." },
+    ],
+  },
+  {
     version: "2026.09.19",
     date: "2026-09-19",
     title: "Metrônomo funcionando no iPhone e iPad",

@@ -5,7 +5,7 @@ import {
   Loader2, Trash2, ChevronLeft, ChevronRight, Pencil,
   Search, MoreVertical, CreditCard,
   ChevronDown, TrendingUp, Zap, Link2, Copy, QrCode, Ban,
-  FileUp, FileCheck, FileText, Info, Wallet, Download, Send, Receipt
+  FileUp, FileCheck, FileText, Info, Wallet, Download, Send, Receipt, ExternalLink
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { exportToCSV } from "@/lib/exportUtils";
@@ -16,6 +16,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { EditMensalidadeModal } from "@/components/modals/EditMensalidadeModal";
+import PaymentDueDetailPanel from "@/components/modals/PaymentDueDetailPanel";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -73,10 +74,12 @@ function GatewayChargeModal({ open, onClose, payment, gateway }: {
 }) {
   const utils = trpc.useUtils();
   const { maskBRL } = useDashboardPrefs();
-  const [billingType, setBillingType] = useState<"PIX" | "CREDIT_CARD">("PIX");
+  const [billingType, setBillingType] = useState<"PIX" | "BOLETO" | "CREDIT_CARD">("PIX");
   const [result, setResult] = useState<{
     paymentLink: string;
     pixQrCode?: string | null;
+    identificationField?: string | null;
+    bankSlipUrl?: string | null;
     billingType: string;
   } | null>(null);
 
@@ -171,24 +174,27 @@ function GatewayChargeModal({ open, onClose, payment, gateway }: {
               {gateway === "asaas" && (
                 <div className="space-y-2">
                   <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-1">Método de pagamento</p>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-3 gap-2">
                     {([
                       { key: "PIX", label: "PIX", icon: QrCode, color: "emerald" },
-                      { key: "CREDIT_CARD", label: "Cartão de Crédito", icon: CreditCard, color: "blue" },
+                      { key: "BOLETO", label: "Boleto", icon: FileText, color: "violet" },
+                      { key: "CREDIT_CARD", label: "Cartão", icon: CreditCard, color: "blue" },
                     ] as const).map(({ key, label, icon: Icon, color }) => (
                       <button
                         key={key}
                         onClick={() => setBillingType(key)}
                         className={cn(
-                          "flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all",
+                          "flex flex-col items-center gap-2 p-3.5 rounded-2xl border-2 transition-all",
                           billingType === key
                             ? color === "emerald"
                               ? "border-emerald-500 bg-emerald-500/10 text-emerald-600"
-                              : "border-blue-500 bg-blue-500/10 text-blue-600"
+                              : color === "violet"
+                                ? "border-violet-500 bg-violet-500/10 text-violet-600"
+                                : "border-blue-500 bg-blue-500/10 text-blue-600"
                             : "border-border bg-muted/30 text-muted-foreground hover:border-muted-foreground/40"
                         )}
                       >
-                        <Icon size={22} />
+                        <Icon size={20} />
                         <span className="text-[10px] font-bold uppercase tracking-wider">{label}</span>
                       </button>
                     ))}
@@ -245,10 +251,41 @@ function GatewayChargeModal({ open, onClose, payment, gateway }: {
                   </div>
                 )}
 
-                {/* Link de Pagamento */}
+                {/* Boleto: linha digitável (Asaas) */}
+                {result.billingType === "BOLETO" && (
+                  <div className="space-y-2">
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider px-1">
+                      Linha digitável do boleto
+                    </p>
+                    <div className="flex items-center gap-2 p-3 rounded-xl bg-muted/50 border border-border">
+                      <FileText size={14} className="text-violet-500 shrink-0" />
+                      <p className="text-[10px] font-mono text-muted-foreground truncate flex-1">
+                        {result.identificationField || "Boleto gerado — use o link abaixo."}
+                      </p>
+                      {result.identificationField && (
+                        <button
+                          onClick={() => copyToClipboard(result.identificationField!)}
+                          className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors shrink-0"
+                        >
+                          <Copy size={13} />
+                        </button>
+                      )}
+                    </div>
+                    {(result.bankSlipUrl || result.paymentLink) && (
+                      <button
+                        onClick={() => window.open(result.bankSlipUrl || result.paymentLink, "_blank", "noopener")}
+                        className="inline-flex items-center gap-1.5 text-[10px] font-bold text-violet-600 hover:underline px-1"
+                      >
+                        <ExternalLink size={12} /> Abrir boleto
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {/* Link de Pagamento / Pix copia-e-cola */}
                 <div className="space-y-2">
                   <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider px-1">
-                    Link Seguro
+                    {result.billingType === "PIX" ? "Pix copia e cola" : result.billingType === "BOLETO" ? "Link do boleto" : "Link Seguro"}
                   </p>
                   <div className="flex items-center gap-2 p-3 rounded-xl bg-muted/50 border border-border">
                     <Link2 size={14} className="text-violet-500 shrink-0" />
@@ -1447,6 +1484,15 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
         onClose={() => setAsaasPayment(null)}
         payment={asaasPayment}
         gateway={(settings?.paymentGateway as "asaas" | "mercadopago" | "infinitepay") || "asaas"}
+      />
+
+      {/* PRD_DETALHE_MENSALIDADE: painel com edição, boleto/Pix, recibo e histórico */}
+      <PaymentDueDetailPanel
+        paymentId={detailsPaymentId}
+        onClose={() => setDetailsPaymentId(null)}
+        gateway={paymentGateway}
+        onEdit={(p) => setEditPayment(p as PaymentRow)}
+        onCharge={(p) => setAsaasPayment(p as PaymentRow)}
       />
     </div>
   );

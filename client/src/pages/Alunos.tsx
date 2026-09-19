@@ -5,7 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { isSameDay, startOfDay } from "date-fns";
 import {
   Users, Search, Plus, Pencil, Trash2,
-  CheckCircle2, X, Loader2, Clock, MoreVertical, Bell, TrendingUp, Activity, Eye, Edit, Download, Send,
+  CheckCircle2, X, Loader2, Clock, MoreVertical, Bell, TrendingUp, Activity, Eye, Edit, Download, Send, FileUp,
   Link as LinkIcon, Copy, ExternalLink, Sparkles
 } from "lucide-react";
 import { exportToCSV } from "@/lib/exportUtils";
@@ -41,6 +41,7 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { StudentModal } from "@/components/alunos/StudentModal";
+import { ImportStudentsModal } from "@/components/alunos/ImportStudentsModal";
 import { DeleteConfirm } from "@/components/alunos/DeleteConfirm";
 import { StatusBadge, LevelBadge } from "@/components/alunos/StatusBadge";
 import { StudentRow } from "@/components/alunos/types";
@@ -56,6 +57,7 @@ export default function Alunos() {
   const [modalOpen, setModalOpen] = useState(false);
   const [detailsStudentId, setDetailsStudentId] = useState<number | null>(null);
   const [generateAccessStudentId, setGenerateAccessStudentId] = useState<number | null>(null);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [editStudent, setEditStudent] = useState<StudentRow | null>(null);
   const [deleteStudent, setDeleteStudent] = useState<StudentRow | null>(null);
 
@@ -206,15 +208,27 @@ export default function Alunos() {
                 />
              </div>
 
-             <Button
-               variant="outline"
-               onClick={() => handleExportCSV(filtered)}
-               className="h-10 rounded-xl px-3 lg:px-4 text-xs font-bold gap-2 border-border/80 shadow-sm shrink-0"
-               title="Exportar lista atual para Excel/CSV"
-             >
-               <Download size={16} />
-               <span className="hidden sm:inline">Exportar CSV</span>
-             </Button>
+              <Button
+                variant="outline"
+                onClick={() => handleExportCSV(filtered)}
+                className="h-10 rounded-xl px-3 lg:px-4 text-xs font-bold gap-2 border-border/80 shadow-sm shrink-0"
+                title="Exportar lista atual para Excel/CSV"
+              >
+                <Download size={16} />
+                <span className="hidden sm:inline">Exportar CSV</span>
+              </Button>
+
+              {canEdit && (
+                <Button
+                  variant="outline"
+                  onClick={() => setIsImportModalOpen(true)}
+                  className="h-10 rounded-xl px-3 lg:px-4 text-xs font-bold gap-2 border-border/80 shadow-sm shrink-0"
+                  title="Importar lista de alunos em CSV"
+                >
+                  <FileUp size={16} />
+                  <span className="hidden sm:inline">Importar CSV</span>
+                </Button>
+              )}
 
              {/* Botão Gerar Link de Matrícula (Auto-cadastro pelo aluno) */}
              {canEdit && (
@@ -716,6 +730,7 @@ export default function Alunos() {
         onOpenChange={(open) => { if (!open) setGenerateAccessStudentId(null); }}
         studentId={generateAccessStudentId}
       />
+      <ImportStudentsModal open={isImportModalOpen} onOpenChange={setIsImportModalOpen} />
       {deleteStudent && (
         <DeleteConfirm
           name={deleteStudent.name}

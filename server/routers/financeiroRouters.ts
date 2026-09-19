@@ -128,6 +128,122 @@ export const financeiroRouters = {
         return mappedRows;
       }),
 
+    // ─ PRD_DETALHE_MENSALIDADE: dados completos de UMA mensalidade +
+    // histórico financeiro do aluno + linha digitável do boleto (Asaas). ─
+    getById: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .query(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
+        const orgId = ctx.user.organizationId!;
+        const isAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
+
+        const scope = isAdmin
+          ? and(eq(paymentDues.id, input.id), eq(paymentDues.organizationId, orgId))
+          : and(eq(paymentDues.id, input.id), eq(paymentDues.organizationId, orgId), eq(paymentDues.userId, ctx.user.id));
+
+        const rows = await db.select({
+          id: paymentDues.id,
+          userId: paymentDues.userId,
+          studentId: paymentDues.studentId,
+          amount: paymentDues.amount,
+          originalAmount: paymentDues.originalAmount,
+          dueDate: paymentDues.dueDate,
+          paidAt: paymentDues.paidAt,
+          status: paymentDues.status,
+          month: paymentDues.month,
+          year: paymentDues.year,
+          notes: paymentDues.notes,
+          billingPeriodicity: paymentDues.billingPeriodicity,
+          asaasId: paymentDues.asaasId,
+          asaasPaymentLink: paymentDues.asaasPaymentLink,
+          asaasBillingType: paymentDues.asaasBillingType,
+          mpPaymentId: paymentDues.mpPaymentId,
+          mpPaymentLink: paymentDues.mpPaymentLink,
+          infinitepayPaymentId: paymentDues.infinitepayPaymentId,
+          infinitepayPaymentLink: paymentDues.infinitepayPaymentLink,
+          receiptUrl: paymentDues.receiptUrl,
+          updatedAmountCache: paymentDues.updatedAmountCache,
+          daysOverdueCache: paymentDues.daysOverdueCache,
+          lastCalculation: paymentDues.lastCalculation,
+          studentName: students.name,
+          studentPhone: students.phone,
+          guardianPhone: students.guardianPhone,
+          email: students.email,
+          lessonType: students.lessonType,
+          studentStatus: students.status,
+        })
+          .from(paymentDues)
+          .leftJoin(students, eq(paymentDues.studentId, students.id))
+          .where(scope)
+          .limit(1);
+
+        if (rows.length === 0) throw new TRPCError({ code: "NOT_FOUND", message: "Mensalidade não encontrada" });
+
+        const schoolSettingsObj = await getSettingsByUserId(orgId, ctx.user.id);
+        const today = getTodayBR();
+        const [mappedDue] = markOverdueRows(await BillingEngine.enrichInvoicesList(rows, schoolSettingsObj), today) as any[];
+
+        // Boleto Asaas: busca a linha digitável ao vivo (não é persistida)
+        let identificationField: string | null = null;
+        if (mappedDue?.asaasId && mappedDue.asaasBillingType === 'BOLETO' && mappedDue.status !== 'pago') {
+          try {
+            const [st] = await db.select({ asaasApiKey: settings.asaasApiKey })
+              .from(settings).where(eq(settings.userId, mappedDue.userId ?? ctx.user.id)).limit(1);
+            const { getAsaasIdentificationField } = await import('../utils/asaas');
+            const info = await getAsaasIdentificationField(
+              mappedDue.asaasId,
+              st?.asaasApiKey ? decryptSecret(st.asaasApiKey) : undefined
+            );
+            identificationField = info.identificationField;
+          } catch (e) {
+            console.warn("[getById] Falha ao buscar linha digitável do boleto:", e);
+          }
+        }
+
+        // Histórico financeiro do aluno (mesmo escopo da listagem:
+        // admin vê tudo da org; professor vê as próprias mensalidades)
+        const historyRows = await db.select({
+          id: paymentDues.id,
+          amount: paymentDues.amount,
+          originalAmount: paymentDues.originalAmount,
+          dueDate: paymentDues.dueDate,
+          paidAt: paymentDues.paidAt,
+          status: paymentDues.status,
+          month: paymentDues.month,
+          year: paymentDues.year,
+          notes: paymentDues.notes,
+          asaasId: paymentDues.asaasId,
+          asaasBillingType: paymentDues.asaasBillingType,
+          mpPaymentId: paymentDues.mpPaymentId,
+          infinitepayPaymentId: paymentDues.infinitepayPaymentId,
+          receiptUrl: paymentDues.receiptUrl,
+        })
+          .from(paymentDues)
+          .where(and(
+            eq(paymentDues.organizationId, orgId),
+            eq(paymentDues.studentId, mappedDue.studentId),
+            isAdmin ? undefined : eq(paymentDues.userId, ctx.user.id),
+          ))
+          .orderBy(desc(paymentDues.year), desc(paymentDues.month));
+
+        const history = markOverdueRows(await BillingEngine.enrichInvoicesList(historyRows, schoolSettingsObj), today) as any[];
+
+        const totals = history.reduce(
+          (acc: { pago: number; pendente: number; atrasado: number; total: number }, h: any) => {
+            const value = Number(h.amount) || 0;
+            acc.total += value;
+            if (h.status === 'pago') acc.pago += value;
+            else if (h.status === 'atrasado') acc.atrasado += value;
+            else acc.pendente += value;
+            return acc;
+          },
+          { pago: 0, pendente: 0, atrasado: 0, total: 0 }
+        );
+
+        return { due: mappedDue, identificationField, history, totals };
+      }),
+
     create: protectedProcedure
       .input(z.object({
         studentId: z.number(),
@@ -449,6 +565,49 @@ export const financeiroRouters = {
             .set(updateData)
             .where(updateWhere);
 
+          // ── RN-002 (PRD_DETALHE_MENSALIDADE): se o valor/vencimento mudou e existe
+          // cobrança ativa (Asaas/MP/InfinitePay), cancela/limpa para o usuário gerar
+          // uma nova com os valores atualizados (evita link desatualizado).
+          let chargeCancelled = false;
+          if (currentPayment.status !== "pago") {
+            const amountChanged = data.amount !== undefined && Number(data.amount).toFixed(2) !== Number(currentPayment.amount).toFixed(2);
+            const dueChanged = !!data.dueDate && String(data.dueDate).slice(0, 10) !== String(currentPayment.dueDate).slice(0, 10);
+            if (amountChanged || dueChanged) {
+              if (currentPayment.asaasId) {
+                try {
+                  const [ownerSet] = await db.select({ asaasApiKey: settings.asaasApiKey })
+                    .from(settings)
+                    .where(eq(settings.userId, currentPayment.userId ?? ctx.user.id))
+                    .limit(1);
+                  const { deleteAsaasCharge } = await import('../utils/asaas');
+                  await deleteAsaasCharge(
+                    currentPayment.asaasId,
+                    ownerSet?.asaasApiKey ? decryptSecret(ownerSet.asaasApiKey) : undefined
+                  );
+                  await db.update(paymentDues)
+                    .set({ asaasId: null, asaasPaymentLink: null, asaasBillingType: null, updatedAt: new Date() })
+                    .where(eq(paymentDues.id, id));
+                  chargeCancelled = true;
+                  debugLog(`[paymentDues.update] Cobrança Asaas cancelada (${currentPayment.asaasId}) por alteração de valor/vencimento`);
+                } catch (e) {
+                  console.error(`[paymentDues.update] Falha ao cancelar cobrança Asaas ${currentPayment.asaasId}:`, e);
+                }
+              }
+              if (currentPayment.mpPaymentId || currentPayment.mpPaymentLink) {
+                await db.update(paymentDues)
+                  .set({ mpPaymentId: null, mpPaymentLink: null, updatedAt: new Date() })
+                  .where(eq(paymentDues.id, id));
+                chargeCancelled = true;
+              }
+              if (currentPayment.infinitepayPaymentId || currentPayment.infinitepayPaymentLink || currentPayment.infinitepaySlug) {
+                await db.update(paymentDues)
+                  .set({ infinitepayPaymentId: null, infinitepayPaymentLink: null, infinitepaySlug: null, updatedAt: new Date() })
+                  .where(eq(paymentDues.id, id));
+                chargeCancelled = true;
+              }
+            }
+          }
+
           // Sincronizar vencimentos futuros se solicitado
           if (updateFutureDues && data.dueDate) {
             const newDay = new Date(data.dueDate).getUTCDate();
@@ -512,7 +671,7 @@ export const financeiroRouters = {
             }
           }
             
-          return { success: true };
+          return { success: true, chargeCancelled };
         } catch (error) {
           return handleDbError(error, "atualizar a mensalidade");
         }
@@ -629,8 +788,7 @@ export const financeiroRouters = {
           const db = await getDb();
           if (!db) throw new Error("Banco de dados não disponível");
           const orgId = ctx.user.organizationId!;
-
-          // Extrair buffer do base64
+          const isAdminReceipt = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
           const base64Content = input.fileData.split(';base64,').pop() || input.fileData;
           const buffer = Buffer.from(base64Content, 'base64');
           
@@ -650,7 +808,7 @@ export const financeiroRouters = {
             .where(and(
               eq(paymentDues.id, input.paymentDueId), 
               eq(paymentDues.organizationId, orgId), 
-              eq(paymentDues.userId, ctx.user.id)
+              isAdminReceipt ? undefined : eq(paymentDues.userId, ctx.user.id)
             ));
             
           return { success: true, url };
@@ -1010,31 +1168,41 @@ export const financeiroRouters = {
     generateAsaasCharge: protectedProcedure
       .input(z.object({
         paymentDueId: z.number(),
-        billingType: z.enum(["PIX", "CREDIT_CARD"]),
+        // PRD_DETALHE_MENSALIDADE: BOLETO incluído (linha digitável + link)
+        billingType: z.enum(["PIX", "BOLETO", "CREDIT_CARD"]),
       }))
       .mutation(async ({ ctx, input }) => {
         const db = await getDb();
         if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
 
         const orgId = ctx.user.organizationId!;
+        const isAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
         const professorId = ctx.user.id;
 
         // Security Lock
-        const { createAsaasCustomer, createAsaasCharge, getAsaasPixQrCode } = await import('../utils/asaas');
-        const [settingsData] = await db.select({ asaasEnabled: settings.asaasEnabled, asaasApiKey: settings.asaasApiKey }).from(settings).where(eq(settings.userId, professorId)).limit(1);
+        const { createAsaasCustomer, createAsaasCharge, getAsaasPixQrCode, getAsaasIdentificationField } = await import('../utils/asaas');
+
+        // Fetch payment due (admin pode gerar para mensalidade de outro professor)
+        const [due] = await db.select().from(paymentDues)
+          .where(and(
+            eq(paymentDues.id, input.paymentDueId),
+            eq(paymentDues.organizationId, orgId),
+            isAdmin ? undefined : eq(paymentDues.userId, professorId),
+          ))
+          .limit(1);
+
+        if (!due) throw new TRPCError({ code: "NOT_FOUND", message: "Mensalidade não encontrada" });
+        if (due.status === "pago") throw new TRPCError({ code: "BAD_REQUEST", message: "Esta mensalidade já está paga" });
+        if (due.asaasId) throw new TRPCError({ code: "BAD_REQUEST", message: "Esta mensalidade já possui uma cobrança gerada no Asaas" });
+
+        // A chave do Asaas é sempre do DONO da mensalidade (professor/admin da escola)
+        const ownerId = due.userId ?? professorId;
+        const [settingsData] = await db.select({ asaasEnabled: settings.asaasEnabled, asaasApiKey: settings.asaasApiKey }).from(settings).where(eq(settings.userId, ownerId)).limit(1);
         if (!settingsData || settingsData.asaasEnabled !== 1 || !settingsData.asaasApiKey) {
           throw new TRPCError({ code: "FORBIDDEN", message: "Geração via Asaas não está disponível para esta conta. Configure a Chave da API." });
         }
         // BUG FIX: decifrar a chave (select cru traz v1:...) antes de usar na API do Asaas
         const apiKey = decryptSecret(settingsData.asaasApiKey);
-
-        // Fetch payment due
-        const [due] = await db.select().from(paymentDues)
-          .where(and(eq(paymentDues.id, input.paymentDueId), eq(paymentDues.userId, professorId)))
-          .limit(1);
-
-        if (!due) throw new TRPCError({ code: "NOT_FOUND", message: "Mensalidade não encontrada" });
-        if (due.asaasId) throw new TRPCError({ code: "BAD_REQUEST", message: "Esta mensalidade já possui uma cobrança gerada no Asaas" });
 
         // Fetch student
         const [student] = await db.select().from(students)
@@ -1102,6 +1270,19 @@ export const financeiroRouters = {
           }
         }
 
+        // Boleto: linha digitável + link do PDF
+        let identificationField: string | null = null;
+        let bankSlipUrl: string | null = null;
+        if (input.billingType === "BOLETO") {
+          bankSlipUrl = charge.bankSlipUrl ?? charge.invoiceUrl ?? null;
+          try {
+            const info = await getAsaasIdentificationField(charge.id, apiKey);
+            identificationField = info.identificationField;
+          } catch (e) {
+            console.error("[Asaas] Erro ao buscar linha digitável do boleto:", e);
+          }
+        }
+
         // Persist Asaas charge data
         const paymentLink = input.billingType === "PIX" ? (pixPayload ?? charge.invoiceUrl) : charge.invoiceUrl;
         await db.update(paymentDues)
@@ -1117,6 +1298,8 @@ export const financeiroRouters = {
           asaasId: charge.id,
           paymentLink,
           pixQrCode,
+          identificationField,
+          bankSlipUrl,
           billingType: input.billingType,
         };
       }),
@@ -1130,13 +1313,30 @@ export const financeiroRouters = {
         if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
 
         const orgId = ctx.user.organizationId!;
+        const isAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
         const professorId = ctx.user.id;
 
         const { createMPPreference } = await import('../utils/mercadopago');
+
+        // Fetch payment due (admin pode gerar para mensalidade de outro professor)
+        const [due] = await db.select().from(paymentDues)
+          .where(and(
+            eq(paymentDues.id, input.paymentDueId),
+            eq(paymentDues.organizationId, orgId),
+            isAdmin ? undefined : eq(paymentDues.userId, professorId),
+          ))
+          .limit(1);
+
+        if (!due) throw new TRPCError({ code: "NOT_FOUND", message: "Mensalidade não encontrada" });
+        if (due.status === "pago") throw new TRPCError({ code: "BAD_REQUEST", message: "Esta mensalidade já está paga" });
+        if (due.mpPaymentId) throw new TRPCError({ code: "BAD_REQUEST", message: "Esta mensalidade já possui uma cobrança gerada no Mercado Pago" });
+
+        // A credencial do MP é sempre do DONO da mensalidade
+        const ownerId = due.userId ?? professorId;
         const [settingsData] = await db.select({ 
           mpAccessToken: settings.mpAccessToken,
           paymentGateway: settings.paymentGateway
-        }).from(settings).where(eq(settings.userId, professorId)).limit(1);
+        }).from(settings).where(eq(settings.userId, ownerId)).limit(1);
         
         if (!settingsData || settingsData.paymentGateway !== 'mercadopago' || !settingsData.mpAccessToken) {
           throw new TRPCError({ code: "FORBIDDEN", message: "Geração via Mercado Pago não está configurada para esta conta." });
@@ -1146,13 +1346,6 @@ export const financeiroRouters = {
         // e ele era enviado cru como Bearer — o MP rejeita com 403 PolicyAgent.
         // Decifrar antes de usar (decryptSecret é idempotente para texto puro legado).
         const accessToken = decryptSecret(settingsData.mpAccessToken);
-
-        const [due] = await db.select().from(paymentDues)
-          .where(and(eq(paymentDues.id, input.paymentDueId), eq(paymentDues.userId, professorId)))
-          .limit(1);
-
-        if (!due) throw new TRPCError({ code: "NOT_FOUND", message: "Mensalidade não encontrada" });
-        if (due.mpPaymentId) throw new TRPCError({ code: "BAD_REQUEST", message: "Esta mensalidade já possui uma cobrança gerada no Mercado Pago" });
 
         const [student] = await db.select().from(students)
           .where(and(eq(students.id, due.studentId), eq(students.organizationId, orgId)))
@@ -1204,8 +1397,15 @@ export const financeiroRouters = {
         const db = await getDb();
         if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
 
+        const orgId = ctx.user.organizationId!;
+        const isAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
+
         const [due] = await db.select().from(paymentDues)
-          .where(and(eq(paymentDues.id, input.paymentDueId), eq(paymentDues.userId, ctx.user.id)))
+          .where(and(
+            eq(paymentDues.id, input.paymentDueId),
+            eq(paymentDues.organizationId, orgId),
+            isAdmin ? undefined : eq(paymentDues.userId, ctx.user.id),
+          ))
           .limit(1);
 
         if (!due) throw new TRPCError({ code: "NOT_FOUND", message: "Mensalidade não encontrada" });
@@ -1214,7 +1414,7 @@ export const financeiroRouters = {
         const [settingsData] = await db
           .select({ asaasApiKey: settings.asaasApiKey })
           .from(settings)
-          .where(eq(settings.userId, ctx.user.id))
+          .where(eq(settings.userId, due.userId ?? ctx.user.id))
           .limit(1);
         await deleteAsaasCharge(due.asaasId, settingsData?.asaasApiKey ? decryptSecret(settingsData.asaasApiKey) : undefined);
 
@@ -1231,8 +1431,15 @@ export const financeiroRouters = {
         const db = await getDb();
         if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
 
+        const orgId = ctx.user.organizationId!;
+        const isAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
+
         const [due] = await db.select().from(paymentDues)
-          .where(and(eq(paymentDues.id, input.paymentDueId), eq(paymentDues.userId, ctx.user.id)))
+          .where(and(
+            eq(paymentDues.id, input.paymentDueId),
+            eq(paymentDues.organizationId, orgId),
+            isAdmin ? undefined : eq(paymentDues.userId, ctx.user.id),
+          ))
           .limit(1);
 
         if (!due) throw new TRPCError({ code: "NOT_FOUND", message: "Mensalidade não encontrada" });
@@ -1253,30 +1460,39 @@ export const financeiroRouters = {
         if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
 
         const orgId = ctx.user.organizationId!;
+        const isAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
         const professorId = ctx.user.id;
 
         const { createInfinitePayLink, buildInfinitePayWebhookUrl, brlToCents, resolveInfinitePayApiKey } = await import('../utils/infinitepay');
         const { createPaymentShortLink } = await import('../utils/shortlinks');
+
+        // Fetch payment due (admin pode gerar para mensalidade de outro professor)
+        const [due] = await db.select().from(paymentDues)
+          .where(and(
+            eq(paymentDues.id, input.paymentDueId),
+            eq(paymentDues.organizationId, orgId),
+            isAdmin ? undefined : eq(paymentDues.userId, professorId),
+          ))
+          .limit(1);
+
+        if (!due) throw new TRPCError({ code: "NOT_FOUND", message: "Mensalidade não encontrada" });
+        if (due.status === "pago") throw new TRPCError({ code: "BAD_REQUEST", message: "Esta mensalidade já está paga" });
+        if (due.infinitepayPaymentLink) throw new TRPCError({ code: "BAD_REQUEST", message: "Esta mensalidade já possui uma cobrança gerada no InfinitePay" });
+
+        // A credencial InfinitePay é sempre do DONO da mensalidade
+        const ownerId = due.userId ?? professorId;
         const [settingsData] = await db.select({
           infinitepayHandle: settings.infinitepayHandle,
           infinitepayApiKey: settings.infinitepayApiKey,
           infinitepayEnabled: settings.infinitepayEnabled,
           paymentGateway: settings.paymentGateway,
-        }).from(settings).where(eq(settings.userId, professorId)).limit(1);
+        }).from(settings).where(eq(settings.userId, ownerId)).limit(1);
 
         if (!settingsData || settingsData.paymentGateway !== 'infinitepay' || settingsData.infinitepayEnabled !== 1 || !settingsData.infinitepayHandle) {
           throw new TRPCError({ code: "FORBIDDEN", message: "Geração via InfinitePay não está configurada para esta conta. Configure a InfiniteTag nas integrações." });
         }
         const handle = settingsData.infinitepayHandle;
         const apiKey = resolveInfinitePayApiKey(settingsData.infinitepayApiKey);
-
-        const [due] = await db.select().from(paymentDues)
-          .where(and(eq(paymentDues.id, input.paymentDueId), eq(paymentDues.userId, professorId)))
-          .limit(1);
-
-        if (!due) throw new TRPCError({ code: "NOT_FOUND", message: "Mensalidade não encontrada" });
-        if (due.status === "pago") throw new TRPCError({ code: "BAD_REQUEST", message: "Esta mensalidade já está paga" });
-        if (due.infinitepayPaymentLink) throw new TRPCError({ code: "BAD_REQUEST", message: "Esta mensalidade já possui uma cobrança gerada no InfinitePay" });
 
         const [student] = await db.select().from(students)
           .where(and(eq(students.id, due.studentId), eq(students.organizationId, orgId)))
@@ -1339,8 +1555,15 @@ export const financeiroRouters = {
         const db = await getDb();
         if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
 
+        const orgId = ctx.user.organizationId!;
+        const isAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
+
         const [due] = await db.select().from(paymentDues)
-          .where(and(eq(paymentDues.id, input.paymentDueId), eq(paymentDues.userId, ctx.user.id)))
+          .where(and(
+            eq(paymentDues.id, input.paymentDueId),
+            eq(paymentDues.organizationId, orgId),
+            isAdmin ? undefined : eq(paymentDues.userId, ctx.user.id),
+          ))
           .limit(1);
 
         if (!due) throw new TRPCError({ code: "NOT_FOUND", message: "Mensalidade não encontrada" });

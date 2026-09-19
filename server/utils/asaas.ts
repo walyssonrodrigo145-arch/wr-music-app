@@ -72,6 +72,7 @@ export interface AsaasCharge {
   id: string;
   status: string;
   invoiceUrl: string;      // Link para pagamento Boleto/Cartão
+  bankSlipUrl?: string;    // PDF do boleto (quando billingType BOLETO)
   pixQrCode?: string;      // QR code PIX (base64)
   pixCopiaECola?: string;  // Chave PIX copia-e-cola
   billingType: AsaasBillingType;
@@ -176,6 +177,29 @@ export async function getAsaasPixQrCode(asaasPaymentId: string, apiKey?: string)
   if (!res.ok) {
     const body = await res.text();
     throw new Error(`[Asaas] Erro ao buscar QR Code PIX: ${res.status} ${body}`);
+  }
+
+  return res.json();
+}
+
+/**
+ * Retrieves the "linha digitável" (identification field) of a BOLETO charge.
+ */
+export async function getAsaasIdentificationField(asaasPaymentId: string, apiKey?: string): Promise<{
+  identificationField: string;
+  nossoNumero: string;
+  barCode: string;
+}> {
+  const res = await asaasRequest(
+    "GET",
+    `${ENV.asaasBaseUrl}/payments/${asaasPaymentId}/identificationField`,
+    undefined,
+    apiKey
+  );
+
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`[Asaas] Erro ao buscar linha digitável do boleto: ${res.status} ${body}`);
   }
 
   return res.json();

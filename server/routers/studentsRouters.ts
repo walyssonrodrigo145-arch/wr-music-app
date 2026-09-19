@@ -53,6 +53,33 @@ import { schoolAiRouter } from "../schoolAiRouter";
 import { fiscalRouter } from "../fiscalRouter";
 import { FiscalService } from "../services/fiscal/FiscalService";
 import { loginAttempts, safeEqualStr, isReservedSuperAdminEmail, getOrgPlanLimits, syncOrgAsaasSubscription, reconcileOrgAsaasCharges, runCreateAssinafyContract } from "./helpers";
+
+function normalizePhoneDigits(value: string | null | undefined) {
+  return (value || "").replace(/\D/g, "");
+}
+
+/**
+ * Importação de alunos (CSV/colar): admin/dono sempre pode; professor precisa
+ * da permissão de dados `alunos_editar` (mesma regra do botão Editar).
+ */
+async function assertCanImportStudents(db: any, ctx: any) {
+  if (ctx.user.role === "admin" || ctx.user.openId === ENV.ownerOpenId) return;
+  const orgId = ctx.user.organizationId!;
+  const [prof] = await db.select({ permissions: professores.permissions }).from(professores)
+    .where(and(eq(professores.organizationId, orgId), eq(professores.userId, ctx.user.id)))
+    .limit(1);
+  const raw = Array.isArray(prof?.permissions) ? (prof!.permissions as string[]) : [];
+  const allowed = raw.some((p) => String(p).replace(/^\//, "") === "alunos_editar");
+  if (!allowed) {
+    console.warn("[importBatch] acesso negado: usuário sem permissão alunos_editar", {
+      orgId,
+      userId: ctx.user.id,
+      role: ctx.user.role,
+    });
+    throw new TRPCError({ code: "FORBIDDEN", message: "Você não tem permissão para importar alunos." });
+  }
+}
+
 export const studentsRouters = {
   students: router({
     list: protectedProcedure.query(async ({ ctx }) => {
@@ -969,6 +996,148 @@ export const studentsRouters = {
         eq(students.professorId, ctx.user.id),
         sql`LOWER(name) LIKE ${term} OR LOWER(email) LIKE ${term}`
       )).limit(8);
+    }),
+
+    /** Importação de alunos: pré-checagem de duplicados para a prévia do modal. */
+    importPrecheck: protectedProcedure.input(z.object({
+      emails: z.array(z.string().trim().max(320)).max(300).default([]),
+      phones: z.array(z.string().trim().max(30)).max(300).default([]),
+    })).query(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) return { existingEmails: [] as string[], phoneOwners: {} as Record<string, string> };
+      await assertCanImportStudents(db, ctx);
+      const orgId = ctx.user.organizationId!;
+
+      const emails = Array.from(new Set(input.emails.map((e) => e.trim()).filter(Boolean)));
+      const existingEmails = emails.length > 0
+        ? (await db.select({ email: students.email }).from(students)
+            .where(and(eq(students.organizationId, orgId), inArray(students.email, emails))))
+            .map((r) => r.email)
+            .filter((e): e is string => Boolean(e))
+        : [];
+
+      const phones = Array.from(new Set(input.phones.map(normalizePhoneDigits).filter((p) => p.length >= 8)));
+      const phoneOwners: Record<string, string> = {};
+      if (phones.length > 0) {
+        const rows = await db.select({ phone: students.phone, name: students.name }).from(students)
+          .where(and(eq(students.organizationId, orgId), ne(students.phone, "")));
+        for (const row of rows) {
+          const digits = normalizePhoneDigits(row.phone);
+          if (digits && phones.includes(digits) && !phoneOwners[digits]) phoneOwners[digits] = row.name;
+        }
+      }
+
+      return { existingEmails, phoneOwners };
+    }),
+
+    /**
+     * Importação em lote de alunos a partir de CSV colado/arquivo.
+     * Cria cadastros básicos (sem cobrança/portal) — o responsável define
+     * professor e instrumento padrão. Respeita o limite do plano da escola.
+     */
+    importBatch: protectedProcedure.input(z.object({
+      professorId: z.number().optional(),
+      instrumentId: z.number().nullable().optional(),
+      level: z.enum(["iniciante", "intermediario", "avancado"]).default("iniciante"),
+      rows: z.array(z.object({
+        name: z.string().trim().min(1).max(255),
+        email: z.string().trim().email("E-mail inválido").or(z.literal("")).optional().nullable(),
+        phone: z.string().trim().max(30).optional().nullable(),
+        birthDate: z.string().trim().max(10).optional().nullable(),
+      })).min(1).max(300),
+    })).mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Banco de dados não disponível" });
+      const orgId = ctx.user.organizationId!;
+      await assertCanImportStudents(db, ctx);
+
+      // Sem professor escolhido, o responsável é o próprio usuário (mesma regra do cadastro individual)
+      const professorId = input.professorId ?? ctx.user.id;
+      const [professor] = await db.select({ id: users.id }).from(users)
+        .where(and(eq(users.id, professorId), eq(users.organizationId, orgId))).limit(1);
+      if (!professor) throw new TRPCError({ code: "NOT_FOUND", message: "Professor selecionado não pertence a esta escola." });
+
+      if (input.instrumentId != null) {
+        const [instrument] = await db.select({ id: instruments.id }).from(instruments)
+          .where(and(eq(instruments.id, input.instrumentId), eq(instruments.organizationId, orgId))).limit(1);
+        if (!instrument) throw new TRPCError({ code: "NOT_FOUND", message: "Instrumento selecionado não existe nesta escola." });
+      }
+
+      // Mesma regra de limite do cadastro individual
+      const planInfo = await getOrgPlanLimits(db, orgId);
+      const [{ count: activeCount }] = await db.select({ count: sql<number>`CAST(COUNT(*) AS INT)` })
+        .from(students)
+        .where(and(eq(students.organizationId, orgId), eq(students.status, "ativo")));
+      if (Number(activeCount) + input.rows.length > planInfo.maxStudents && !planInfo.allowExtraStudents) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: `Limite de alunos do plano atingido (${planInfo.maxStudents}). Faça upgrade para importar mais alunos.`,
+        });
+      }
+
+      const valid = input.rows.filter((row) => row.name && row.name.trim().length >= 2);
+      if (valid.length === 0) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Nenhuma linha válida encontrada (informe ao menos o nome)." });
+      }
+
+      const normalizeDate = (value?: string | null) => {
+        const s = (value || "").trim();
+        return /^\d{4}-\d{2}-\d{2}$/.test(s) && !Number.isNaN(Date.parse(s)) ? s : undefined;
+      };
+
+      // E-mail é único por escola (students_email_org_idx): pula duplicados em vez
+      // de derrubar o lote inteiro com erro de constraint.
+      const emailsInBatch = Array.from(new Set(
+        valid.map((row) => (row.email || "").trim()).filter(Boolean)
+      ));
+      const existingEmails = new Set<string>();
+      if (emailsInBatch.length > 0) {
+        const found = await db.select({ email: students.email }).from(students)
+          .where(and(eq(students.organizationId, orgId), inArray(students.email, emailsInBatch)));
+        for (const row of found) if (row.email) existingEmails.add(row.email);
+      }
+
+      const seenEmails = new Set<string>();
+      const skipped: Array<{ name: string; reason: string }> = [];
+      const toImport = valid.filter((row) => {
+        const email = (row.email || "").trim();
+        if (!email) return true;
+        if (existingEmails.has(email) || seenEmails.has(email)) {
+          skipped.push({ name: row.name.trim(), reason: "E-mail já cadastrado nesta escola" });
+          return false;
+        }
+        seenEmails.add(email);
+        return true;
+      });
+
+      if (toImport.length === 0) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Todos os alunos do arquivo já estão cadastrados com esses e-mails.",
+        });
+      }
+
+      await db.insert(students).values(toImport.map((row) => ({
+        organizationId: orgId,
+        userId: ctx.user.id,
+        professorId,
+        instrumentId: input.instrumentId ?? null,
+        name: row.name.trim(),
+        email: row.email?.trim() || undefined,
+        phone: row.phone?.trim() || "",
+        birthDate: normalizeDate(row.birthDate),
+        level: input.level,
+        status: "ativo" as const,
+        startDate: new Date().toISOString().slice(0, 10),
+      })));
+
+      await syncOrgAsaasSubscription(db, orgId).catch(() => {});
+      return {
+        success: true,
+        imported: toImport.length,
+        skipped: input.rows.length - toImport.length,
+        skippedDetails: skipped.slice(0, 50),
+      };
     }),
   }),
 
