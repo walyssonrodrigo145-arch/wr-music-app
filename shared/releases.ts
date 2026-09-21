@@ -26,6 +26,29 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: "2026.09.21.1",
+    date: "2026-09-21",
+    title: "Tempo Real mostra quem está online por perfil",
+    summary: "O gráfico de acessos virou três linhas — Admin, Professor e Aluno — e a lista mostra o nome e o perfil de quem está acessando agora.",
+    items: [
+      { type: "novo", title: "Gráfico por perfil", description: "Três linhas no Tempo Real: quantos admins, professores e alunos estão online a cada momento (5 min, 30 min ou 2 horas)." },
+      { type: "novo", title: "Quem está acessando, com nome e perfil", description: "A lista de usuários online mostra o nome, um selo de perfil (Admin/Professor/Aluno/Visitante) e agrupa por perfil — fica fácil ver quem está no sistema." },
+      { type: "melhoria", title: "Contagem ao vivo por perfil", description: "No topo da aba, chips mostram o total online de cada perfil em tempo real, atualizando a cada 10 segundos." },
+    ],
+  },
+  {
+    version: "2026.09.21",
+    date: "2026-09-21",
+    title: "Cronômetro de estudos confiável com tela sempre ativa",
+    summary: "O cronômetro do Plano Diário agora mede o tempo real mesmo com o celular bloqueado ou trocando de app — e tenta manter a tela ligada durante o estudo.",
+    items: [
+      { type: "novo", title: "Tela ativa durante o estudo", description: "Enquanto o treino está em andamento, o MusicPro mantém a tela ligada quando o aparelho permite (Wake Lock). Um indicador no cronômetro mostra se a tela ativa está disponível." },
+      { type: "novo", title: "Sessão recuperada ao voltar", description: "Se você fechar o navegador, atualizar a página ou trocar de app, o MusicPro encontra sua sessão em andamento e pergunta se deseja continuar ou encerrar — sem perder o tempo estudado." },
+      { type: "melhoria", title: "Tempo real, mesmo em segundo plano", description: "O cronômetro passou a medir o tempo pelo relógio real (timestamps), não por contador. Bloqueou a tela, trocou de app ou o celular economizou energia? A contagem continua correta." },
+      { type: "correcao", title: "Pausa e retomada confiáveis", description: "Ao pausar, o tempo para de contar de verdade e a tela volta ao normal; ao continuar, retoma exatamente de onde parou." },
+    ],
+  },
+  {
     version: "2026.09.19.4",
     date: "2026-09-19",
     title: "Analytics em tempo real e serviço independente",

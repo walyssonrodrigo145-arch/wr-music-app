@@ -1397,6 +1397,9 @@ const analyticsQueryRouter = router({
             pageViews: analyticsRealtimeSnapshots.pageViews,
             sessionsStarted: analyticsRealtimeSnapshots.sessionsStarted,
             eventsCount: analyticsRealtimeSnapshots.eventsCount,
+            adminCount: analyticsRealtimeSnapshots.adminCount,
+            teacherCount: analyticsRealtimeSnapshots.teacherCount,
+            studentCount: analyticsRealtimeSnapshots.studentCount,
           })
           .from(analyticsRealtimeSnapshots)
           .where(gte(analyticsRealtimeSnapshots.capturedAt, since))
@@ -1425,6 +1428,9 @@ const analyticsQueryRouter = router({
               pageViews: r.views,
               sessionsStarted: 0,
               eventsCount: 0,
+              adminCount: 0,
+              teacherCount: 0,
+              studentCount: 0,
             })),
             { windowMs, bucketMs: 60_000 }
           );

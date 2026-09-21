@@ -18,7 +18,7 @@ import {
   updateUserProfile,
   getExperimentalStats,
 } from "../db";
-import { organizations, users, students, lessons, instruments, reminders, reminderTemplates, paymentDues, asaasCustomers, settings, studentGoals, studentTimeline, studentFiles, announcements, chatMessages, rescheduleRequests, studentEvolution, aiConversations, aiMessages, aiDocuments, expenses, dailyStudyPlans, notifications, professores, professorPayments, attendanceTokens, attendanceLogs, contracts, fileComments, studioRooms, schoolIntegrations, contractTemplates, contractEvents, crmLeads, crmGoals, crmActivities, fiscalCompanies, fiscalInvoices, fiscalServices, fiscalJobs, fiscalLogs, aiPrompts, aiSpecialists } from "../../drizzle/schema";
+import { organizations, users, students, lessons, instruments, reminders, reminderTemplates, paymentDues, asaasCustomers, settings, studentGoals, studentTimeline, studentFiles, announcements, chatMessages, rescheduleRequests, studentEvolution, aiConversations, aiMessages, aiDocuments, expenses, dailyStudyPlans, studySessions, notifications, professores, professorPayments, attendanceTokens, attendanceLogs, contracts, fileComments, studioRooms, schoolIntegrations, contractTemplates, contractEvents, crmLeads, crmGoals, crmActivities, fiscalCompanies, fiscalInvoices, fiscalServices, fiscalJobs, fiscalLogs, aiPrompts, aiSpecialists } from "../../drizzle/schema";
 import { eq, desc, sql, and, gte, lt, lte, asc, ne, or, inArray, aliasedTable, ilike, isNull } from "drizzle-orm";
 import { notifyOwner, notifyUser } from "../_core/notification";
 import { handleDbError } from "../utils/error_handler";
@@ -58,6 +58,7 @@ import { renderPromptVariables, defaultPromptVariables } from "../services/Promp
 import { buildMusicTheoryPromptBlock, validateMusicTheoryConcepts } from "../services/MusicTheoryValidator";
 import { resolveAiCredentials } from "../utils/aiProvider";
 import { studentPedagogicalMemory } from "../../drizzle/schema";
+import { validateSessionDuration, MAX_SESSION_DURATION_MS } from "@shared/studySession";
 export const progressRouters = {
   progress: router({
     getGoals: protectedProcedure.input(z.object({ studentId: z.number() })).query(async ({ ctx, input }) => {
@@ -1125,7 +1126,11 @@ ${lessonsText}`;
       if (input.dayIndex >= 0 && input.dayIndex < planDays) {
         daysCompleted[input.dayIndex] = !daysCompleted[input.dayIndex];
         if (daysCompleted[input.dayIndex] && input.timeSpentSeconds) {
-          daysTimeSpent[input.dayIndex] = input.timeSpentSeconds;
+          // §22: nunca confiar cegamente no tempo enviado pelo client — limita a 24h.
+          daysTimeSpent[input.dayIndex] = Math.max(
+            0,
+            Math.min(Math.floor(input.timeSpentSeconds), MAX_SESSION_DURATION_MS / 1000)
+          );
         } else if (!daysCompleted[input.dayIndex]) {
           daysTimeSpent[input.dayIndex] = 0;
         }
@@ -1177,6 +1182,147 @@ ${lessonsText}`;
       }
 
       return { success: true, allCompleted };
+    }),
+
+    // ── CRONÔMETRO DE ESTUDOS — eventos importantes do cronômetro (§21) ────────
+    // O client envia SOMENTE transições de estado (START/PAUSE/RESUME/FINISH/CANCEL);
+    // o tempo é derivado de timestamps e validado aqui (§22). Nunca há requisição
+    // por segundo. O progresso do dia continua sendo registrado por toggleStudyPlanDay.
+    syncStudySession: studentProcedure.input(z.object({
+      sessionId: z.string().min(8).max(80),
+      planId: z.number().int().positive(),
+      dayIndex: z.number().int().min(0).max(14),
+      event: z.enum(["START", "PAUSE", "RESUME", "FINISH", "CANCEL"]),
+      sessionStartedAt: z.number().int(),
+      periodStartedAt: z.number().int().nullable().optional(),
+      accumulatedTimeMs: z.number().int().min(0).max(MAX_SESSION_DURATION_MS),
+      occurredAt: z.number().int(),
+    })).mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      const studentId = ctx.user.studentId!;
+
+      // Isolamento por aluno: o plano precisa pertencer a quem está autenticado.
+      const [plan] = await db.select({ id: dailyStudyPlans.id, organizationId: dailyStudyPlans.organizationId })
+        .from(dailyStudyPlans)
+        .where(and(eq(dailyStudyPlans.id, input.planId), eq(dailyStudyPlans.studentId, studentId)))
+        .limit(1);
+      if (!plan) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Plano de estudo não encontrado para este aluno." });
+      }
+
+      // Guarda contra relógio adiantado (margem de 5 min).
+      if (input.occurredAt > Date.now() + 5 * 60 * 1000) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Horário do evento inválido." });
+      }
+
+      const occurredAt = new Date(input.occurredAt);
+      const accumulatedSeconds = Math.floor(input.accumulatedTimeMs / 1000);
+
+      const [existing] = await db.select().from(studySessions)
+        .where(and(eq(studySessions.sessionId, input.sessionId), eq(studySessions.studentId, studentId)))
+        .limit(1);
+
+      // START — §23: nunca cria uma segunda sessão ativa para o mesmo aluno+plano+dia.
+      if (input.event === "START") {
+        if (existing) {
+          const [updated] = await db.update(studySessions).set({
+            status: "ACTIVE",
+            startedAt: input.periodStartedAt ? new Date(input.periodStartedAt) : occurredAt,
+            pausedAt: null,
+            accumulatedTime: accumulatedSeconds,
+            updatedAt: new Date(),
+          }).where(eq(studySessions.id, existing.id)).returning();
+          return { success: true, reused: true, session: updated };
+        }
+
+        const [activeSame] = await db.select().from(studySessions)
+          .where(and(
+            eq(studySessions.studentId, studentId),
+            eq(studySessions.planId, input.planId),
+            eq(studySessions.dayIndex, input.dayIndex),
+            inArray(studySessions.status, ["ACTIVE", "PAUSED"]),
+          ))
+          .orderBy(desc(studySessions.updatedAt))
+          .limit(1);
+        if (activeSame) return { success: true, reused: true, session: activeSame };
+
+        const [created] = await db.insert(studySessions).values({
+          organizationId: plan.organizationId,
+          studentId,
+          planId: input.planId,
+          dayIndex: input.dayIndex,
+          sessionId: input.sessionId,
+          status: "ACTIVE",
+          startedAt: input.periodStartedAt ? new Date(input.periodStartedAt) : occurredAt,
+          accumulatedTime: accumulatedSeconds,
+          createdAt: new Date(input.sessionStartedAt),
+          updatedAt: new Date(),
+        }).onConflictDoNothing({ target: studySessions.sessionId }).returning();
+
+        if (!created) {
+          const [raced] = await db.select().from(studySessions)
+            .where(eq(studySessions.sessionId, input.sessionId)).limit(1);
+          return { success: true, reused: true, session: raced ?? null };
+        }
+        return { success: true, reused: false, session: created };
+      }
+
+      // FINISH/CANCEL — §22: não confiar cegamente no tempo do frontend.
+      const sessionStartMs = existing?.createdAt?.getTime() ?? input.sessionStartedAt;
+      if (input.event === "FINISH" || input.event === "CANCEL") {
+        const check = validateSessionDuration({
+          sessionStartedAt: sessionStartMs,
+          finishedAt: input.occurredAt,
+          accumulatedTime: input.accumulatedTimeMs,
+        });
+        if (!check.valid) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: `Tempo de estudo inválido: ${check.reason}.` });
+        }
+      }
+
+      const nextStatus = input.event === "PAUSE" ? "PAUSED"
+        : input.event === "RESUME" ? "ACTIVE"
+          : input.event === "FINISH" ? "FINISHED"
+            : "CANCELLED";
+
+      // Resiliência: evento chegou sem o START (rede caiu/aba fechou) — cria a linha.
+      if (!existing) {
+        const [created] = await db.insert(studySessions).values({
+          organizationId: plan.organizationId,
+          studentId,
+          planId: input.planId,
+          dayIndex: input.dayIndex,
+          sessionId: input.sessionId,
+          status: nextStatus,
+          startedAt: nextStatus === "ACTIVE" ? (input.periodStartedAt ? new Date(input.periodStartedAt) : occurredAt) : null,
+          pausedAt: nextStatus === "PAUSED" ? occurredAt : null,
+          finishedAt: nextStatus === "FINISHED" || nextStatus === "CANCELLED" ? occurredAt : null,
+          accumulatedTime: accumulatedSeconds,
+          createdAt: new Date(input.sessionStartedAt),
+          updatedAt: new Date(),
+        }).onConflictDoNothing({ target: studySessions.sessionId }).returning();
+        return { success: true, reused: false, session: created ?? null };
+      }
+
+      const patch: Record<string, unknown> = {
+        status: nextStatus,
+        accumulatedTime: accumulatedSeconds,
+        updatedAt: new Date(),
+      };
+      if (nextStatus === "ACTIVE") {
+        patch.startedAt = input.periodStartedAt ? new Date(input.periodStartedAt) : occurredAt;
+        patch.pausedAt = null;
+      } else {
+        patch.startedAt = null;
+        patch.pausedAt = nextStatus === "PAUSED" ? occurredAt : null;
+      }
+      if (nextStatus === "FINISHED" || nextStatus === "CANCELLED") patch.finishedAt = occurredAt;
+
+      const [updated] = await db.update(studySessions).set(patch)
+        .where(and(eq(studySessions.id, existing.id), eq(studySessions.studentId, studentId)))
+        .returning();
+      return { success: true, reused: false, session: updated };
     }),
 
     editStudyPlanText: studentProcedure.input(z.object({ planId: z.number(), planText: z.string() })).mutation(async ({ ctx, input }) => {

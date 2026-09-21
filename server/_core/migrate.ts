@@ -190,6 +190,11 @@ export async function runAutoMigrations() {
       { table: 'analytics_events', sql: `ALTER TABLE "analytics_events" ADD COLUMN IF NOT EXISTS "organization_id" integer` },
       { table: 'analytics_realtime_snapshots', sql: `CREATE TABLE IF NOT EXISTS "analytics_realtime_snapshots" ("id" serial PRIMARY KEY NOT NULL, "captured_at" timestamp DEFAULT now() NOT NULL, "online_count" integer DEFAULT 0 NOT NULL, "page_views" integer DEFAULT 0 NOT NULL, "sessions_started" integer DEFAULT 0 NOT NULL, "events_count" integer DEFAULT 0 NOT NULL)` },
       { table: 'analytics_realtime_snapshots', sql: `CREATE INDEX IF NOT EXISTS "analytics_realtime_snapshots_captured_idx" ON "analytics_realtime_snapshots" ("captured_at")` },
+      // ── Analytics tempo real por perfil: admin/professor/aluno online ──
+      { table: 'analytics_online', sql: `ALTER TABLE "analytics_online" ADD COLUMN IF NOT EXISTS "user_role" varchar(20)` },
+      { table: 'analytics_realtime_snapshots', sql: `ALTER TABLE "analytics_realtime_snapshots" ADD COLUMN IF NOT EXISTS "admin_count" integer DEFAULT 0 NOT NULL` },
+      { table: 'analytics_realtime_snapshots', sql: `ALTER TABLE "analytics_realtime_snapshots" ADD COLUMN IF NOT EXISTS "teacher_count" integer DEFAULT 0 NOT NULL` },
+      { table: 'analytics_realtime_snapshots', sql: `ALTER TABLE "analytics_realtime_snapshots" ADD COLUMN IF NOT EXISTS "student_count" integer DEFAULT 0 NOT NULL` },
       // Fiscal migrations
       { table: 'enum', sql: "DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'fiscal_invoice_status') THEN CREATE TYPE fiscal_invoice_status AS ENUM ('draft', 'pending', 'processing', 'authorized', 'rejected', 'cancel_requested', 'cancelled', 'error'); END IF; END $$;" },
       { table: 'enum', sql: "DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'fiscal_job_status') THEN CREATE TYPE fiscal_job_status AS ENUM ('pending', 'processing', 'completed', 'failed', 'retry'); END IF; END $$;" },
@@ -620,6 +625,26 @@ export async function runAutoMigrations() {
       { table: 'interactive_action_logs', sql: `CREATE INDEX IF NOT EXISTS "interactive_action_logs_org_idx" ON "interactive_action_logs" ("organizationId", "createdAt")` },
       // ── PRD_LEMBRETE_COM_LOGO: lembretes com a logo da escola (padrão ON) ──
       { table: 'settings', sql: `ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "whatsappReminderLogo" integer DEFAULT 1 NOT NULL` },
+      // ── CRONÔMETRO DE ESTUDOS: sessões do Plano Diário (Wake Lock + timestamps).
+      // Guarda apenas EVENTOS importantes (START/PAUSE/RESUME/FINISH) e o tempo
+      // acumulado validado — nunca uma linha por segundo.
+      { table: 'study_sessions', sql: `CREATE TABLE IF NOT EXISTS "study_sessions" (
+        "id" serial PRIMARY KEY NOT NULL,
+        "organizationId" integer,
+        "studentId" integer NOT NULL,
+        "planId" integer NOT NULL,
+        "dayIndex" integer NOT NULL,
+        "sessionId" varchar(80) NOT NULL UNIQUE,
+        "status" varchar(20) DEFAULT 'ACTIVE' NOT NULL,
+        "startedAt" timestamp,
+        "pausedAt" timestamp,
+        "finishedAt" timestamp,
+        "accumulatedTime" integer DEFAULT 0 NOT NULL,
+        "createdAt" timestamp DEFAULT now() NOT NULL,
+        "updatedAt" timestamp DEFAULT now() NOT NULL
+      );` },
+      { table: 'study_sessions', sql: `CREATE INDEX IF NOT EXISTS "idx_study_sessions_student_status" ON "study_sessions" ("studentId", "status")` },
+      { table: 'study_sessions', sql: `CREATE INDEX IF NOT EXISTS "idx_study_sessions_plan_day" ON "study_sessions" ("planId", "dayIndex")` },
     ];
 
     for (const m of migrations) {

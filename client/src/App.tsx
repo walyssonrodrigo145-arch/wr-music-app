@@ -281,7 +281,7 @@ function AppTracking() {
 
   useEffect(() => {
     if (user) {
-      setAnalyticsUser(user.id, user.name);
+      setAnalyticsUser(user.id, user.name, user.role);
     }
   }, [user]);
 

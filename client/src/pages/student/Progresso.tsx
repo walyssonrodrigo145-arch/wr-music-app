@@ -5,7 +5,7 @@ import {
   CheckCircle2, Award, Loader2, BookOpen,
   ChevronLeft, ChevronRight, CalendarDays, Music,
   Timer, Guitar, PenTool, Star, Play, Pause,
-  Sparkles, Target, Music2
+  Sparkles, Target, Music2, Lock, Info, AlertTriangle
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
@@ -16,6 +16,9 @@ import {
 import { EditStudyPlanModal } from "@/components/modals/EditStudyPlanModal";
 import { FloatingMetronome } from "@/components/metronome/Metronome";
 import { metronome } from "@/lib/metronomeEngine";
+import { useStudyTimer, type StudySessionEventPayload } from "@/hooks/useStudyTimer";
+import type { WakeLockState } from "@/lib/wakeLock";
+import { getElapsedSeconds, type StudySession } from "@shared/studySession";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 interface Exercise {
@@ -262,6 +265,127 @@ function ExerciseDetailModal({ exercise, dayFocus, onClose }: ExerciseDetailModa
   );
 }
 
+// ─── Indicador do Wake Lock (§24) ────────────────────────────────────────────
+function WakeLockBadge({ state }: { state: WakeLockState }) {
+  const base = "flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg";
+  if (!state.supported) {
+    return (
+      <span
+        className={cn(base, "bg-slate-100 text-slate-500")}
+        title="Este navegador não suporta manter a tela ligada. O tempo continua sendo medido corretamente."
+      >
+        <Info size={11} /> Tela ativa não disponível
+      </span>
+    );
+  }
+  if (state.status === "acquired") {
+    return (
+      <span
+        className={cn(base, "bg-emerald-50 text-emerald-600")}
+        title="A tela permanecerá ligada enquanto o estudo estiver em andamento."
+      >
+        <Lock size={11} /> Tela ativa
+      </span>
+    );
+  }
+  if (state.status === "error") {
+    return (
+      <span
+        className={cn(base, "bg-amber-50 text-amber-600")}
+        title="Não foi possível manter a tela ligada. O tempo continua sendo medido corretamente."
+      >
+        <AlertTriangle size={11} /> Não foi possível manter a tela ativa
+      </span>
+    );
+  }
+  return (
+    <span
+      className={cn(base, "bg-slate-100 text-slate-500")}
+      title="A tela pode apagar. O tempo continua sendo medido corretamente."
+    >
+      <Info size={11} /> Tela pode apagar
+    </span>
+  );
+}
+
+// ─── Modal de recuperação de sessão (§17) ────────────────────────────────────
+interface StudySessionRecoveryModalProps {
+  session: StudySession | null;
+  isBusy: boolean;
+  onContinue: () => void;
+  onFinish: () => void;
+}
+
+function StudySessionRecoveryModal({ session, isBusy, onContinue, onFinish }: StudySessionRecoveryModalProps) {
+  const elapsed = session ? getElapsedSeconds(session) : 0;
+  const mm = Math.floor(elapsed / 60).toString().padStart(2, "0");
+  const ss = (elapsed % 60).toString().padStart(2, "0");
+
+  return (
+    <Dialog open={!!session} onOpenChange={(open) => { if (!open) onContinue(); }}>
+      <DialogContent className="max-w-sm rounded-3xl border-0 shadow-2xl p-0 overflow-hidden max-h-[92dvh] overflow-y-auto">
+        <div className="bg-gradient-to-br from-amber-500 to-orange-600 p-6 relative overflow-hidden">
+          <div className="absolute top-0 right-0 opacity-10">
+            <Timer size={110} className="translate-x-6 -translate-y-6" />
+          </div>
+          <DialogHeader>
+            <div className="flex items-start gap-3 relative z-10">
+              <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center shrink-0 backdrop-blur-sm">
+                <Timer size={22} className="text-white" />
+              </div>
+              <div>
+                <p className="text-amber-100 text-xs font-bold uppercase tracking-wider mb-1">
+                  Sessão recuperada
+                </p>
+                <DialogTitle className="text-white font-black text-lg leading-tight">
+                  Você possui uma sessão de estudo em andamento
+                </DialogTitle>
+              </div>
+            </div>
+          </DialogHeader>
+        </div>
+
+        <div className="p-6 space-y-4">
+          <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+            O MusicPro encontrou uma sessão que continuou contando enquanto o app esteve fechado
+            ou em segundo plano. Escolha como deseja continuar.
+          </p>
+
+          <div className="bg-slate-50 dark:bg-slate-800/60 rounded-2xl p-4 flex items-center justify-between">
+            <div>
+              <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-400">Tempo acumulado</p>
+              <p className="text-2xl font-black text-slate-800 dark:text-slate-100 tabular-nums">{mm}:{ss}</p>
+            </div>
+            {session && (
+              <div className="text-right">
+                <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-400">Atividade</p>
+                <p className="text-sm font-black text-indigo-600 dark:text-indigo-400">Dia {session.dayIndex + 1}</p>
+              </div>
+            )}
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <Button
+              onClick={onContinue}
+              disabled={isBusy}
+              className="w-full h-12 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-[11px] uppercase tracking-widest flex items-center justify-center gap-2"
+            >
+              <Play size={15} className="fill-white" /> Continuar
+            </Button>
+            <Button
+              onClick={onFinish}
+              disabled={isBusy}
+              className="w-full h-12 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white font-black text-[11px] uppercase tracking-widest flex items-center justify-center gap-2"
+            >
+              <CheckCircle2 size={15} /> Encerrar sessão
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ─── Componente principal ─────────────────────────────────────────────────────
 
 export default function StudentProgress() {
@@ -273,124 +397,56 @@ export default function StudentProgress() {
   const [selectedExercise, setSelectedExercise] = useState<Exercise | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
-  const [isTraining, setIsTraining] = useState(false);
-  const [sessionSeconds, setSessionSeconds] = useState(0);
-  const [runningAt, setRunningAt] = useState<number | null>(null);
-  const [, forceTick] = useState(0);
+  // ── CRONÔMETRO DE ESTUDOS ──────────────────────────────────────────────────
+  // O tempo é medido por TIMESTAMPS reais (nunca por contador incremental); o
+  // Wake Lock apenas mantém a tela ligada; a Visibility API detecta saída/retorno
+  // sem pausar (§19). A sessão é persistida por plano+dia e recuperada após
+  // reload/fechamento do navegador (modal de recuperação).
+  const planData = useMemo(() => parsePlanData(activePlan?.planText), [activePlan?.planText]);
+  const daysCompleted = useMemo(
+    () => parseDaysCompleted(activePlan?.daysCompleted as string | undefined),
+    [activePlan?.daysCompleted]
+  );
+  const daysTimeSpent = useMemo(
+    () => parseDaysTimeSpent((activePlan as any)?.daysTimeSpent),
+    [(activePlan as any)?.daysTimeSpent]
+  );
 
-  // ── CRONÔMETRO COM PAUSA/RETOMADA ──────────────────────────────────────────
-  // Antes: ao sair da plataforma o tempo era PERDIDO (estado em memória + interval
-  // morto no unmount). Agora: a sessão parcial é persistida em localStorage por
-  // plano+dia; ao sair (aba oculta/navegação) o treino é PAUSADO automaticamente
-  // e ao voltar o aluno retoma de onde parou, pausando/despausando à vontade.
-  const sessionKey = useCallback((planId: number, day: number) => `mp_training_${planId}_${day}`, []);
-  const totalSessionSeconds = sessionSeconds + (runningAt ? Math.floor((Date.now() - runningAt) / 1000) : 0);
+  const syncSessionMutation = trpc.progress.syncStudySession.useMutation({
+    onError: (err) => console.warn("[TIMER] Falha ao sincronizar sessão:", err.message),
+  });
+  const handleTimerEvent = useCallback(
+    (payload: StudySessionEventPayload) => {
+      syncSessionMutation.mutate(payload);
+    },
+    [syncSessionMutation]
+  );
 
-  // Refs para acessar o tempo corrente em listeners/effects sem recriá-los
-  const totalRef = useRef(0);
-  totalRef.current = totalSessionSeconds;
-  const runningRef = useRef<number | null>(null);
-  runningRef.current = runningAt;
-  const planIdRef = useRef<number | null>(null);
-  planIdRef.current = activePlan?.id ?? null;
-  const dayRef = useRef(0);
-  dayRef.current = selectedDay;
+  const timer = useStudyTimer({
+    planId: activePlan?.id ?? null,
+    dayIndex: selectedDay,
+    studentId: activePlan?.studentId,
+    enabled: activePlan?.status !== "inativo" && !daysCompleted[selectedDay],
+    onEvent: handleTimerEvent,
+  });
+
+  // Plano trocou → volta para o dia 1 (comportamento original)
   const prevPlanIdRef = useRef<number | null>(null);
-
-  const persistSession = useCallback((planId: number | null, day: number, secs: number) => {
-    if (planId == null) return;
-    try {
-      if (secs > 0) localStorage.setItem(sessionKey(planId, day), String(secs));
-      else localStorage.removeItem(sessionKey(planId, day));
-    } catch { /* storage indisponível */ }
-  }, [sessionKey]);
-
-  // Carrega sessão salva ao abrir a página/trocar de dia; persiste a anterior na troca
   useEffect(() => {
     const planId = activePlan?.id ?? null;
-    const day = selectedDay;
-
-    // Plano trocou → volta para o dia 1 (comportamento original)
     if (prevPlanIdRef.current !== null && prevPlanIdRef.current !== planId) {
       setSelectedDay(0);
     }
     prevPlanIdRef.current = planId;
+  }, [activePlan?.id]);
 
-    setIsTraining(false);
-    setRunningAt(null);
-    let restored = 0;
-    if (planId != null) {
-      try {
-        const raw = localStorage.getItem(sessionKey(planId, day));
-        restored = raw ? Math.max(0, parseInt(raw, 10) || 0) : 0;
-      } catch { restored = 0; }
+  // Dia já concluído: limpa resíduo de sessão PARADA (nunca uma sessão ativa).
+  useEffect(() => {
+    if (daysCompleted[selectedDay] && timer.hasTime && !timer.isActive) {
+      timer.clear(selectedDay);
     }
-    setSessionSeconds(restored);
-    // Dia já concluído: limpa resíduo de sessão
-    const completed = parseDaysCompleted(activePlan?.daysCompleted as string | undefined);
-    if (planId != null && completed[day] && restored > 0) {
-      try { localStorage.removeItem(sessionKey(planId, day)); } catch {}
-      setSessionSeconds(0);
-    }
-    // Cleanup (troca de dia/plano ou saída da página): persiste a sessão do
-    // plano/dia ANTERIOR usando os valores capturados no closure.
-    return () => {
-      if (planId != null && totalRef.current > 0) {
-        persistSession(planId, day, totalRef.current);
-      }
-    };
-  }, [activePlan?.id, selectedDay, sessionKey, persistSession]);
-
-  // Tick de render (1s) enquanto o treino está rodando
-  useEffect(() => {
-    if (!isTraining) return;
-    const interval = setInterval(() => forceTick((t) => t + 1), 1000);
-    return () => clearInterval(interval);
-  }, [isTraining]);
-
-  // Persistência periódica (5s) — protege contra crash/fechamento forçado do app
-  useEffect(() => {
-    if (!isTraining) return;
-    const interval = setInterval(() => {
-      const planId = planIdRef.current;
-      if (planId != null) persistSession(planId, dayRef.current, totalRef.current);
-    }, 5000);
-    return () => clearInterval(interval);
-  }, [isTraining, persistSession]);
-
-  // PAUSA AUTOMÁTICA ao sair da plataforma (aba oculta / app em segundo plano)
-  useEffect(() => {
-    const onVisibilityChange = () => {
-      if (document.visibilityState === "hidden" && runningRef.current != null) {
-        const total = totalRef.current;
-        setSessionSeconds(total);
-        setRunningAt(null);
-        setIsTraining(false);
-        persistSession(planIdRef.current, dayRef.current, total);
-      }
-    };
-    const onPageHide = () => {
-      if (planIdRef.current != null) persistSession(planIdRef.current, dayRef.current, totalRef.current);
-    };
-    document.addEventListener("visibilitychange", onVisibilityChange);
-    window.addEventListener("pagehide", onPageHide);
-    return () => {
-      document.removeEventListener("visibilitychange", onVisibilityChange);
-      window.removeEventListener("pagehide", onPageHide);
-    };
-  }, [persistSession]);
-
-  const handlePauseTraining = () => {
-    setSessionSeconds(totalSessionSeconds);
-    setRunningAt(null);
-    setIsTraining(false);
-    persistSession(activePlan?.id ?? null, selectedDay, totalSessionSeconds);
-  };
-
-  const handleResumeTraining = () => {
-    setRunningAt(Date.now());
-    setIsTraining(true);
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [daysCompleted[selectedDay], timer.hasTime, timer.isActive, selectedDay]);
 
   const formatTime = (totalSeconds: number) => {
     const m = Math.floor(totalSeconds / 60).toString().padStart(2, '0');
@@ -399,7 +455,7 @@ export default function StudentProgress() {
   };
 
   const toggleDayMutation = trpc.progress.toggleStudyPlanDay.useMutation({
-    onMutate: async ({ dayIndex }) => {
+    onMutate: async ({ dayIndex, timeSpentSeconds }) => {
       await utils.progress.getActiveStudyPlan.cancel();
       const prevData = utils.progress.getActiveStudyPlan.getData();
       
@@ -413,7 +469,7 @@ export default function StudentProgress() {
         while (times.length <= dayIndex) times.push(0);
 
         days[dayIndex] = true;
-        times[dayIndex] = totalRef.current;
+        times[dayIndex] = timeSpentSeconds ?? 0;
 
         utils.progress.getActiveStudyPlan.setData(undefined, {
           ...prevData,
@@ -432,25 +488,13 @@ export default function StudentProgress() {
     onSettled: () => {
       utils.progress.getActiveStudyPlan.invalidate();
     },
-    onSuccess: (data) => {
-      // Treino concluído: limpa a sessão parcial persistida
-      if (activePlan) persistSession(activePlan.id, selectedDay, 0);
-      setSessionSeconds(0);
-      setRunningAt(null);
+    onSuccess: (data, variables) => {
+      // Treino concluído: limpa a sessão persistida do dia registrado
+      timer.clear(variables.dayIndex);
       if (data.allCompleted) toast.success("Parabéns! Você gabaritou a semana! 🎉 Seu professor foi notificado!");
       else toast.success("Treino do dia atualizado!");
     },
   });
-
-  const planData = useMemo(() => parsePlanData(activePlan?.planText), [activePlan?.planText]);
-  const daysCompleted = useMemo(
-    () => parseDaysCompleted(activePlan?.daysCompleted as string | undefined),
-    [activePlan?.daysCompleted]
-  );
-  const daysTimeSpent = useMemo(
-    () => parseDaysTimeSpent((activePlan as any)?.daysTimeSpent),
-    [(activePlan as any)?.daysTimeSpent]
-  );
 
   if (isPlanLoading) {
     return (
@@ -468,17 +512,39 @@ export default function StudentProgress() {
 
   const handleStartTraining = () => {
     if (isPlanFinished || isCurrentDayCompleted) return;
-    // Continua de onde parou (sessão restaurada do localStorage) ou inicia do zero
-    handleResumeTraining();
+    // Retoma a sessão pausada/restaurada ou inicia do zero (tempo por timestamps)
+    timer.start();
+  };
+
+  // Registra o dia no backend (progresso/notificação). Se o dia já estava
+  // concluído, apenas limpa a sessão local — nunca desmarca o progresso.
+  const registerDay = (planId: number, dayIndex: number, seconds: number) => {
+    if (daysCompleted[dayIndex]) {
+      timer.clear(dayIndex);
+      return;
+    }
+    toggleDayMutation.mutate({ planId, dayIndex, timeSpentSeconds: seconds });
   };
 
   const handleFinishTraining = () => {
     if (isPlanFinished || toggleDayMutation.isPending || !activePlan) return;
-    const total = totalSessionSeconds;
-    setIsTraining(false);
-    setRunningAt(null);
-    setSessionSeconds(total);
-    toggleDayMutation.mutate({ planId: activePlan.id, dayIndex: safeDayIndex, timeSpentSeconds: total });
+    const result = timer.finish();
+    if (!result) return;
+    registerDay(activePlan.id, result.session.dayIndex, result.seconds);
+  };
+
+  const handleAcceptRecovery = () => {
+    const recovered = timer.recovery;
+    if (!recovered) return;
+    timer.acceptRecovery();
+    if (recovered.dayIndex !== selectedDay) setSelectedDay(recovered.dayIndex);
+  };
+
+  const handleFinishRecovery = () => {
+    if (toggleDayMutation.isPending) return;
+    const result = timer.finishRecovery();
+    if (!result) return;
+    registerDay(result.session.planId, result.session.dayIndex, result.seconds);
   };
 
   return (
@@ -491,6 +557,14 @@ export default function StudentProgress() {
         exercise={selectedExercise}
         dayFocus={currentDayData?.focus?.title}
         onClose={() => setSelectedExercise(null)}
+      />
+
+      {/* Recuperação de sessão após reload/fechamento (§17) */}
+      <StudySessionRecoveryModal
+        session={timer.recovery}
+        isBusy={toggleDayMutation.isPending}
+        onContinue={handleAcceptRecovery}
+        onFinish={handleFinishRecovery}
       />
 
       {/* Modal de Edição */}
@@ -615,11 +689,29 @@ export default function StudentProgress() {
                   </div>
                </div>
                
-                {/* Cronômetro: rodando → PAUSAR + CONCLUIR; pausado com tempo → CONTINUAR + CONCLUIR */}
-                {isTraining ? (
+                {/* Cronômetro: o tempo exibido vem SEMPRE de timestamps reais; o
+                    Wake Lock apenas mantém a tela ligada durante o estudo. */}
+                {(timer.isActive || (timer.isPaused && timer.hasTime)) && (
+                  <div className="mb-4 rounded-2xl bg-slate-50 border border-slate-100 p-4">
+                    <div className="flex items-center justify-between gap-3 flex-wrap">
+                      <div className="flex items-center gap-2">
+                        <span className={cn("w-2 h-2 rounded-full", timer.isActive ? "bg-emerald-500 animate-pulse" : "bg-amber-500")} />
+                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                          {timer.isActive ? "Estudo em andamento" : "Estudo pausado"}
+                        </span>
+                      </div>
+                      <WakeLockBadge state={timer.wakeLockState} />
+                    </div>
+                    <p className="mt-3 text-4xl font-black tabular-nums tracking-tight text-slate-800">
+                      {formatTime(timer.elapsedSeconds)}
+                    </p>
+                  </div>
+                )}
+
+                {timer.isActive ? (
                   <div className="flex gap-2 w-full">
                     <Button
-                      onClick={handlePauseTraining}
+                      onClick={timer.pause}
                       title="Pausar treino"
                       className="w-14 h-12 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white font-black flex items-center justify-center shadow-lg shadow-amber-500/20 transition-all active:scale-95"
                     >
@@ -630,7 +722,7 @@ export default function StudentProgress() {
                       onClick={handleFinishTraining}
                       disabled={toggleDayMutation.isPending}
                     >
-                      <Timer size={16} className="text-white" /> CONCLUIR TREINO ({formatTime(totalSessionSeconds)})
+                      <Timer size={16} className="text-white" /> CONCLUIR TREINO ({formatTime(timer.elapsedSeconds)})
                     </Button>
                   </div>
                 ) : isCurrentDayCompleted ? (
@@ -641,15 +733,15 @@ export default function StudentProgress() {
                     <><CheckCircle2 size={16} className="fill-emerald-100" /> TREINO CONCLUÍDO ({formatTime(daysTimeSpent[safeDayIndex])})</>
                   </Button>
                 ) : (
-                  <div className={cn("flex gap-2 w-full", totalSessionSeconds > 0 && "flex-col sm:flex-row")}>
+                  <div className={cn("flex gap-2 w-full", timer.hasTime && "flex-col sm:flex-row")}>
                     <Button 
                        className="flex-1 h-12 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all shadow-lg bg-indigo-600 hover:bg-indigo-700 shadow-indigo-600/20"
                        onClick={handleStartTraining}
                        disabled={toggleDayMutation.isPending}
                     >
-                      <Play size={16} className="fill-white" /> {totalSessionSeconds > 0 ? `CONTINUAR TREINO (${formatTime(totalSessionSeconds)})` : "COMEÇAR TREINO"}
+                      <Play size={16} className="fill-white" /> {timer.hasTime ? `CONTINUAR TREINO (${formatTime(timer.elapsedSeconds)})` : "COMEÇAR TREINO"}
                     </Button>
-                    {totalSessionSeconds > 0 && (
+                    {timer.hasTime && (
                       <Button
                         onClick={handleFinishTraining}
                         disabled={toggleDayMutation.isPending}

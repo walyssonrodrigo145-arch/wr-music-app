@@ -584,6 +584,25 @@ export const dailyStudyPlans = pgTable("daily_study_plans", {
   completedAt: timestamp("completedAt"),
 });
 
+// Sessões de estudo do Plano Diário (cronômetro). O tempo é sempre derivado de
+// timestamps no client; aqui guardamos os EVENTOS importantes (START/PAUSE/RESUME/
+// FINISH) e o tempo acumulado validado — nunca uma requisição por segundo.
+export const studySessions = pgTable("study_sessions", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organizationId"),
+  studentId: integer("studentId").notNull(),
+  planId: integer("planId").notNull(),
+  dayIndex: integer("dayIndex").notNull(),
+  sessionId: varchar("sessionId", { length: 80 }).notNull().unique(),
+  status: varchar("status", { length: 20 }).default("ACTIVE").notNull(), // ACTIVE | PAUSED | FINISHED | CANCELLED
+  startedAt: timestamp("startedAt"),
+  pausedAt: timestamp("pausedAt"),
+  finishedAt: timestamp("finishedAt"),
+  accumulatedTime: integer("accumulatedTime").default(0).notNull(), // segundos
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+});
+
 export const notifications = pgTable("notifications", {
   id: serial("id").primaryKey(),
   organizationId: integer("organizationId"),
@@ -647,6 +666,9 @@ export type InsertExtraLessonRequest = typeof extraLessonRequests.$inferInsert;
 
 export type DailyStudyPlan = typeof dailyStudyPlans.$inferSelect;
 export type InsertDailyStudyPlan = typeof dailyStudyPlans.$inferInsert;
+
+export type StudySessionRow = typeof studySessions.$inferSelect;
+export type InsertStudySessionRow = typeof studySessions.$inferInsert;
 
 export type Notification = typeof notifications.$inferSelect;
 export type InsertNotification = typeof notifications.$inferInsert;
@@ -1384,6 +1406,8 @@ export const analyticsOnline = pgTable("analytics_online", {
   visitorId: varchar("visitor_id", { length: 64 }).notNull(),
   userId: integer("user_id"),
   userName: varchar("user_name", { length: 255 }),
+  // Perfil de quem está online: admin | professor | aluno (null = visitante/deslogado)
+  userRole: varchar("user_role", { length: 20 }),
 
   pageUrl: text("page_url"),
   pageTitle: varchar("page_title", { length: 255 }),
@@ -1416,6 +1440,10 @@ export const analyticsRealtimeSnapshots = pgTable("analytics_realtime_snapshots"
   pageViews: integer("page_views").default(0).notNull(),
   sessionsStarted: integer("sessions_started").default(0).notNull(),
   eventsCount: integer("events_count").default(0).notNull(),
+  // Online por perfil (gráfico de tempo real por admin/professor/aluno)
+  adminCount: integer("admin_count").default(0).notNull(),
+  teacherCount: integer("teacher_count").default(0).notNull(),
+  studentCount: integer("student_count").default(0).notNull(),
 }, (table) => [
   index("analytics_realtime_snapshots_captured_idx").on(table.capturedAt),
 ]);

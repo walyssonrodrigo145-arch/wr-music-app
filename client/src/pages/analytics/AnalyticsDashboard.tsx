@@ -293,6 +293,28 @@ function OverviewTab({ preset }: { preset: Preset }) {
   );
 }
 
+// ── Perfis do Tempo Real (gráfico + tabela) ───────────────────────────────────
+const ROLE_META: Record<string, { label: string; color: string; badge: string }> = {
+  admin: { label: "Admin", color: "#8b5cf6", badge: "bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/20" },
+  professor: { label: "Professor", color: "#6366f1", badge: "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20" },
+  aluno: { label: "Aluno", color: "#10b981", badge: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20" },
+  visitante: { label: "Visitante", color: "#94a3b8", badge: "bg-slate-500/10 text-slate-500 dark:text-slate-400 border-slate-500/20" },
+};
+
+function roleKey(role?: string | null): "admin" | "professor" | "aluno" | "visitante" {
+  return role === "admin" || role === "professor" || role === "aluno" ? role : "visitante";
+}
+
+function RoleBadge({ role }: { role?: string | null }) {
+  const key = roleKey(role);
+  const meta = ROLE_META[key];
+  return (
+    <span className={cn("inline-flex items-center text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md border", meta.badge)}>
+      {meta.label}
+    </span>
+  );
+}
+
 // ── Aba: Tempo Real ───────────────────────────────────────────────────────────
 function RealtimeTab() {
   const { data, refetch } = trpc.analytics.query.getOnlineUsers.useQuery(undefined, { refetchInterval: 10_000 });
@@ -313,28 +335,59 @@ function RealtimeTab() {
     return <Monitor size={14} />;
   };
 
+  // Contagem ao vivo por perfil (fonte: tabela analytics_online dos últimos 2 min)
+  const onlineByRole = (data ?? []).reduce(
+    (acc, u) => {
+      acc[roleKey(u.userRole)]++;
+      return acc;
+    },
+    { admin: 0, professor: 0, aluno: 0, visitante: 0 } as Record<string, number>
+  );
+
+  // Quem está acessando: agrupado por perfil e, dentro do perfil, mais recente primeiro
+  const roleOrder: Record<string, number> = { admin: 0, professor: 1, aluno: 2, visitante: 3 };
+  const sortedUsers = [...(data ?? [])].sort((a, b) => {
+    const diff = roleOrder[roleKey(a.userRole)] - roleOrder[roleKey(b.userRole)];
+    if (diff !== 0) return diff;
+    return new Date(b.lastPingAt).getTime() - new Date(a.lastPingAt).getTime();
+  });
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div className="flex items-center gap-3 flex-wrap">
           <div className="w-3 h-3 bg-emerald-500 rounded-full animate-pulse" />
-          <span className="font-outfit text-2xl font-bold">{data?.length ?? 0}</span>
+          <span className="font-outfit text-2xl font-bold">{data ? data.length : "…"}</span>
           <span className="text-muted-foreground">usuários online agora</span>
+          <div className="flex items-center gap-1.5 flex-wrap ml-1">
+            {(["admin", "professor", "aluno", "visitante"] as const).map((role) => (
+              <span
+                key={role}
+                className={cn(
+                  "inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-lg border",
+                  ROLE_META[role].badge
+                )}
+              >
+                <span className="w-1.5 h-1.5 rounded-full" style={{ background: ROLE_META[role].color }} />
+                {ROLE_META[role].label}: {data ? (onlineByRole[role] ?? 0) : "…"}
+              </span>
+            ))}
+          </div>
         </div>
         <button onClick={() => refetch()} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
           <RefreshCw size={14} /> Atualizar
         </button>
       </div>
 
-      {/* Gráfico de acessos em tempo real (sobe/desce conforme os picos) */}
+      {/* Gráfico por perfil: uma linha para admin, professor e aluno */}
       <div className="rounded-2xl border border-border bg-card/60 backdrop-blur-md p-4 sm:p-5">
         <div className="flex items-start justify-between gap-3 flex-wrap mb-4">
           <div>
             <p className="font-outfit text-sm font-bold flex items-center gap-2">
-              <Activity size={15} className="text-primary" /> Acessos em tempo real
+              <Activity size={15} className="text-primary" /> Acessos em tempo real por perfil
             </p>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Picos e quedas nos últimos {rangeLabel}
+              Quantos admins, professores e alunos estão online nos últimos {rangeLabel}
               {series?.source === "events" && " — coletando snapshots (exibindo histórico por minuto)"}
               {series?.source === "unavailable" && " — fonte indisponível"}
             </p>
@@ -365,10 +418,10 @@ function RealtimeTab() {
         {peak && (
           <div className="flex items-center gap-2 mb-3 flex-wrap">
             <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-lg bg-violet-500/10 text-violet-600 dark:text-violet-400">
-              <TrendingUp size={11} /> Pico: {peak.pageViews} acessos às {fmtTime(peak.ts)}
+              <TrendingUp size={11} /> Pico: {peak.online} online às {fmtTime(peak.ts)}
             </span>
-            <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-              <Users size={11} /> {peak.online} online no pico
+            <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-lg bg-muted text-muted-foreground">
+              <Users size={11} /> {peak.admin} admin · {peak.teacher} prof · {peak.student} aluno
             </span>
           </div>
         )}
@@ -381,40 +434,27 @@ function RealtimeTab() {
         ) : (
           <div className="h-[240px] w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={points} margin={{ top: 6, right: 8, left: -18, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="rtViews" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#6366f1" stopOpacity={0.45} />
-                    <stop offset="95%" stopColor="#6366f1" stopOpacity={0.02} />
-                  </linearGradient>
-                  <linearGradient id="rtOnline" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.35} />
-                    <stop offset="95%" stopColor="#10b981" stopOpacity={0.02} />
-                  </linearGradient>
-                </defs>
+              <LineChart data={points} margin={{ top: 6, right: 8, left: -18, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.15)" vertical={false} />
                 <XAxis dataKey="ts" tickFormatter={fmtTime} tick={{ fontSize: 10 }} stroke="rgba(148,163,184,0.5)" minTickGap={44} />
                 <YAxis allowDecimals={false} tick={{ fontSize: 10 }} stroke="rgba(148,163,184,0.5)" width={34} />
                 <Tooltip
                   contentStyle={{ background: "rgba(15,23,42,0.95)", border: "1px solid rgba(148,163,184,0.2)", borderRadius: 12, fontSize: 12, color: "#e2e8f0" }}
                   labelFormatter={(l) => fmtTime(String(l))}
-                  formatter={(value: any, name: any) => [
-                    value,
-                    name === "pageViews" ? "Acessos" : name === "online" ? "Online" : name === "sessions" ? "Sessões" : String(name),
-                  ]}
+                  formatter={(value: any, name: any) => [value, ROLE_META[String(name)]?.label ?? String(name)]}
                 />
-                <Area type="monotone" dataKey="pageViews" stroke="#6366f1" strokeWidth={2} fill="url(#rtViews)" name="pageViews" />
-                <Area type="monotone" dataKey="online" stroke="#10b981" strokeWidth={2} fill="url(#rtOnline)" name="online" />
-                <Area type="monotone" dataKey="sessions" stroke="#f59e0b" strokeWidth={2} fillOpacity={0} name="sessions" />
-              </AreaChart>
+                <Line type="monotone" dataKey="admin" stroke={ROLE_META.admin.color} strokeWidth={2} dot={false} name="admin" />
+                <Line type="monotone" dataKey="teacher" stroke={ROLE_META.professor.color} strokeWidth={2} dot={false} name="professor" />
+                <Line type="monotone" dataKey="student" stroke={ROLE_META.aluno.color} strokeWidth={2} dot={false} name="aluno" />
+              </LineChart>
             </ResponsiveContainer>
           </div>
         )}
 
         <div className="flex items-center gap-4 mt-3 text-[10px] font-bold text-muted-foreground uppercase tracking-wider flex-wrap">
-          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-[#6366f1]" /> Acessos (page views)</span>
-          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-[#10b981]" /> Online</span>
-          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-[#f59e0b]" /> Novas sessões</span>
+          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full" style={{ background: ROLE_META.admin.color }} /> Admin</span>
+          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full" style={{ background: ROLE_META.professor.color }} /> Professor</span>
+          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full" style={{ background: ROLE_META.aluno.color }} /> Aluno</span>
         </div>
       </div>
 
@@ -423,15 +463,24 @@ function RealtimeTab() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/30">
-                {["Usuário", "Página Atual", "Localização", "Dispositivo", "Browser", "Origem", "Desde"].map((h) => (
-                  <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">{h}</th>
+                {[
+                  { label: "Perfil", cls: "" },
+                  { label: "Usuário", cls: "" },
+                  { label: "Página Atual", cls: "" },
+                  { label: "Localização", cls: "hidden md:table-cell" },
+                  { label: "Dispositivo", cls: "hidden lg:table-cell" },
+                  { label: "Browser", cls: "hidden lg:table-cell" },
+                  { label: "Origem", cls: "hidden xl:table-cell" },
+                  { label: "Desde", cls: "" },
+                ].map((h) => (
+                  <th key={h.label} className={cn("text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap", h.cls)}>{h.label}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {!data || data.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-16 text-center text-muted-foreground">
+                  <td colSpan={8} className="px-4 py-16 text-center text-muted-foreground">
                     <div className="flex flex-col items-center gap-2">
                       <Activity size={32} className="opacity-20" />
                       <p>Nenhum usuário online no momento.</p>
@@ -439,7 +488,7 @@ function RealtimeTab() {
                   </td>
                 </tr>
               ) : (
-                data.map((user, i) => (
+                sortedUsers.map((user, i) => (
                   <motion.tr
                     key={user.sessionId}
                     initial={{ opacity: 0, x: -10 }}
@@ -448,9 +497,12 @@ function RealtimeTab() {
                     className="border-b border-border/50 hover:bg-muted/20 transition-colors"
                   >
                     <td className="px-4 py-3">
+                      <RoleBadge role={user.userRole} />
+                    </td>
+                    <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
                         <div className="w-2 h-2 bg-emerald-500 rounded-full flex-shrink-0" />
-                        <span className="font-medium truncate max-w-[120px]">
+                        <span className="font-medium truncate max-w-[160px]" title={user.userName ?? undefined}>
                           {user.userName ?? `Anônimo #${user.visitorId.substring(0, 6)}`}
                         </span>
                       </div>
@@ -458,17 +510,17 @@ function RealtimeTab() {
                     <td className="px-4 py-3 max-w-[200px]">
                       <span className="text-xs text-muted-foreground truncate block">{user.pageTitle ?? user.pageUrl ?? "—"}</span>
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap">
+                    <td className="px-4 py-3 whitespace-nowrap hidden md:table-cell">
                       <span className="text-xs">{[user.city, user.state, user.country].filter(Boolean).join(", ") || "—"}</span>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 hidden lg:table-cell">
                       <div className="flex items-center gap-1 text-muted-foreground">
                         {deviceIcon(user.deviceType)}
                         <span className="text-xs capitalize">{user.deviceType ?? "—"}</span>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-xs text-muted-foreground">{user.browser ?? "—"}</td>
-                    <td className="px-4 py-3 text-xs text-muted-foreground">{user.utmSource ?? "Direto"}</td>
+                    <td className="px-4 py-3 text-xs text-muted-foreground hidden lg:table-cell">{user.browser ?? "—"}</td>
+                    <td className="px-4 py-3 text-xs text-muted-foreground hidden xl:table-cell">{user.utmSource ?? "Direto"}</td>
                     <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
                       {new Date(user.enteredAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
                     </td>

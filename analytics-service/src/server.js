@@ -86,10 +86,18 @@ async function ensureSchema() {
       online_count integer NOT NULL DEFAULT 0,
       page_views integer NOT NULL DEFAULT 0,
       sessions_started integer NOT NULL DEFAULT 0,
-      events_count integer NOT NULL DEFAULT 0
+      events_count integer NOT NULL DEFAULT 0,
+      admin_count integer NOT NULL DEFAULT 0,
+      teacher_count integer NOT NULL DEFAULT 0,
+      student_count integer NOT NULL DEFAULT 0
     )
   `;
   await sql`CREATE INDEX IF NOT EXISTS analytics_realtime_snapshots_captured_idx ON analytics_realtime_snapshots (captured_at)`;
+  // Gráfico de tempo real por perfil (admin/professor/aluno) + perfil no "online agora"
+  await sql`ALTER TABLE analytics_online ADD COLUMN IF NOT EXISTS user_role varchar(20)`;
+  await sql`ALTER TABLE analytics_realtime_snapshots ADD COLUMN IF NOT EXISTS admin_count integer NOT NULL DEFAULT 0`;
+  await sql`ALTER TABLE analytics_realtime_snapshots ADD COLUMN IF NOT EXISTS teacher_count integer NOT NULL DEFAULT 0`;
+  await sql`ALTER TABLE analytics_realtime_snapshots ADD COLUMN IF NOT EXISTS student_count integer NOT NULL DEFAULT 0`;
   await sql`ALTER TABLE analytics_events ADD COLUMN IF NOT EXISTS organization_id integer`;
   // Compat de schema para o rollup (a tabela pode ter sido criada por migrações antigas)
   await sql`ALTER TABLE analytics_pages ADD COLUMN IF NOT EXISTS page_title varchar(255)`;
@@ -203,16 +211,21 @@ async function upsertSession(s) {
   `;
 }
 
+// Perfis aceitos no gráfico de tempo real (null = visitante/deslogado)
+const VALID_ROLES = new Set(["admin", "professor", "aluno"]);
+const normalizeRole = (role) => (VALID_ROLES.has(role) ? role : null);
+
 async function upsertOnline(o) {
   if (!o?.sessionId) return;
   await sql`
-    INSERT INTO analytics_online (session_id, visitor_id, user_id, user_name, page_url, page_title, country, state, city, device_type, browser, os, screen_res, utm_source, referrer, ip_masked, entered_at, last_ping_at)
-    VALUES (${clamp(o.sessionId, 64)}, ${clamp(o.visitorId, 64)}, ${o.userId ?? null}, ${clamp(o.userName, 255)}, ${clamp(o.pageUrl, 2000)}, ${clamp(o.pageTitle, 255)},
+    INSERT INTO analytics_online (session_id, visitor_id, user_id, user_name, user_role, page_url, page_title, country, state, city, device_type, browser, os, screen_res, utm_source, referrer, ip_masked, entered_at, last_ping_at)
+    VALUES (${clamp(o.sessionId, 64)}, ${clamp(o.visitorId, 64)}, ${o.userId ?? null}, ${clamp(o.userName, 255)}, ${normalizeRole(o.userRole)}, ${clamp(o.pageUrl, 2000)}, ${clamp(o.pageTitle, 255)},
             ${clamp(o.country, 100)}, ${clamp(o.state, 100)}, ${clamp(o.city, 100)}, ${["desktop", "tablet", "mobile", "tv", "unknown"].includes(o.deviceType) ? o.deviceType : "unknown"}, ${clamp(o.browser, 80)}, ${clamp(o.os, 80)},
             ${clamp(o.screenRes, 20)}, ${clamp(o.utmSource, 100)}, ${clamp(o.referrer, 2000)}, ${clamp(o.ipMasked, 20)}, now(), now())
     ON CONFLICT (session_id) DO UPDATE SET
       user_id = excluded.user_id,
       user_name = COALESCE(excluded.user_name, analytics_online.user_name),
+      user_role = COALESCE(excluded.user_role, analytics_online.user_role),
       page_url = excluded.page_url,
       page_title = excluded.page_title,
       last_ping_at = now()
@@ -268,13 +281,16 @@ async function drain() {
 async function captureSnapshot() {
   try {
     await sql`
-      INSERT INTO analytics_realtime_snapshots (captured_at, online_count, page_views, sessions_started, events_count)
+      INSERT INTO analytics_realtime_snapshots (captured_at, online_count, page_views, sessions_started, events_count, admin_count, teacher_count, student_count)
       VALUES (
         now(),
         (SELECT COUNT(*)::int FROM analytics_online WHERE last_ping_at > now() - interval '2 minutes'),
         (SELECT COUNT(*)::int FROM analytics_events WHERE event_name = 'page_view' AND created_at > now() - interval '30 seconds'),
         (SELECT COUNT(*)::int FROM analytics_sessions WHERE started_at > now() - interval '30 seconds'),
-        (SELECT COUNT(*)::int FROM analytics_events WHERE created_at > now() - interval '30 seconds')
+        (SELECT COUNT(*)::int FROM analytics_events WHERE created_at > now() - interval '30 seconds'),
+        (SELECT COUNT(*) FILTER (WHERE user_role = 'admin')::int FROM analytics_online WHERE last_ping_at > now() - interval '2 minutes'),
+        (SELECT COUNT(*) FILTER (WHERE user_role = 'professor')::int FROM analytics_online WHERE last_ping_at > now() - interval '2 minutes'),
+        (SELECT COUNT(*) FILTER (WHERE user_role = 'aluno')::int FROM analytics_online WHERE last_ping_at > now() - interval '2 minutes')
       )
     `;
   } catch (err) {

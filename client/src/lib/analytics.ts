@@ -96,6 +96,7 @@ let sessionStartTime = 0;
 let pageStartTime = 0;
 let currentUserId: number | null = null;
 let currentUserName: string | null = null;
+let currentUserRole: string | null = null;
 let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
 let isInitialized = false;
 
@@ -258,11 +259,13 @@ export function trackPageView(path: string) {
 }
 
 /**
- * Define o usuário autenticado para enriquecer os eventos.
+ * Define o usuário autenticado para enriquecer os eventos (inclui o perfil —
+ * admin/professor/aluno — usado no gráfico de tempo real por perfil).
  */
-export function setAnalyticsUser(id: number | null, name?: string | null) {
+export function setAnalyticsUser(id: number | null, name?: string | null, role?: string | null) {
   currentUserId = id;
   currentUserName = name ?? null;
+  currentUserRole = role ?? null;
 }
 
 // ── Scroll Depth ──────────────────────────────────────────────────────────────
@@ -389,6 +392,7 @@ function startHeartbeat() {
       visitorId,
       userId: currentUserId,
       userName: currentUserName,
+      userRole: currentUserRole,
       pageUrl: window.location.href,
       pageTitle: document.title,
       deviceType: device,
