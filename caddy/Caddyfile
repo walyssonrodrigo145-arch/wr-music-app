@@ -26,3 +26,7 @@ leads.wrmusicpro.com.br {
 staging.wrmusicpro.com.br {
     reverse_proxy app-staging:3000
 }
+
+dancepro.wrmusicpro.com.br {
+    reverse_proxy dance-app:5000
+}

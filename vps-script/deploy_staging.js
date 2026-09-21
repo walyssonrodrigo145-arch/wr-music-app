@@ -12,7 +12,7 @@ const config = {
 };
 
 const filesToUpload = [
-  'Caddyfile',
+  'caddy/Caddyfile',
   'docker-compose.staging.yml',
   'package.json',
   'pnpm-lock.yaml',
@@ -136,7 +136,7 @@ conn.on('ready', () => {
       conn.sftp((err, sftp) => {
         if (err) throw err;
         
-        const mkdirCmd = `mkdir -p ${repoPath}/client/src/pages/analytics ${repoPath}/client/src/pages/leads ${repoPath}/server/services ${repoPath}/server/services/signature ${repoPath}/client/src/lib ${repoPath}/client/src/components/integrations ${repoPath}/client/src/components/modals ${repoPath}/client/src/components/aulas ${repoPath}/client/src/components/metronome ${repoPath}/client/src/components/settings ${repoPath}/client/src/components/student ${repoPath}/shared`;
+        const mkdirCmd = `mkdir -p ${repoPath}/caddy ${repoPath}/client/src/pages/analytics ${repoPath}/client/src/pages/leads ${repoPath}/server/services ${repoPath}/server/services/signature ${repoPath}/client/src/lib ${repoPath}/client/src/components/integrations ${repoPath}/client/src/components/modals ${repoPath}/client/src/components/aulas ${repoPath}/client/src/components/metronome ${repoPath}/client/src/components/settings ${repoPath}/client/src/components/student ${repoPath}/shared`;
         conn.exec(mkdirCmd, () => {
           let uploads = 0;
           const finalize = () => {

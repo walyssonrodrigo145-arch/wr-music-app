@@ -43,7 +43,9 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile
+      # Diretório (não o arquivo): garante que `git reset --hard` / deploys
+      # atualizem o Caddyfile dentro do container sem precisar recriá-lo.
+      - ./caddy:/etc/caddy
       - ./landpage:/srv/landpage
       - caddy_data:/data
       - caddy_config:/config
