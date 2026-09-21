@@ -794,8 +794,9 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
                  onChange={(e) => setFormData({...formData, duration: Number(e.target.value)})}
                  className="w-full h-14 bg-muted/10 border border-border/20 rounded-2xl px-4 text-sm font-bold focus:ring-4 focus:ring-primary/5 outline-none transition-all appearance-none cursor-pointer"
                >
-                 <option value={30}>30 min</option>
-                 <option value={45}>45 min</option>
+                  <option value={30}>30 min</option>
+                  <option value={40}>40 min</option>
+                  <option value={45}>45 min</option>
                  <option value={50}>50 min</option>
                  <option value={60}>60 min</option>
                  <option value={90}>90 min</option>

@@ -22,6 +22,18 @@ describe("ScheduleAvailabilityService — geração de slots (RF-001 / RN-002)",
     expect(slots[7].time).toBe("11:30");
   });
 
+  it("gera slots de 40 min em 08:00-12:00 (6 slots, passo de 40)", () => {
+    const slots = generateDaySlots({ active: true, start: "08:00", end: "12:00" }, 40);
+    expect(slots.map((s) => s.time)).toEqual(["08:00", "08:40", "09:20", "10:00", "10:40", "11:20"]);
+  });
+
+  it("gera 19 slots de 40 min em 08:00-21:00 e ignora a sobra de 20 min", () => {
+    const slots = generateDaySlots({ active: true, start: "08:00", end: "21:00" }, 40);
+    expect(slots).toHaveLength(19);
+    expect(slots[0].time).toBe("08:00");
+    expect(slots[18].time).toBe("20:00");
+  });
+
   it("não gera slot quando a duração não cabe no expediente", () => {
     const slots = generateDaySlots({ active: true, start: "08:00", end: "08:30" }, 60);
     expect(slots).toHaveLength(0);

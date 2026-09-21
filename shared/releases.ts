@@ -26,6 +26,16 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: "2026.09.21.2",
+    date: "2026-09-21",
+    title: "Aulas de 40 minutos e Tempo Real alinhado",
+    summary: "A escola agora pode definir e agendar aulas de 40 minutos — e o gráfico de Tempo Real passa a mostrar exatamente os mesmos números da lista de usuários online.",
+    items: [
+      { type: "novo", title: "Duração de 40 minutos", description: "Nova opção na Duração Padrão das Aulas (Configurações), no cadastro de aluno e no agendamento. Os horários seguem de 40 em 40 min (08:00, 08:40, 09:20...)." },
+      { type: "correcao", title: "Gráfico e lista com os mesmos números", description: "O gráfico de Tempo Real agora considera o perfil do cadastro do usuário ao contar admins/professores/alunos — antes, sessões abertas antes da atualização apareciam como zero no gráfico e corretas na lista." },
+    ],
+  },
+  {
     version: "2026.09.21.1",
     date: "2026-09-21",
     title: "Tempo Real mostra quem está online por perfil",

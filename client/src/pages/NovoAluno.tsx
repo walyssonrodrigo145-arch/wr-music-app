@@ -1191,6 +1191,7 @@ export default function NovoAluno() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="30">30 minutos</SelectItem>
+                        <SelectItem value="40">40 minutos</SelectItem>
                         <SelectItem value="45">45 minutos</SelectItem>
                         <SelectItem value="50">50 minutos</SelectItem>
                         <SelectItem value="60">60 minutos</SelectItem>

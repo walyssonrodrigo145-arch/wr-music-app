@@ -1011,6 +1011,7 @@ export default function Configuracoes() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="30">30 Minutos</SelectItem>
+                      <SelectItem value="40">40 Minutos</SelectItem>
                       <SelectItem value="45">45 Minutos</SelectItem>
                       <SelectItem value="50">50 Minutos</SelectItem>
                       <SelectItem value="60">60 Minutos (1 Hora)</SelectItem>

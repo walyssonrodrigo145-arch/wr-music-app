@@ -280,17 +280,27 @@ async function drain() {
 // ── Snapshots de tempo real ──────────────────────────────────────────────────
 async function captureSnapshot() {
   try {
+    // Usuários ÚNICOS online (mesma regra da lista do dashboard): uma pessoa com
+    // várias abas conta 1. Perfil com fallback no cadastro (users.role) para
+    // sessões abertas antes de o client enviar userRole.
     await sql`
       INSERT INTO analytics_realtime_snapshots (captured_at, online_count, page_views, sessions_started, events_count, admin_count, teacher_count, student_count)
       VALUES (
         now(),
-        (SELECT COUNT(*)::int FROM analytics_online WHERE last_ping_at > now() - interval '2 minutes'),
+        (SELECT COUNT(DISTINCT COALESCE('u:' || ao.user_id::text, 'v:' || ao.visitor_id))::int
+           FROM analytics_online ao WHERE ao.last_ping_at > now() - interval '2 minutes'),
         (SELECT COUNT(*)::int FROM analytics_events WHERE event_name = 'page_view' AND created_at > now() - interval '30 seconds'),
         (SELECT COUNT(*)::int FROM analytics_sessions WHERE started_at > now() - interval '30 seconds'),
         (SELECT COUNT(*)::int FROM analytics_events WHERE created_at > now() - interval '30 seconds'),
-        (SELECT COUNT(*) FILTER (WHERE user_role = 'admin')::int FROM analytics_online WHERE last_ping_at > now() - interval '2 minutes'),
-        (SELECT COUNT(*) FILTER (WHERE user_role = 'professor')::int FROM analytics_online WHERE last_ping_at > now() - interval '2 minutes'),
-        (SELECT COUNT(*) FILTER (WHERE user_role = 'aluno')::int FROM analytics_online WHERE last_ping_at > now() - interval '2 minutes')
+        (SELECT COUNT(DISTINCT COALESCE('u:' || ao.user_id::text, 'v:' || ao.visitor_id))::int
+           FROM analytics_online ao LEFT JOIN users u ON u.id = ao.user_id
+          WHERE ao.last_ping_at > now() - interval '2 minutes' AND COALESCE(ao.user_role, u.role::text) = 'admin'),
+        (SELECT COUNT(DISTINCT COALESCE('u:' || ao.user_id::text, 'v:' || ao.visitor_id))::int
+           FROM analytics_online ao LEFT JOIN users u ON u.id = ao.user_id
+          WHERE ao.last_ping_at > now() - interval '2 minutes' AND COALESCE(ao.user_role, u.role::text) = 'professor'),
+        (SELECT COUNT(DISTINCT COALESCE('u:' || ao.user_id::text, 'v:' || ao.visitor_id))::int
+           FROM analytics_online ao LEFT JOIN users u ON u.id = ao.user_id
+          WHERE ao.last_ping_at > now() - interval '2 minutes' AND COALESCE(ao.user_role, u.role::text) = 'aluno')
       )
     `;
   } catch (err) {
