@@ -5,7 +5,7 @@
  * heatmap, funil, campanhas, mapa, dispositivos, IA insights e mais.
  */
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
@@ -16,7 +16,7 @@ import {
   Users, Activity, TrendingUp, TrendingDown, DollarSign,
   Globe, Monitor, Smartphone, Tablet, Chrome, Zap,
   Target, MousePointer, Eye, Clock, ArrowRight, Layers,
-  BarChart2, Map, Cpu, Brain, FileText, Download, Search,
+  BarChart2, Map as MapIcon, Cpu, Brain, FileText, Download, Search,
   AlertCircle, CheckCircle, Info, ArrowUp, ArrowDown,
   RefreshCw, Filter, Calendar, Shield, ShieldAlert, Lock,
   AlertTriangle, ChevronLeft, ChevronRight, Loader2,
@@ -315,6 +315,17 @@ function RoleBadge({ role }: { role?: string | null }) {
   );
 }
 
+/** Tempo desde a última atividade (heartbeat) — mostra quem está ativo AGORA. */
+function timeAgo(ts: string | Date): string {
+  const diff = Math.max(0, Date.now() - new Date(ts).getTime());
+  if (diff < 45_000) return "agora";
+  const min = Math.floor(diff / 60_000);
+  if (min < 1) return "há instantes";
+  if (min < 60) return `há ${min} min`;
+  const h = Math.floor(min / 60);
+  return `há ${h}h`;
+}
+
 // ── Aba: Tempo Real ───────────────────────────────────────────────────────────
 function RealtimeTab() {
   const { data, refetch } = trpc.analytics.query.getOnlineUsers.useQuery(undefined, { refetchInterval: 10_000 });
@@ -335,8 +346,26 @@ function RealtimeTab() {
     return <Monitor size={14} />;
   };
 
-  // Contagem ao vivo por perfil (fonte: tabela analytics_online dos últimos 2 min)
-  const onlineByRole = (data ?? []).reduce(
+  // Uma linha por USUÁRIO (não por aba): sessões antigas/duplicadas do mesmo
+  // usuário são agrupadas e a mais recente é exibida, com a contagem de abas.
+  type OnlineRow = NonNullable<typeof data>[number] & { sessions: number };
+  const uniqueUsers = useMemo(() => {
+    const map = new Map<string, OnlineRow>();
+    for (const u of data ?? []) {
+      const key = u.userId ? `u:${u.userId}` : `v:${u.visitorId}`;
+      const existing = map.get(key);
+      if (!existing) {
+        map.set(key, { ...u, sessions: 1 });
+        continue;
+      }
+      const newer = new Date(u.lastPingAt).getTime() > new Date(existing.lastPingAt).getTime() ? u : existing;
+      map.set(key, { ...newer, sessions: existing.sessions + 1 });
+    }
+    return Array.from(map.values());
+  }, [data]);
+
+  // Contagem ao vivo por perfil (usuários únicos dos últimos 2 min)
+  const onlineByRole = uniqueUsers.reduce(
     (acc, u) => {
       acc[roleKey(u.userRole)]++;
       return acc;
@@ -346,7 +375,7 @@ function RealtimeTab() {
 
   // Quem está acessando: agrupado por perfil e, dentro do perfil, mais recente primeiro
   const roleOrder: Record<string, number> = { admin: 0, professor: 1, aluno: 2, visitante: 3 };
-  const sortedUsers = [...(data ?? [])].sort((a, b) => {
+  const sortedUsers = [...uniqueUsers].sort((a, b) => {
     const diff = roleOrder[roleKey(a.userRole)] - roleOrder[roleKey(b.userRole)];
     if (diff !== 0) return diff;
     return new Date(b.lastPingAt).getTime() - new Date(a.lastPingAt).getTime();
@@ -357,7 +386,7 @@ function RealtimeTab() {
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-3 flex-wrap">
           <div className="w-3 h-3 bg-emerald-500 rounded-full animate-pulse" />
-          <span className="font-outfit text-2xl font-bold">{data ? data.length : "…"}</span>
+          <span className="font-outfit text-2xl font-bold">{data ? uniqueUsers.length : "…"}</span>
           <span className="text-muted-foreground">usuários online agora</span>
           <div className="flex items-center gap-1.5 flex-wrap ml-1">
             {(["admin", "professor", "aluno", "visitante"] as const).map((role) => (
@@ -471,14 +500,14 @@ function RealtimeTab() {
                   { label: "Dispositivo", cls: "hidden lg:table-cell" },
                   { label: "Browser", cls: "hidden lg:table-cell" },
                   { label: "Origem", cls: "hidden xl:table-cell" },
-                  { label: "Desde", cls: "" },
+                  { label: "Atividade", cls: "" },
                 ].map((h) => (
                   <th key={h.label} className={cn("text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap", h.cls)}>{h.label}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {!data || data.length === 0 ? (
+              {!data || uniqueUsers.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="px-4 py-16 text-center text-muted-foreground">
                     <div className="flex flex-col items-center gap-2">
@@ -505,6 +534,11 @@ function RealtimeTab() {
                         <span className="font-medium truncate max-w-[160px]" title={user.userName ?? undefined}>
                           {user.userName ?? `Anônimo #${user.visitorId.substring(0, 6)}`}
                         </span>
+                        {user.sessions > 1 && (
+                          <span className="text-[10px] font-bold text-muted-foreground shrink-0" title={`${user.sessions} abas/dispositivos conectados`}>
+                            {user.sessions} abas
+                          </span>
+                        )}
                       </div>
                     </td>
                     <td className="px-4 py-3 max-w-[200px]">
@@ -521,8 +555,11 @@ function RealtimeTab() {
                     </td>
                     <td className="px-4 py-3 text-xs text-muted-foreground hidden lg:table-cell">{user.browser ?? "—"}</td>
                     <td className="px-4 py-3 text-xs text-muted-foreground hidden xl:table-cell">{user.utmSource ?? "Direto"}</td>
-                    <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
-                      {new Date(user.enteredAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+                    <td
+                      className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap"
+                      title={`Entrou às ${new Date(user.enteredAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`}
+                    >
+                      {timeAgo(user.lastPingAt)}
                     </td>
                   </motion.tr>
                 ))
@@ -853,7 +890,7 @@ function RevenueTab({ preset }: { preset: Preset }) {
       {/* Receita por Estado */}
       {(data as any)?.byState && (data as any).byState.length > 0 && (
         <div className="rounded-2xl border border-border bg-card/60 backdrop-blur-md p-6">
-          <SectionTitle><Map size={18} className="text-cyan-500" /> Receita por Estado</SectionTitle>
+          <SectionTitle><MapIcon size={18} className="text-cyan-500" /> Receita por Estado</SectionTitle>
           <div className="mt-4 h-56">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={(data as any).byState.slice(0, 15)}>
@@ -1258,7 +1295,7 @@ function GeoTab({ preset }: { preset: Preset }) {
       <div className="grid md:grid-cols-2 gap-6">
         {/* Por Estado */}
         <div className="rounded-2xl border border-border bg-card/60 backdrop-blur-md p-6">
-          <SectionTitle><Map size={18} className="text-violet-500" /> Por Estado</SectionTitle>
+          <SectionTitle><MapIcon size={18} className="text-violet-500" /> Por Estado</SectionTitle>
           <div className="mt-4 space-y-2 max-h-96 overflow-y-auto pr-1">
             {!data?.byState || data.byState.length === 0 ? (
               <EmptyState message="Sem dados geográficos ainda." />
@@ -1301,7 +1338,7 @@ function GeoTab({ preset }: { preset: Preset }) {
       {/* Top Cidades */}
       {data?.byCity && data.byCity.length > 0 && (
         <div className="rounded-2xl border border-border bg-card/60 backdrop-blur-md p-6">
-          <SectionTitle><Map size={18} className="text-cyan-500" /> Top Cidades</SectionTitle>
+          <SectionTitle><MapIcon size={18} className="text-cyan-500" /> Top Cidades</SectionTitle>
           <div className="mt-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
             {data.byCity.slice(0, 15).map((c, i) => (
               <div key={`${c.city}-${i}`} className="p-3 rounded-xl bg-muted/30 border border-border/50 text-center">
@@ -1987,7 +2024,7 @@ const TABS: Array<{ id: TabId; label: string; icon: React.ReactNode }> = [
   { id: "checkout", label: "Checkout", icon: <CheckCircle size={16} /> },
   { id: "revenue", label: "Receita", icon: <DollarSign size={16} /> },
   { id: "campaigns", label: "Campanhas", icon: <Zap size={16} /> },
-  { id: "map", label: "Mapa", icon: <Map size={16} /> },
+  { id: "map", label: "Mapa", icon: <MapIcon size={16} /> },
   { id: "devices", label: "Dispositivos", icon: <Monitor size={16} /> },
   { id: "ai", label: "IA Insights", icon: <Brain size={16} /> },
 ];

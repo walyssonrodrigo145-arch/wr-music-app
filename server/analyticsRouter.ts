@@ -1363,17 +1363,45 @@ const analyticsQueryRouter = router({
   }),
 
   // ── Usuários online agora ─────────────────────────────────────────────────
+  // Só entram sessões com heartbeat nos últimos 2 minutos (quem está acessando
+  // AGORA). O perfil é preenchido pelo banco (users.role) quando a sessão foi
+  // criada por uma versão antiga que ainda não enviava o userRole.
   getOnlineUsers: isSuperAdmin.query(async () => {
     const db = await getDb();
     if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
 
     const twoMinAgo = new Date(Date.now() - 120_000);
 
-    return await db.select()
+    const rows = await db
+      .select({
+        sessionId: analyticsOnline.sessionId,
+        visitorId: analyticsOnline.visitorId,
+        userId: analyticsOnline.userId,
+        userName: analyticsOnline.userName,
+        userRole: analyticsOnline.userRole,
+        roleFromUser: users.role,
+        pageUrl: analyticsOnline.pageUrl,
+        pageTitle: analyticsOnline.pageTitle,
+        country: analyticsOnline.country,
+        state: analyticsOnline.state,
+        city: analyticsOnline.city,
+        deviceType: analyticsOnline.deviceType,
+        browser: analyticsOnline.browser,
+        os: analyticsOnline.os,
+        utmSource: analyticsOnline.utmSource,
+        enteredAt: analyticsOnline.enteredAt,
+        lastPingAt: analyticsOnline.lastPingAt,
+      })
       .from(analyticsOnline)
+      .leftJoin(users, eq(users.id, analyticsOnline.userId))
       .where(gte(analyticsOnline.lastPingAt, twoMinAgo))
       .orderBy(desc(analyticsOnline.lastPingAt))
       .limit(200);
+
+    return rows.map(({ roleFromUser, ...row }) => ({
+      ...row,
+      userRole: row.userRole ?? roleFromUser ?? null,
+    }));
   }),
 
   // ── Série de acessos em tempo real (gráfico sobe/desce) ───────────────────

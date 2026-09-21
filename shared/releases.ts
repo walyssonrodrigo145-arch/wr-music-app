@@ -34,6 +34,8 @@ export const RELEASES: Release[] = [
       { type: "novo", title: "Gráfico por perfil", description: "Três linhas no Tempo Real: quantos admins, professores e alunos estão online a cada momento (5 min, 30 min ou 2 horas)." },
       { type: "novo", title: "Quem está acessando, com nome e perfil", description: "A lista de usuários online mostra o nome, um selo de perfil (Admin/Professor/Aluno/Visitante) e agrupa por perfil — fica fácil ver quem está no sistema." },
       { type: "melhoria", title: "Contagem ao vivo por perfil", description: "No topo da aba, chips mostram o total online de cada perfil em tempo real, atualizando a cada 10 segundos." },
+      { type: "correcao", title: "Só quem está ativo agora, uma linha por usuário", description: "Cada usuário aparece uma única vez (sessões antigas do mesmo usuário são agrupadas, com a contagem de abas) e a coluna mostra a última atividade em vez da hora de entrada — sem sessões de horas atrás confundindo a lista." },
+      { type: "correcao", title: "Perfil correto para sessões antigas", description: "Quem está logado não aparece mais como Visitante: o perfil é confirmado no cadastro do usuário, mesmo em sessões abertas antes desta atualização." },
     ],
   },
   {
