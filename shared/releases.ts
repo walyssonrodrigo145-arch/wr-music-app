@@ -26,6 +26,18 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: "2026.09.19.3",
+    date: "2026-09-19",
+    title: "IA agora separa Violão e Guitarra",
+    summary: "Os planos de estudo ficaram mais inteligentes: violão trabalha dedilhado E batidas; guitarra foca palhetada e técnicas — sem forçar dedilhado.",
+    items: [
+      { type: "novo", title: "Especialistas separados: Violão e Guitarra", description: "A IA deixou de tratar os dois como o mesmo instrumento. Agora cada um tem seu professor especialista com técnicas, exercícios e linguagem próprios." },
+      { type: "melhoria", title: "Guitarra prioriza palhetada e técnicas", description: "Planos de guitarra focam palhetada alternada, palm mute, bends, legato, tapping/two-handed e power chords. Dedilhado p-i-m-a só aparece se o professor pedir." },
+      { type: "melhoria", title: "Violão alterna dedilhado e batida", description: "Planos de violão usam dedilhado (p-i-m-a/arpejos) E batidas/levadas rítmicas conforme o pedido — antes tudo era tratado como dedilhado." },
+      { type: "correcao", title: "A IA não desvia do tema pedido", description: "Se o professor pede só um treino de escala maior, o plano aplica a técnica do instrumento A ESSE TEMA, sem acrescentar repertório ou assuntos que não foram pedidos." },
+    ],
+  },
+  {
     version: "2026.09.19.2",
     date: "2026-09-19",
     title: "Importar alunos por planilha ou colando os dados",

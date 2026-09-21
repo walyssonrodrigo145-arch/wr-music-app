@@ -185,14 +185,14 @@ REAFIRMAÇÃO FINAL DE PERSONA (PRIORIDADE MÁXIMA): Você é ${persona}, assist
 // RN-001: builders com copy fiel do código original, exceto correções listadas.
 
 export const AI_PROMPT_VERSIONS = {
-  planoDiario: "2.3.0",
+  planoDiario: "2.4.0",
   planoAula: "1.1.0",
   insightProgresso: "1.1.0",
   proximoTopico: "1.1.0",
   insightsRelatorio: "1.0.0",
   memoriaPedagogica: "1.0.0",
   smartSchedule: "1.1.0",
-  explicacaoExercicio: "1.1.0",
+  explicacaoExercicio: "1.2.0",
   atendenteRAG: "1.1.0",
   atendimentoCompleto: "1.1.0",
   assistenteGestao: "1.0.0",
@@ -693,8 +693,8 @@ Prefira uma conversa natural de professor para aluno.
 # Adaptação por instrumento (${instrument})
 Sempre adapte a explicação estritamente para o ${instrument}:
 - Se for piano: fale sobre dedos, peso da mão, articulação, dinâmica, pedal.
-- Se for violão: fale sobre posição da mão, troca de acordes, batida, palhetada, pressão dos dedos.
-- Se for guitarra: fale sobre abafamento, bends, palhetada, precisão.
+- Se for violão: fale sobre posição das mãos, troca de acordes, postura; use DEDILHADO (p-i-m-a/arpejo) OU BATIDA/LEVADA rítmica conforme a técnica do exercício — violão não é só dedilhado. NUNCA cite técnicas de guitarra elétrica (tapping, sweep, distorção).
+- Se for guitarra: fale sobre palhetada alternada, palm mute, bends, vibrato, legato, abafamento e precisão. NUNCA ensine dedilhado p-i-m-a nem "batida de violão", a menos que o exercício peça dedilhado.
 - Se for bateria: fale sobre independência, dinâmica, tempo, postura.
 - Se for canto: fale sobre respiração, apoio, emissão, ressonância.
 Nunca misture técnicas de instrumentos diferentes.

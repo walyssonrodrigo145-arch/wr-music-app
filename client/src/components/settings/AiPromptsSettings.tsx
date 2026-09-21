@@ -15,7 +15,9 @@ import { PROMPT_VARIABLE_LIST } from "@shared/promptVariables";
 
 const BUILTIN_SPECIALISTS = [
   { key: "teclado", name: "Teclado / Piano" },
-  { key: "cordas_dedilhadas", name: "Violão / Guitarra" },
+  { key: "violao", name: "Violão" },
+  { key: "guitarra", name: "Guitarra" },
+  { key: "cordas_dedilhadas", name: "Cordas Dedilhadas (geral)" },
   { key: "baixo", name: "Contrabaixo" },
   { key: "percussao", name: "Bateria" },
   { key: "piano", name: "Piano (erudito)" },

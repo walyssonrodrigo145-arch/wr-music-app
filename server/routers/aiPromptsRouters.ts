@@ -16,6 +16,8 @@ import { renderPromptVariables, defaultPromptVariables } from "../services/Promp
 import { INSTRUMENT_SPECIALISTS } from "../services/InstrumentSpecialistService";
 
 const BUILTIN_ICONS: Record<string, string> = {
+  violao: "🎸",
+  guitarra: "🎸",
   cordas_dedilhadas: "🎸",
   teclado: "🎹",
   percussao: "🥁",

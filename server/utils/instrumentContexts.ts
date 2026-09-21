@@ -34,6 +34,8 @@ export interface InstrumentContext {
 
 export type InstrumentCategory =
   | "cordas_dedilhadas"
+  | "violao"
+  | "guitarra"
   | "teclado"
   | "percussao"
   | "baixo"
@@ -44,7 +46,136 @@ export type InstrumentCategory =
   | "geral";
 
 export const INSTRUMENT_CONTEXTS: Record<InstrumentCategory, InstrumentContext> = {
-  // ─── CORDAS DEDILHADAS: Violão, Guitarra, Baixo, Ukulele, Cavaquinho ─────
+  // ─── VIOLÃO: dedilhado E batidas rítmicas (não é só dedilhado) ────────────
+  violao: {
+    terminology: [
+      "cordas",
+      "trastes",
+      "pestana",
+      "dedilhado (p-i-m-a)",
+      "arpejo",
+      "batida",
+      "levada rítmica",
+      "palhetada",
+      "acorde",
+      "escala",
+      "afinação",
+      "braço do violão",
+      "ponte",
+      "capotraste",
+      "slides",
+      "ligado (hammer-on/pull-off)",
+      "abafamento",
+      "cifra",
+      "tablatura",
+    ],
+    forbiddenTerms: [
+      "bumbum", "caixa", "chimbal", "bumbo", "prato", "rudimento",
+      "pedal de bumbo", "hi-hat", "baqueta",
+      "vocalise", "projeção vocal", "dicção", "respiração diafragmática",
+      "embocadura", "língua dupla",
+      "arco", "golpe de arco", "pizzicato",
+      "tapping", "two-handed", "sweep picking", "power chord",
+      "distorção", "overdrive",
+    ],
+    warmupDescription: "Aquecimento dos dedos no braço + batida/levada lenta em um acorde conhecido",
+    warmupExamples: [
+      "Exercício cromático (1-2-3-4) no braço, subindo e descendo os trastes devagar",
+      "Dedilhado p-i-m-a em um acorde conhecido, uma corda por vez, em ritmo lento",
+      "Batida simples (polegar no baixo + acorde) em um acorde só, 60 BPM, sem parar o pulso",
+    ],
+    technicalFocusExamples: [
+      "Troca limpa de acordes com o pulso constante",
+      "Dedilhado p-i-m-a e arpejos (padrão por acorde)",
+      "Batidas e levadas rítmicas (pop 4/4, balada 6/8, guarânia, variação)",
+      "Pestana e acordes com pestana",
+      "Palhetada básica para trechos de levada e riffs de violão",
+      "Leitura de cifra e tablatura",
+    ],
+    challengeExamples: [
+      "Trocar entre dois acordes mantendo a levada por 1 minuto sem parar",
+      "Tocar a música/trecho do roteiro do início ao fim com dedilhado OU batida (a técnica pedida)",
+      "Gravar 30 segundos e avaliar: pulso constante, cordas limpas, sem travar a mão",
+    ],
+    levelHints: {
+      iniciante:
+        "Linguagem simples. Diga exatamente os dedos do dedilhado (p-i-m-a ou indicador/médio/anelar) e o padrão da batida (para baixo/cima). Comece com 2 acordes. Sem pestana no início.",
+      intermediario:
+        "Alterne dedilhado e batidas/levadas conforme o pedido. Introduza pestana, arpejos e levadas de estilos (pop, balada, sertanejo). Foque em pulso constante e limpeza.",
+      avancado:
+        "Dedilhado elaborado (arpejos com baixo independente), levadas com síncope, pestana em posições diversas, expressividade (dinâmica, abafamentos). Evite técnicas elétricas de guitarra.",
+    },
+    extraInstruction:
+      "Violão NÃO é só dedilhado e NÃO é só batida: use dedilhado E batidas/levadas conforme o estilo e o pedido do professor. NUNCA force dedilhado quando o pedido é ritmo/levada (e vice-versa). NUNCA use técnicas de guitarra elétrica (tapping, sweep, power chord, distorção) nem termos de bateria/piano/canto/sopro. Se o professor pediu só um tema (ex.: escala maior), aplique a técnica do violão A ESSE TEMA, sem acrescentar repertório ou assuntos novos.",
+  },
+
+  // ─── GUITARRA ELÉTRICA: palhetada e técnicas (dedilhado só se pedido) ─────
+  guitarra: {
+    terminology: [
+      "palhetada alternada (alternate picking)",
+      "palhetada econômica",
+      "sweep picking",
+      "palm mute",
+      "bend",
+      "vibrato",
+      "hammer-on",
+      "pull-off (legato)",
+      "slides",
+      "tapping",
+      "two-handed",
+      "power chord",
+      "riff",
+      "harmônicos",
+      "captador",
+      "alavanca",
+      "timbre",
+      "distorção",
+      "overdrive",
+      "escala",
+      "pentatônica",
+      "braço da guitarra",
+    ],
+    forbiddenTerms: [
+      "bumbum", "caixa", "chimbal", "bumbo", "prato", "rudimento",
+      "pedal de bumbo", "hi-hat", "baqueta",
+      "vocalise", "projeção vocal", "dicção", "respiração diafragmática",
+      "embocadura", "língua dupla",
+      "arco", "golpe de arco", "pizzicato",
+      "dedilhado p-i-m-a",
+      "batida de violão",
+    ],
+    warmupDescription: "Aquecimento de palhetada alternada em corda solta + cromático 1-2-3-4 com palheta",
+    warmupExamples: [
+      "Palhetada alternada na corda solta (mi grave): para baixo/cima constantes, 60 BPM",
+      "Cromático 1-2-3-4 com palhetada alternada, descendo e subindo o braço devagar",
+      "Palm mute leve em power chord (5ª) com metrônomo, ataque limpo",
+    ],
+    technicalFocusExamples: [
+      "Palhetada alternada em escalas e riffs (metrônomo e subdivisões)",
+      "Palm mute e abafamento de cordas indesejadas",
+      "Bends afinados (meio tom / tom) com checagem por ouvido",
+      "Legato (hammer-on/pull-off) e sincronia com a palheta",
+      "Tapping e two-handed em padrões simples",
+      "Power chords e riffs com muting",
+    ],
+    challengeExamples: [
+      "Tocar a escala/riff do roteiro com palhetada alternada a X BPM sem errar a mão da palheta",
+      "Manter bend afinado por 2 tempos em cada nota alvo",
+      "Gravar 30 segundos e avaliar: palhetada limpa, notas abafadas corretamente, tempo constante",
+    ],
+    levelHints: {
+      iniciante:
+        "Linguagem simples. Foque em palhetada para baixo no começo, postura da palheta e abafar cordas vizinhas. Power chords (2 dedos) e riffs curtos. BPM 50–70. Sem tapping/sweep.",
+      intermediario:
+        "Palhetada alternada constante, palm mute, bends e legato. Introduza pentatônica/CAGED aplicados a riffs. BPM 70–110. Trabalhe sincronia das mãos.",
+      avancado:
+        "Sweep, tapping/two-handed, palhetada econômica, dinâmica e expressividade. Velocidade com precisão e limpeza de muting. Improvisação sobre a tonalidade do roteiro.",
+    },
+    extraInstruction:
+      "Guitarra é PRIORITARIAMENTE palhetada e técnicas (alternate picking, palm mute, bends, legato, sweep, tapping, two-handed, power chords). NUNCA condicione os exercícios a dedilhado p-i-m-a: dedilhado/arpejo só se o professor pedir explicitamente. NUNCA use termos de bateria/piano/canto/sopro nem 'batida de violão'. Se o professor pediu só um tema (ex.: escala maior), aplique a técnica de guitarra A ESSE TEMA, sem acrescentar repertório ou assuntos novos.",
+  },
+
+  // ─── CORDAS DEDILHADAS (fallback: ukulele, cavaquinho, bandolim, legado) ─
   cordas_dedilhadas: {
     terminology: [
       "cordas",
@@ -598,6 +729,20 @@ export function getInstrumentContext(
   const cat = instrumentCategory.toLowerCase().trim();
   const name = instrumentName.toLowerCase().trim();
 
+  // 1) PRIORIDADE POR NOME: violão e guitarra são especialistas distintos.
+  // A categoria genérica "Cordas" não pode colapsar os dois (ex.: "Guitarra Elétrica").
+  if (name.includes("guitarra") || name.includes("guitar")) {
+    return { context: INSTRUMENT_CONTEXTS.guitarra, resolvedCategory: "guitarra" };
+  }
+  if (name.includes("violão") || name.includes("violao")) {
+    return { context: INSTRUMENT_CONTEXTS.violao, resolvedCategory: "violao" };
+  }
+  // Baixo elétrico/contrabaixo (exclui violoncelo/contrabaixo de orquestra com "arco")
+  if ((name.includes("baixo") || name.includes("bass") || name.includes("contrabaixo")) &&
+      !name.includes("arco") && !name.includes("orquestra") && !name.includes("acústico")) {
+    return { context: INSTRUMENT_CONTEXTS["baixo"], resolvedCategory: "baixo" };
+  }
+
   // Mapeamento por categoria (campo direto do banco)
   const categoryMap: Record<string, InstrumentCategory> = {
     // Contrabaixo / Baixo Elétrico — ESPECIALISTA DEDICADO
@@ -610,13 +755,13 @@ export function getInstrumentContext(
     piano: "piano",
     "piano acústico": "piano",
     "piano clássico": "piano",
-    // Cordas dedilhadas (violão, guitarra — sem baixo)
+    // Cordas dedilhadas (ukulele/cavaquinho/bandolim e legado)
     cordas: "cordas_dedilhadas",
     "cordas dedilhadas": "cordas_dedilhadas",
     cordas_dedilhadas: "cordas_dedilhadas",
-    violao: "cordas_dedilhadas",
-    "violão": "cordas_dedilhadas",
-    guitarra: "cordas_dedilhadas",
+    violao: "violao",
+    "violão": "violao",
+    guitarra: "guitarra",
     ukulele: "cordas_dedilhadas",
     cavaquinho: "cordas_dedilhadas",
     bandolim: "cordas_dedilhadas",
@@ -667,14 +812,6 @@ export function getInstrumentContext(
   if (categoryMap[name]) {
     const resolved = categoryMap[name];
     return { context: INSTRUMENT_CONTEXTS[resolved], resolvedCategory: resolved };
-  }
-
-  // Detecção prioritária por nome: baixo elétrico antes de match parcial genérico
-  if (name.includes("baixo") || name.includes("bass") || name.includes("contrabaixo")) {
-    // Exclui violoncelo/contrabaixo de orquestra (cordas com arco): esses têm "arco" no nome
-    if (!name.includes("arco") && !name.includes("orquestra") && !name.includes("acústico")) {
-      return { context: INSTRUMENT_CONTEXTS["baixo"], resolvedCategory: "baixo" };
-    }
   }
 
   // Tenta match parcial no nome

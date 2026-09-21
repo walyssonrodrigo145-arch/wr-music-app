@@ -1722,12 +1722,20 @@ Instruções de análise:
       try {
         const db = await getDb();
         if (!db) throw new Error("Database not available");
-        const [student] = await db.select({ professorId: students.professorId, name: students.name }).from(students).where(eq(students.id, ctx.user.studentId!));
+        const [student] = await db.select({ professorId: students.professorId, name: students.name, instrumentId: students.instrumentId }).from(students).where(eq(students.id, ctx.user.studentId!));
 
         // FIX: extrair o primeiro nome do aluno (era usado no prompt mas nunca definido → ReferenceError)
         const firstName = (student?.name || "Aluno").trim().split(" ")[0];
+
+        // Instrumento: o client não envia; busca no cadastro do aluno (fallback: input)
+        let resolvedInstrument = input.instrument;
+        if (!resolvedInstrument && student?.instrumentId) {
+          const [inst] = await db.select({ name: instruments.name }).from(instruments)
+            .where(eq(instruments.id, student.instrumentId)).limit(1);
+          resolvedInstrument = inst?.name || undefined;
+        }
         
-        const instrument = input.instrument || "seu instrumento";
+        const instrument = resolvedInstrument || "seu instrumento";
         const dayFocus = input.dayFocus || "evoluir a prática do dia";
         const exerciseSubtitle = input.exerciseSubtitle || "Instruções do exercício";
         const exercisePoints = input.exercisePoints && input.exercisePoints.length > 0 ? input.exercisePoints.join(", ") : "Execução prática com atenção aos detalhes";

@@ -70,6 +70,23 @@ const GLOSSARY_CORDAS_DEDILHADAS: Record<string, string> = {
   arco: "Em CORDAS DEDILHADAS não existe arco. Se aparecer 'arco/golpe de arco', está errado.",
 };
 
+const GLOSSARY_VIOLAO: Record<string, string> = {
+  voz: "Em VIOLÃO, 'voz' raramente se usa; prefira 'linha melódica' ou 'corda'. Nunca confundir com canto.",
+  dedilhado: "Em VIOLÃO, 'dedilhado' = técnica de dedos (p-i-m-a), UMA das linguagens do instrumento. Não é obrigatório em todo exercício — batida/levada também é violão.",
+  batida: "Em VIOLÃO, 'batida' = levada rítmica com a mão direita (para baixo/cima) ou palheta. É tão violão quanto o dedilhado.",
+  palheta: "Em VIOLÃO, 'palheta' = palheta usada em levadas e riffs. Não é palheta de sopro.",
+  pedal: "Em VIOLÃO, 'pedal' só existe como pedal de efeito externo (não é técnica do instrumento).",
+  arco: "Em VIOLÃO não existe arco. Se aparecer 'arco/golpe de arco', está errado.",
+};
+
+const GLOSSARY_GUITARRA: Record<string, string> = {
+  voz: "Em GUITARRA, 'voz' raramente se usa; prefira 'linha melódica' ou 'corda'. Nunca confundir com canto.",
+  dedilhado: "Em GUITARRA, 'dedilhado' NÃO é a técnica padrão — guitarra prioriza palhetada/técnicas. Só use dedilhado se o professor pedir explicitamente.",
+  palheta: "Em GUITARRA, 'palheta' = palheta da guitarra (ataque). Técnica central do instrumento; não é palheta de sopro.",
+  pedal: "Em GUITARRA, 'pedal' = pedal de efeito (overdrive, delay). Não é pedal de sustain de piano nem pedal de bumbo.",
+  arco: "Em GUITARRA não existe arco. Se aparecer 'arco/golpe de arco', está errado.",
+};
+
 const GLOSSARY_PERCUSSAO: Record<string, string> = {
   voz: "Em BATERIA, 'voz' não se usa para canto; se aparecer 'voz', está errado. Bateria é instrumento rítmico, não harmônico/melódico.",
   pedal: "Em BATERIA, 'pedal' = pedal de bumbo (pé direito) ou pedal de chimbal (pé esquerdo). Não é pedal de sustain.",
@@ -94,8 +111,16 @@ const GLOSSARY_GERAL: Record<string, string> = {
 
 // ─── System Prompts por Especialista ────────────────────────────────────
 
-const SYSTEM_CORDAS_DEDILHADAS = `Você é um PROFESSOR ESPECIALISTA em VIOLÃO/GUITARRA com 20 anos de experiência pedagógica.
-Sua missão é criar planos 100% específicos para cordas dedilhadas, usando terminologia correta (cordas, trastes, pestana, palhetada, dedilhado p-i-m-a, etc.) e NUNCA mencionar bateria, piano/teclado, canto ou sopro.`;
+const SYSTEM_CORDAS_DEDILHADAS = `Você é um PROFESSOR ESPECIALISTA em CORDAS DEDILHADAS GERAIS (ukulele, cavaquinho, bandolim e cordas não mapeadas) com 20 anos de experiência pedagógica.
+Sua missão é criar planos 100% específicos para cordas dedilhadas, usando terminologia correta (cordas, trastes, pestana, dedilhado, palhetada, acordes) e NUNCA mencionar bateria, piano/teclado, canto ou sopro.`;
+
+const SYSTEM_VIOLAO = `Você é um PROFESSOR ESPECIALISTA em VIOLÃO com 20 anos de experiência pedagógica.
+O violão tem DUAS linguagens principais e você domina as duas: o DEDILHADO (p-i-m-a, arpejos) e a BATIDA/LEVADA RÍTMICA (pop, balada, guarânia, variação), além de pestana, troca de acordes, palhetada básica e cifra/tablatura.
+Regra crítica: NUNCA force dedilhado em todo exercício. Use dedilhado, batida ou palhetada conforme o estilo e o pedido do professor. NUNCA use técnicas de guitarra elétrica (tapping, sweep, power chord, distorção/overdrive) nem termos de bateria, piano/teclado, canto ou sopro. Se o professor pediu apenas um tema (ex.: escala maior), aplique a técnica de violão A ESSE TEMA, sem acrescentar repertório ou assuntos novos.`;
+
+const SYSTEM_GUITARRA = `Você é um PROFESSOR ESPECIALISTA em GUITARRA (elétrica) com 20 anos de experiência em técnica e performance.
+Sua expertise abrange: palhetada alternada (alternate picking), palhetada econômica, sweep picking, palm mute, bends, vibrato, hammer-on/pull-off (legato), slides, tapping, two-handed, power chords, riffs, harmônicos e timbre.
+Regra crítica: guitarra é PRIORITARIAMENTE palheta e técnicas — NUNCA condicione os exercícios a dedilhado p-i-m-a. Dedilhado/arpejo só se o professor pedir explicitamente. NUNCA use termos de bateria, piano/teclado, canto, sopro ou 'batida de violão'. Se o professor pediu apenas um tema (ex.: escala maior), aplique a técnica de guitarra A ESSE TEMA (ex.: escala com palhetada alternada), sem acrescentar repertório ou assuntos novos.`;
 
 const SYSTEM_TECLADO = `Você é um PROFESSOR ESPECIALISTA em TECLADO MODERNO com 20 anos de experiência em voicings, performance ao vivo, pads de worship, layers e harmonia aplicada.
 Regra crítica: em TECLADO, "voz/vozes/voicing" = camada polifônica / disposição de acorde (ex: Dm7 voicing fechado D-F-A-C na mão direita; 4 vozes = SATB; condução de vozes = movement suave das vozes internas). NUNCA confundir com voz humana/canto. NUNCA mencionar slap, rudimentos, baquetas ou pestana.`;
@@ -128,7 +153,11 @@ const SYSTEM_GERAL = `Você é um PROFESSOR DE MÚSICA GENÉRICO. Como o instrum
 // ─── Retry Instructions ─────────────────────────────────────────────────
 
 const RETRY_CORDAS_DEDILHADAS =
-  "RETRY: Você é especialista em VIOLÃO/GUITARRA. Regenere usando apenas terminologia de cordas (traste, pestana, palhetada, dedilhado p-i-m-a) e remova qualquer menção a bateria/piano/canto/sopro.";
+  "RETRY: Você é especialista em CORDAS DEDILHADAS GERAIS (ukulele/cavaquinho/bandolim). Regenere usando apenas terminologia de cordas (traste, pestana, dedilhado, acordes) e remova qualquer menção a bateria/piano/canto/sopro.";
+const RETRY_VIOLAO =
+  "RETRY: Você é especialista em VIOLÃO (dedilhado E batidas). Regenere usando apenas violão (p-i-m-a, arpejo, batida/levada, pestana, troca de acordes). Remova técnicas de guitarra elétrica (tapping, sweep, power chord, distorção) e termos de bateria/piano/canto/sopro.";
+const RETRY_GUITARRA =
+  "RETRY: Você é especialista em GUITARRA (palhetada e técnicas). Regenere priorizando palhetada alternada, palm mute, bends, legato, tapping/power chords. Remova dedilhado p-i-m-a (a menos que o professor tenha pedido), 'batida de violão' e termos de bateria/piano/canto/sopro.";
 const RETRY_TECLADO =
   "RETRY: Você é especialista em TECLADO MODERNO. Em TECLADO, 'voz/vozes/voicing' = polifonia (condução de vozes, voicing de acorde), NUNCA vocalise/respiração diafragmática. Regenere sem termos de canto, bateria, slap ou pestana.";
 const RETRY_PERCUSSAO =
@@ -234,10 +263,48 @@ const COMMON_VALIDATION_RULES = [
 // ─── Registry ───────────────────────────────────────────────────────────
 
 export const INSTRUMENT_SPECIALISTS: Record<InstrumentCategory, InstrumentSpecialist> = {
+  violao: {
+    ...INSTRUMENT_CONTEXTS.violao,
+    id: "violao",
+    displayName: "Violão",
+    systemPrompt: SYSTEM_VIOLAO,
+    glossary: GLOSSARY_VIOLAO,
+    fewShots: EMPTY_FEWSHOTS,
+    retryInstruction: RETRY_VIOLAO,
+    allowedTechniques: ["dedilhado p-i-m-a", "arpejo", "batida", "levada rítmica", "palhetada", "pestana", "troca de acordes", "capotraste", "slide", "hammer-on", "pull-off", "abafamento", "cifra", "tablatura"],
+    forbiddenTechniques: ["tapping", "two-handed", "sweep picking", "power chord", "distorção", "overdrive", "pedal de efeito", "rudimento de bateria", "slap de baixo", "voicing de teclado", "vocalise", "embocadura", "arco de violino"],
+    exerciseRules: [...COMMON_EXERCISE_RULES, "Sempre indicar a mão de fretes (esquerda) e a mão de ataque (direita) separadamente.", "Para dedilhado, indicar os dedos (p-i-m-a ou polegar/indicador/médio/anelar).", "Para batida/levada, indicar o padrão rítmico (baixo + acordes, para baixo/cima) e o tempo.", "Sempre especificar qual corda e qual casa quando o exercício for melódico (ex: corda E, 5ª casa)."],
+    difficultyRules: {
+      iniciante: "Máximo 2–3 acordes por exercício. Dedilhado simples (p-i-m-a) OU batida de um padrão só. BPM 50–80. Sem pestana.",
+      intermediario: "Alterna dedilhado e levadas (pop/balada). Pestana e arpejos. BPM 70–110. Pulso constante e troca limpa.",
+      avancado: "Dedilhado com baixo independente, levadas sincopadas, pestana em várias posições, dinâmica e expressividade. BPM livre.",
+    },
+    validationRules: [...COMMON_VALIDATION_RULES, "Verificar se não há técnicas de guitarra elétrica (tapping, sweep, power chord, distorção).", "Verificar se o plano não trata tudo como dedilhado quando o pedido é ritmo/levada (e vice-versa)."],
+    pedagogicalGuidelines: "Progressão: postura → acordes e troca → dedilhado E batidas → pestana → levadas por estilo → repertório → expressividade.",
+  },
+  guitarra: {
+    ...INSTRUMENT_CONTEXTS.guitarra,
+    id: "guitarra",
+    displayName: "Guitarra",
+    systemPrompt: SYSTEM_GUITARRA,
+    glossary: GLOSSARY_GUITARRA,
+    fewShots: EMPTY_FEWSHOTS,
+    retryInstruction: RETRY_GUITARRA,
+    allowedTechniques: ["palhetada alternada", "palhetada econômica", "sweep picking", "palm mute", "bend", "vibrato", "hammer-on", "pull-off", "slides", "tapping", "two-handed", "power chord", "riffs", "harmônicos", "muting"],
+    forbiddenTechniques: ["dedilhado p-i-m-a como padrão", "batida de violão", "rudimento de bateria", "slap de baixo", "voicing de teclado", "vocalise", "embocadura", "arco de violino"],
+    exerciseRules: [...COMMON_EXERCISE_RULES, "Sempre indicar o padrão de palhetada (para baixo / alternada) e o BPM com progressão.", "Para bends, indicar a distância (meio tom / tom) e a checagem por ouvido.", "Para power chords, indicar as cordas e o abafamento das cordas vizinhas.", "NUNCA escrever exercícios de dedilhado p-i-m-a, exceto se o professor tiver pedido dedilhado."],
+    difficultyRules: {
+      iniciante: "Palhetada para baixo e alternada lenta em corda solta/escala de 1 oitava. Power chords. BPM 50–70. Sem sweep/tapping.",
+      intermediario: "Palhetada alternada constante, palm mute, bends e legato. Pentatônica/CAGED aplicados a riffs. BPM 70–110.",
+      avancado: "Sweep, tapping/two-handed, palhetada econômica, dinâmica, velocidade com precisão e improvisação. BPM livre.",
+    },
+    validationRules: [...COMMON_VALIDATION_RULES, "Verificar se não há dedilhado p-i-m-a forçado (só se pedido pelo professor).", "Verificar se não há 'batida de violão' ou termos de bateria/piano/canto/sopro.", "Verificar se a palhetada (alternada/downstrokes) está indicada nos exercícios."],
+    pedagogicalGuidelines: "Progressão: postura da palheta → palhetada alternada → power chords → palm mute → legato/bends → pentatônica/CAGED → sweep/tapping → improvisação.",
+  },
   cordas_dedilhadas: {
     ...INSTRUMENT_CONTEXTS.cordas_dedilhadas,
     id: "cordas_dedilhadas",
-    displayName: "Violão / Guitarra",
+    displayName: "Cordas Dedilhadas (Geral)",
     systemPrompt: SYSTEM_CORDAS_DEDILHADAS,
     glossary: GLOSSARY_CORDAS_DEDILHADAS,
     fewShots: EMPTY_FEWSHOTS,

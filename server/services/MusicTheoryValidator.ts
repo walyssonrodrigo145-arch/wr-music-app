@@ -94,7 +94,21 @@ REGRA CRITICA: 'voz/vozes' em teclado = polifonia/voicing, NUNCA canto.`,
 - Campo harmonico: graus da tonalidade para improvisar o groove
 - Groove e pocket: nota certa + momento certo (feel, time)`,
 
-  cordas_dedilhadas: `## TEORIA MUSICAL APLICADA AO VIOLAO/GUITARRA
+  violao: `## TEORIA MUSICAL APLICADA AO VIOLAO
+- Campo harmonico: acordes nativos da tonalidade para acompanhamento e composicao
+- CAGED system: padroes de acorde em 5 posicoes no braco
+- Dedilhado e batida: a mesma harmonia pode ser executada com dedos (p-i-m-a/arpejo) ou com levada ritmica — a tecnica segue o pedido do professor
+- Pentatonica: escala de 5 notas para frases e solos de violao
+- Cifra e tablatura: leitura aplicada ao braco`,
+
+  guitarra: `## TEORIA MUSICAL APLICADA A GUITARRA
+- Pentatonica (maior/menor) e modos aplicados a riffs e solos com palhetada alternada
+- CAGED system: padroes de escala/acorde nas 5 posicoes para improvisacao
+- Power chords e campos harmonicos simplificados (tonica + quinta)
+- Intervalos e bends: distancia correta (meio tom/tom) verificada por ouvido
+- Ritmo aplicado a palhetada: subdivisoes, sincope e palm mute no groove`,
+
+  cordas_dedilhadas: `## TEORIA MUSICAL APLICADA A CORDAS DEDILHADAS (GERAL)
 - Campo harmonico: acordes nativos da tonalidade para composicao e improvisacao
 - CAGED system: padroes de acorde em 5 posicoes no braco
 - Pentatonica: escala de 5 notas mais usada na improvisacao

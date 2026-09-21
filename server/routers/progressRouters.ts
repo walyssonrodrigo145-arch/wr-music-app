@@ -580,7 +580,7 @@ export const progressRouters = {
 
       // PRD 02 §28/§33 — Prompt gerenciado (versionado) da escola sobrescreve o bloco do especialista
       try {
-        const [managedPrompt] = await db
+        let [managedPrompt] = await db
           .select()
           .from(aiPrompts)
           .where(
@@ -594,6 +594,23 @@ export const progressRouters = {
             )
           )
           .limit(1);
+        // Compat: prompts antigos criados como "cordas_dedilhadas" continuam
+        // valendo para violão/guitarra quando não há prompt específico novo.
+        if (!managedPrompt && !customSpecialistRow && (specialist.id === "violao" || specialist.id === "guitarra")) {
+          const [legacyPrompt] = await db
+            .select()
+            .from(aiPrompts)
+            .where(
+              and(
+                eq(aiPrompts.organizationId, orgId),
+                eq(aiPrompts.active, true),
+                eq(aiPrompts.type, "especialista"),
+                eq(aiPrompts.specialistKey, "cordas_dedilhadas")
+              )
+            )
+            .limit(1);
+          if (legacyPrompt) managedPrompt = legacyPrompt;
+        }
         if (managedPrompt) {
           const settingsForVars = await getSettingsByUserId(orgId, ctx.user.id);
           specialistPromptBlock = renderPromptVariables(
@@ -766,7 +783,7 @@ ${mem.pedagogicalDirectives ? `- Diretriz pedagógica: ${mem.pedagogicalDirectiv
 - ESTILO: Dinâmico, enérgico, focado em levadas rítmicas reais e treinos de velocidade e resistência.
 - Formato: Foco em grooves e padrões rítmicos.
 - Pontos da Prática Principal:
-  * Ponto 1: Levada rítmica aplicada (Pop 4/4, Balada 6/8, Dedilhado ou Batida) sobre a meta.
+  * Ponto 1: Levada/padrão rítmico aplicado ao tema (ex.: levada Pop 4/4, balada 6/8 ou padrão de palhetada — conforme o instrumento).
   * Ponto 2: Treino de troca com aceleração gradual de BPM (ex: começar a 50 BPM, subir para 70 BPM e finalizar a 85 BPM).
   * Ponto 3: Independência e dinâmica (ex: baixo sustentado na esquerda + levada rítmica na direita).
 - Desafio: Tocar a sequência em loop por múltiplos compassos sem interrupções.`;
@@ -809,7 +826,9 @@ ${mem.pedagogicalDirectives ? `- Diretriz pedagógica: ${mem.pedagogicalDirectiv
 ### REGRAS DE TÉCNICA POR INSTRUMENTO:
 - **Teclado:** voicings na mão direita (ex: Dm7=D-F-A-C), baixo na mão esquerda. NUNCA confundir "voz/voicing" com canto.
 - **Piano:** técnica pianística (Hanon/Czerny, passagem do polegar, pedais). NUNCA layer/split eletrônico.
-- **Violão/Guitarra:** especificar cordas, casas, dedos (1-Indicador, 2-Médio, 3-Anelar, 4-Mínimo) e levada.
+- **Violão:** dedilhado (p-i-m-a) OU batida/levada rítmica (a técnica pedida manda); acordes, pestana, cifra. NUNCA forçar dedilhado em tudo.
+- **Guitarra:** palhetada alternada, palm mute, bends, legato, tapping, power chords. Dedilhado só se o professor pedir. NUNCA 'batida de violão'.
+- **Cordas dedilhadas (geral):** especificar cordas, casas, dedos (1-Indicador, 2-Médio, 3-Anelar, 4-Mínimo) e levada.
 - **Contrabaixo:** T=polegar (slap), P=pop, i-m=alternância. Nunca rudimentos de bateria.
 - **Bateria:** APENAS ritmo (bumbo, caixa, chimbal, rudimentos). NUNCA notas harmônicas, acordes ou escalas.
 - **Canto:** respiração diafragmática, vocalises, tessitura. NUNCA termos de instrumentos físicos.
