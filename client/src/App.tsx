@@ -26,6 +26,9 @@ const RankingsPage = lazy(() => import("./pages/Rankings"));
 const LandingPage = lazy(() => import("./pages/LandingPage"));
 const Checkout = lazy(() => import("./pages/Checkout"));
 const Cadastro = lazy(() => import("./pages/Cadastro"));
+const PublicReferralPage = lazy(() => import("./pages/indicacao/PublicReferralPage"));
+const ReferralProgram = lazy(() => import("./pages/indicacao/ReferralProgram"));
+const ReferralAdmin = lazy(() => import("./pages/indicacao/ReferralAdmin"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const NovoAluno = lazy(() => import("./pages/NovoAluno"));
 const Comunicados = lazy(() => import("./pages/Comunicados"));
@@ -88,6 +91,17 @@ function Router() {
       <Suspense fallback={<PageLoader />}>
         <Switch>
           <Route path="/matricula/:code" component={PublicEnrollmentPage} />
+        </Switch>
+      </Suspense>
+    );
+  }
+
+  // Landing pública do Programa Indique & Ganhe — acessível logado ou deslogado
+  if (currentPath.startsWith("/indicacao/")) {
+    return (
+      <Suspense fallback={<PageLoader />}>
+        <Switch>
+          <Route path="/indicacao/:codigo" component={PublicReferralPage} />
         </Switch>
       </Suspense>
     );
@@ -244,6 +258,8 @@ function Router() {
           <Route path="/recepcao-qr" component={RecepcaoQRCode} />
           <Route path="/scanner" component={QRScanner} />
           <Route path="/master-panel" component={SuperAdmin} />
+          <Route path="/programa-indicacao" component={ReferralAdmin} />
+          <Route path="/indicacoes" component={ReferralProgram} />
           <Route path="/analytics" component={AnalyticsDashboard} />
           <Route path="/comercial" component={LeadsApp} />
           <Route path="/leads" component={LeadsApp} />

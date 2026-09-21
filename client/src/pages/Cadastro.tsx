@@ -1,11 +1,13 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
+import { useSearch } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Music, AlertCircle, ArrowRight, Loader2, Mail, CheckCircle2, Phone } from "lucide-react";
+import { Music, AlertCircle, ArrowRight, Loader2, Mail, CheckCircle2, Phone, Gift } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { clearReferralCode, readReferralCode, saveReferralCode } from "./indicacao/PublicReferralPage";
 
 export default function Cadastro() {
   const [errorMsg, setErrorMsg] = useState("");
@@ -21,8 +23,33 @@ export default function Cadastro() {
   const { data: plans } = trpc.publicData.getPlans.useQuery();
   const mainPlan = plans?.find(p => p.showOnLanding) || plans?.[0];
 
+  // ── Programa Indique & Ganhe: preserva o código vindo do link (?ref=) ──────
+  const search = useSearch();
+  const refFromUrl = (() => {
+    try {
+      return (new URLSearchParams(search).get("ref") || "").trim().toUpperCase();
+    } catch {
+      return "";
+    }
+  })();
+  const [referralCode, setReferralCode] = useState<string>(() => refFromUrl || readReferralCode() || "");
+
+  useEffect(() => {
+    if (refFromUrl) {
+      setReferralCode(refFromUrl);
+      saveReferralCode(refFromUrl);
+    }
+  }, [refFromUrl]);
+
+  const { data: referralInfo } = trpc.referral.getPublicInfo.useQuery(
+    { code: referralCode },
+    { enabled: referralCode.length >= 2, retry: false }
+  );
+  const referralValid = Boolean(referralInfo?.valid && referralInfo?.active);
+
   const registerMutation = trpc.auth.registerWithPlan.useMutation({
     onSuccess: () => {
+      clearReferralCode();
       setSuccessMsg("Conta criada com sucesso! Redirecionando...");
       setTimeout(() => {
         window.location.href = "/";
@@ -55,7 +82,8 @@ export default function Cadastro() {
       cpfCnpj: cpfCnpj.replace(/\D/g, ''),
       password,
       planType,
-      planId: mainPlan.id
+      planId: mainPlan.id,
+      referralCode: referralCode || undefined,
     });
   };
 
@@ -94,6 +122,24 @@ export default function Cadastro() {
           <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent pointer-events-none" />
 
           <form onSubmit={handleSubmit} className="space-y-6 relative z-10">
+            {referralValid && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="p-4 bg-violet-500/10 border border-violet-500/20 rounded-2xl flex items-start gap-3"
+              >
+                <Gift className="w-5 h-5 text-violet-400 shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm text-violet-200 font-bold">
+                    Você foi indicado por {referralInfo?.schoolName || "uma escola MusicPro"}!
+                  </p>
+                  <p className="text-xs text-violet-300/80 mt-0.5">
+                    Comece com {referralInfo?.trialDays} dias grátis · Código {referralCode}
+                  </p>
+                </div>
+              </motion.div>
+            )}
+
             {errorMsg && (
               <motion.div 
                 initial={{ opacity: 0, scale: 0.95 }}

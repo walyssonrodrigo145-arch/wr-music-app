@@ -38,6 +38,7 @@ export const PAGE_PERMISSIONS: PagePermissionDef[] = [
   { id: "/lembretes", label: "Lembretes", icon: "🔔", group: "AUTOMAÇÕES" },
   { id: "/solicitacoes", label: "Solicitações", icon: "📋", group: "OUTROS" },
   { id: "/progresso", label: "Progresso", icon: "🎯", group: "OUTROS" },
+  { id: "/indicacoes", label: "Indique & Ganhe", icon: "🎁", group: "OUTROS" },
   { id: "/recepcao-qr", label: "Recepção QR", icon: "📷", group: "OUTROS" },
   { id: "/tutoriais", label: "Tutoriais", icon: "🎓", group: "OUTROS" },
   { id: "/configuracoes", label: "Configurações", icon: "⚙️", group: "CONTA" },
@@ -48,7 +49,7 @@ export const PAGE_PERMISSION_IDS: string[] = PAGE_PERMISSIONS.map((p) => p.id);
 export const DEFAULT_PROFESSOR_PERMISSIONS: string[] = ["/dashboard", "/alunos", "/aulas"];
 
 // Rotas administrativas que NUNCA podem ser liberadas para professor.
-const ADMIN_ONLY_PATHS = ["/professores", "/novidades", "/master-panel", "/analytics", "/comercial", "/leads", "/marketing"];
+const ADMIN_ONLY_PATHS = ["/professores", "/novidades", "/master-panel", "/analytics", "/comercial", "/leads", "/marketing", "/programa-indicacao"];
 
 // Aliases legados e rotas alternativas → id canônico do catálogo.
 const PATH_ALIASES: Record<string, string> = {

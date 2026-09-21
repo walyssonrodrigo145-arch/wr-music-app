@@ -736,6 +736,18 @@ export const plataformaRouters = {
           }).where(eq(organizations.id, orgId));
         }
 
+        // ── 🎁 Indique & Ganhe: aplica o crédito ANTES do pagamento da fatura ──
+        // (não bloqueante: se falhar, o crédito continua disponível para a próxima)
+        try {
+          const { applyCreditsToNextInvoice } = await import("../services/ReferralEngine");
+          const applied = await applyCreditsToNextInvoice(db, orgId);
+          if (applied.appliedCents > 0) {
+            debugLog(`[Referral] Crédito aplicado no checkout da org ${orgId}: ${applied.appliedCents} centavos`);
+          }
+        } catch (referralErr) {
+          console.warn("[Referral] Falha não bloqueante ao aplicar crédito no checkout:", referralErr);
+        }
+
         const payments = await getAsaasSubscriptionPayments(subId);
         const pendingPayment = payments.find(p => p.status === 'PENDING' || p.status === 'OVERDUE');
         if (!pendingPayment) {
@@ -750,6 +762,14 @@ export const plataformaRouters = {
       const orgId = ctx.user.organizationId!;
       const [org] = await db.select().from(organizations).where(eq(organizations.id, orgId)).limit(1);
       if (!org || !org.asaasSubscriptionId) return null;
+
+      // ── 🎁 Indique & Ganhe: aplica o crédito antes de exibir a fatura ──
+      try {
+        const { applyCreditsToNextInvoice } = await import("../services/ReferralEngine");
+        await applyCreditsToNextInvoice(db, orgId);
+      } catch (referralErr) {
+        console.warn("[Referral] Falha não bloqueante ao aplicar crédito na fatura:", referralErr);
+      }
 
       const { getAsaasSubscriptionPayments } = await import('../utils/asaas');
       const payments = await getAsaasSubscriptionPayments(org.asaasSubscriptionId);

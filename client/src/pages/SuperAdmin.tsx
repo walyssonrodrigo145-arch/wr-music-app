@@ -6,7 +6,7 @@ import {
   ShieldAlert, Save, Trash2, AlertTriangle, RefreshCw, BarChart2,
   Upload, Image as ImageIcon, Link as LinkIcon, LogIn, UserCheck, Search,
   CheckCircle2, Eye, GraduationCap, ChevronUp, ChevronDown,
-  Copy, MessageCircle, LifeBuoy, DollarSign, Clock, XCircle,
+  Copy, MessageCircle, LifeBuoy, DollarSign, Clock, XCircle, Gift,
 } from "lucide-react";
 import { SupportTicketsAdmin } from "@/components/support/SupportTicketsAdmin";
 import { cn } from "@/lib/utils";
@@ -288,14 +288,24 @@ function SuperAdminPanel() {
           <h1 className="text-3xl font-black text-foreground tracking-tight">Painel Super Admin</h1>
           <p className="text-muted-foreground mt-1 text-sm font-medium">Controle total sobre Planos, Cupons e Visão Geral do Sistema.</p>
         </div>
-        <Button
-          variant="outline"
-          onClick={() => window.open("/analytics", "_blank")}
-          className="flex items-center gap-2 font-semibold text-sm bg-violet-600/10 text-violet-600 border-violet-500/30 hover:bg-violet-600 hover:text-white transition-all"
-        >
-          <BarChart2 size={16} />
-          MusicPro Analytics ↗
-        </Button>
+        <div className="flex items-center gap-2 flex-wrap justify-end">
+          <Button
+            variant="outline"
+            onClick={() => window.open("/analytics", "_blank")}
+            className="flex items-center gap-2 font-semibold text-sm bg-violet-600/10 text-violet-600 border-violet-500/30 hover:bg-violet-600 hover:text-white transition-all"
+          >
+            <BarChart2 size={16} />
+            MusicPro Analytics ↗
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => window.open("/programa-indicacao", "_blank")}
+            className="flex items-center gap-2 font-semibold text-sm bg-emerald-600/10 text-emerald-600 border-emerald-500/30 hover:bg-emerald-600 hover:text-white transition-all"
+          >
+            <Gift size={16} />
+            Indique & Ganhe ↗
+          </Button>
+        </div>
       </div>
 
       {/* Tabs */}

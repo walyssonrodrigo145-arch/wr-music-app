@@ -290,6 +290,25 @@ export async function createAsaasSubscription(params: {
   return res.json() as Promise<AsaasSubscription>;
 }
 
+/**
+ * Atualiza o valor de uma cobrança PENDENTE (usado para aplicar o desconto do
+ * Programa Indique & Ganhe antes do pagamento). O Asaas só permite editar
+ * cobranças ainda não pagas — falha é tratada pelo chamador.
+ */
+export async function updateAsaasPaymentValue(paymentId: string, value: number, apiKey?: string): Promise<AsaasCharge> {
+  const res = await asaasRequest(
+    "POST",
+    `${ENV.asaasBaseUrl}/payments/${paymentId}`,
+    { value: Number(value.toFixed(2)) },
+    apiKey
+  );
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`[Asaas] Erro ao atualizar cobrança: ${res.status} ${body}`);
+  }
+  return res.json() as Promise<AsaasCharge>;
+}
+
 export async function getAsaasSubscriptionPayments(subscriptionId: string, apiKey?: string): Promise<AsaasCharge[]> {
   const res = await asaasRequest(
     "GET",

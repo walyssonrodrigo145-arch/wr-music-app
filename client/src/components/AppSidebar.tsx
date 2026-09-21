@@ -39,6 +39,7 @@ import {
   Repeat,
   GraduationCap,
   MessageCircle,
+  Gift,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { isPageAllowed } from "@shared/permissions";
@@ -161,6 +162,7 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
       items: [
         { label: "Solicitações", href: "/solicitacoes", icon: Inbox, badge: (requestCount + extraRequestCount) > 0 ? requestCount + extraRequestCount : undefined },
         { label: "Progresso", href: "/progresso", icon: Activity },
+        { label: "Indique & Ganhe", href: "/indicacoes", icon: Gift },
         { label: "Recepção QR", href: "/recepcao-qr", icon: LayoutDashboard },
         { label: "Tutoriais", href: "/tutoriais", icon: GraduationCap },
         // Novidades: EXCLUSIVO do admin (professor não vê o item, o badge nem o modal)

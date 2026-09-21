@@ -456,11 +456,13 @@ export const authRouters = {
         const passwordHash = `${salt}:${derivedKey}`;
         const openId = crypto.randomUUID();
 
-        // Create default organization for new admin with 7-day trial
+        // Create default organization for new admin with configurable trial (padrão 7 dias)
         const baseSlug = input.name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || 'escola';
         const uniqueSlug = `${baseSlug}-${crypto.randomBytes(4).toString('hex')}`;
+        const { getTrialDays } = await import("../services/ReferralEngine");
+        const trialDays = await getTrialDays(db).catch(() => 7);
         const trialEndsAt = new Date();
-        trialEndsAt.setDate(trialEndsAt.getDate() + 7);
+        trialEndsAt.setDate(trialEndsAt.getDate() + trialDays);
         trialEndsAt.setHours(23, 59, 59, 999);
         const org = await db.insert(organizations).values({
           name: `${input.name}'s School`,
@@ -508,6 +510,8 @@ export const authRouters = {
         planType: z.enum(["MONTHLY", "YEARLY"]),
         planId: z.string(),
         cpfCnpj: z.string().optional(),
+        // Programa Indique & Ganhe: código de indicação (validado novamente no backend)
+        referralCode: z.string().max(20).optional(),
         address: z.object({
           zipCode: z.string().max(9).optional(),
           street: z.string().max(255).optional(),
@@ -547,8 +551,10 @@ export const authRouters = {
         const baseSlug = input.name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || 'escola';
         const uniqueSlug = `${baseSlug}-${crypto.randomBytes(4).toString('hex')}`;
 
-        // trialEndsAt mostra ao usuário quando o trial termina (7 dias)
-        const trialEndsAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+        // Dias grátis configuráveis pelo SuperAdmin (Programa Indique & Ganhe; padrão 7)
+        const { getTrialDays, attachReferralOnSignup } = await import("../services/ReferralEngine");
+        const trialDays = await getTrialDays(db).catch(() => 7);
+        const trialEndsAt = new Date(Date.now() + trialDays * 24 * 60 * 60 * 1000);
         trialEndsAt.setHours(23, 59, 59, 999);
 
         const [org] = await db.insert(organizations).values({
@@ -557,6 +563,8 @@ export const authRouters = {
           subscriptionStatus: "trialing",
           trialEndsAt: trialEndsAt,
           planId: input.planId,
+          // CNPJ/CPF do responsável — usado pelo antifraude do Indique & Ganhe
+          cnpj: input.cpfCnpj || null,
           zipCode: input.address?.zipCode || null,
           addressStreet: input.address?.street || null,
           addressNumber: input.address?.number || null,
@@ -615,6 +623,29 @@ export const authRouters = {
         } catch (error) {
           // NÃO bloqueia o cadastro: o cliente Asaas pode ser criado depois no /checkout.
           console.warn("[Signup] Falha ao criar cliente Asaas (não bloqueante):", error);
+        }
+
+        // ── Programa Indique & Ganhe: vincula a indicação (código revalidado no backend) ──
+        if (input.referralCode) {
+          try {
+            const forwarded = (ctx.req.headers["x-forwarded-for"] as string | undefined) || "";
+            const ipAddress = forwarded.split(",")[0]?.trim() || ctx.req.socket?.remoteAddress || null;
+            const userAgent = (ctx.req.headers["user-agent"] as string | undefined) || null;
+            const planValue = input.planType === "YEARLY" ? Number(planInfo.priceYearly) : Number(planInfo.priceMonthly);
+            await attachReferralOnSignup(db, {
+              code: input.referralCode,
+              referredOrgId: org.id,
+              referredAdminEmail: input.email,
+              cpfCnpj: input.cpfCnpj,
+              phone: input.phone,
+              planValueCents: Math.round((Number.isFinite(planValue) ? planValue : 0) * 100),
+              ipAddress,
+              userAgent,
+              trialEndsAt,
+            });
+          } catch (err) {
+            console.warn("[Signup] Falha não bloqueante ao vincular indicação:", err);
+          }
         }
 
         // Criar sessão para login automático (org está pending, mas usuário pode acessar)

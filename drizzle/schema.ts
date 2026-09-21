@@ -2630,3 +2630,124 @@ export const systemTutorials = pgTable("system_tutorials", {
 export type SystemTutorial = typeof systemTutorials.$inferSelect;
 export type InsertSystemTutorial = typeof systemTutorials.$inferInsert;
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// PROGRAMA INDIQUE & GANHE — indicação de escolas (config exclusiva do SUPERADMIN)
+// Regra vigente (campanha): recompensa PROGRESSIVA por ciclo de 3 conversões
+// (1ª = 30% OFF, 2ª = 60% OFF, 3ª = mensalidade grátis), reiniciando o ciclo.
+// Toda validação crítica ocorre no backend; o frontend só exibe.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export const referralConfig = pgTable("referral_config", {
+  id: integer("id").primaryKey().default(1), // linha única
+  active: boolean("active").default(true).notNull(),
+  trialDays: integer("trialDays").default(7).notNull(),
+  // PROGRESSIVO (campanha atual) | FIXO | PERCENTUAL (expansão futura)
+  rewardMode: varchar("rewardMode", { length: 20 }).default("PROGRESSIVO").notNull(),
+  cycleSize: integer("cycleSize").default(3).notNull(),
+  rewardPercent1: integer("rewardPercent1").default(30).notNull(),
+  rewardPercent2: integer("rewardPercent2").default(60).notNull(),
+  rewardPercent3: integer("rewardPercent3").default(100).notNull(),
+  fixedValueCents: integer("fixedValueCents").default(0).notNull(),
+  percentValue: integer("percentValue").default(0).notNull(),
+  maxDiscountPercent: integer("maxDiscountPercent").default(100).notNull(),
+  allowAccumulation: boolean("allowAccumulation").default(true).notNull(),
+  rewardValidityDays: integer("rewardValidityDays").default(90).notNull(), // 0 = sem validade
+  minActiveDays: integer("minActiveDays").default(0).notNull(),
+  blockSelfReferral: boolean("blockSelfReferral").default(true).notNull(),
+  pageHeadline: varchar("pageHeadline", { length: 255 }).default("Sua escola foi indicada!").notNull(),
+  pageSubtitle: text("pageSubtitle"),
+  updatedByUserId: integer("updatedByUserId"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
+});
+
+export const referralCodes = pgTable("referral_codes", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organizationId").notNull().unique(),
+  code: varchar("code", { length: 20 }).notNull().unique(),
+  active: boolean("active").default(true).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (table) => [
+  index("referral_codes_code_idx").on(table.code),
+]);
+
+// Status: PENDENTE | TESTE | CONVERTIDA | RECOMPENSA_LIBERADA | RECOMPENSA_UTILIZADA | CANCELADA | EXPIRADA | FRAUDE
+export const referrals = pgTable("referrals", {
+  id: serial("id").primaryKey(),
+  code: varchar("code", { length: 20 }).notNull(),
+  referrerOrgId: integer("referrerOrgId").notNull(),
+  referredOrgId: integer("referredOrgId").notNull().unique(), // uma escola = um indicador
+  status: varchar("status", { length: 30 }).default("PENDENTE").notNull(),
+  cyclePosition: integer("cyclePosition").default(0).notNull(), // 1..cycleSize na conversão
+  rewardPercent: integer("rewardPercent").default(0).notNull(),
+  planValueCents: integer("planValueCents").default(0).notNull(), // snapshot do valor no cadastro
+  indicatedAt: timestamp("indicatedAt").defaultNow().notNull(),
+  signupAt: timestamp("signupAt"),
+  trialStartAt: timestamp("trialStartAt"),
+  trialEndAt: timestamp("trialEndAt"),
+  convertedAt: timestamp("convertedAt"),
+  canceledAt: timestamp("canceledAt"),
+  fraudReason: text("fraudReason"),
+  ipAddress: varchar("ipAddress", { length: 64 }),
+  userAgent: varchar("userAgent", { length: 500 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
+}, (table) => [
+  index("referrals_referrer_idx").on(table.referrerOrgId),
+  index("referrals_referred_idx").on(table.referredOrgId),
+  index("referrals_status_idx").on(table.status),
+  index("referrals_code_idx").on(table.code),
+]);
+
+// Status: DISPONIVEL | PARCIALMENTE_UTILIZADA | UTILIZADA | EXPIRADA | CANCELADA
+export const referralRewards = pgTable("referral_rewards", {
+  id: serial("id").primaryKey(),
+  referralId: integer("referralId").notNull(),
+  organizationId: integer("organizationId").notNull(), // escola indicadora (recebe)
+  type: varchar("type", { length: 20 }).default("PERCENTUAL").notNull(),
+  percent: integer("percent").default(0).notNull(),
+  fixedValueCents: integer("fixedValueCents").default(0).notNull(),
+  appliedValueCents: integer("appliedValueCents").default(0).notNull(),
+  status: varchar("status", { length: 30 }).default("DISPONIVEL").notNull(),
+  releasedAt: timestamp("releasedAt").defaultNow().notNull(),
+  expiresAt: timestamp("expiresAt"),
+  usedAt: timestamp("usedAt"),
+  canceledAt: timestamp("canceledAt"),
+  cancelReason: text("cancelReason"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
+}, (table) => [
+  index("referral_rewards_org_status_idx").on(table.organizationId, table.status),
+  index("referral_rewards_referral_idx").on(table.referralId),
+]);
+
+// Tipos: INDICACAO_CRIADA | INDICACAO_CADASTRO_REALIZADO | INDICACAO_TESTE_INICIADO |
+// INDICACAO_CONVERTIDA | RECOMPENSA_LIBERADA | RECOMPENSA_UTILIZADA |
+// RECOMPENSA_EXPIRADA | RECOMPENSA_CANCELADA | INDICACAO_MARCADA_FRAUDE |
+// INDICACAO_BLOQUEADA | CONFIG_ALTERADA
+export const referralEvents = pgTable("referral_events", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organizationId"),
+  referralId: integer("referralId"),
+  rewardId: integer("rewardId"),
+  type: varchar("type", { length: 40 }).notNull(),
+  message: text("message"),
+  meta: text("meta"),
+  actorUserId: integer("actorUserId"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (table) => [
+  index("referral_events_referral_idx").on(table.referralId),
+  index("referral_events_org_idx").on(table.organizationId, table.createdAt),
+]);
+
+export type ReferralConfigRow = typeof referralConfig.$inferSelect;
+export type InsertReferralConfig = typeof referralConfig.$inferInsert;
+export type ReferralCodeRow = typeof referralCodes.$inferSelect;
+export type InsertReferralCode = typeof referralCodes.$inferInsert;
+export type ReferralRow = typeof referrals.$inferSelect;
+export type InsertReferral = typeof referrals.$inferInsert;
+export type ReferralRewardRow = typeof referralRewards.$inferSelect;
+export type InsertReferralReward = typeof referralRewards.$inferInsert;
+export type ReferralEventRow = typeof referralEvents.$inferSelect;
+export type InsertReferralEvent = typeof referralEvents.$inferInsert;
+

@@ -36,6 +36,7 @@ import { teacherPaymentRulesRouters } from "./teacherPaymentRulesRouters";
 import { avaliacoesRouter } from "./avaliacoesRouters";
 import { supportRouter } from "../supportRouter";
 import { releasesRouter } from "../releasesRouter";
+import { referralRouter } from "../referralRouter";
 
 export const appRouter = router({
   superAdmin: superAdminRouter,
@@ -76,6 +77,8 @@ export const appRouter = router({
   ...teacherPaymentRulesRouters,
   // ── ⭐ Avaliações de Professores (novas chaves no fim — não reordenar as existentes) ──
   avaliacoes: avaliacoesRouter,
+  // ── 🎁 Programa Indique & Ganhe (novas chaves no fim — não reordenar as existentes) ──
+  referral: referralRouter,
 });
 
 export type AppRouter = typeof appRouter;

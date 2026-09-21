@@ -825,6 +825,18 @@ async function startServer() {
           })
           .where(eq(organizations.id, targetOrg.id));
         debugLog(`[Asaas Platform Webhook] Assinatura ATIVADA para customer ${payment.customer} | próximo vencimento: ${nextPeriodEnd.toISOString().slice(0,10)}`);
+
+        // ── 🎁 Indique & Ganhe: converte a indicação SÓ com pagamento confirmado ──
+        // Idempotente: se a indicação já foi convertida, não gera recompensa de novo.
+        try {
+          const { onSubscriptionPaid } = await import("../services/ReferralEngine");
+          const conversion = await onSubscriptionPaid(db, targetOrg.id);
+          if (conversion.converted) {
+            debugLog(`[Referral] Indicação convertida para org ${targetOrg.id} — recompensa ${conversion.rewardId}`);
+          }
+        } catch (referralErr) {
+          console.warn("[Referral] Falha não bloqueante na conversão da indicação:", referralErr);
+        }
       } else if (event === "PAYMENT_OVERDUE") {
         await db
           .update(organizations)
@@ -842,6 +854,14 @@ async function startServer() {
           })
           .where(eq(organizations.id, targetOrg.id));
         debugLog(`[Asaas Platform Webhook] Assinatura CANCELADA para customer ${payment.customer}`);
+
+        // ── 🎁 Indique & Ganhe: cancela recompensa ainda não utilizada ──
+        try {
+          const { onSubscriptionCanceled } = await import("../services/ReferralEngine");
+          await onSubscriptionCanceled(db, targetOrg.id, event);
+        } catch (referralErr) {
+          console.warn("[Referral] Falha não bloqueante ao cancelar indicação:", referralErr);
+        }
       } else {
         // FIX-7: Log de eventos não mapeados para facilitar diagnóstico futuro
         console.warn(`[Asaas Platform Webhook] Evento não tratado recebido: "${event}" para customer ${payment.customer}`);
