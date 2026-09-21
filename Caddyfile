@@ -8,7 +8,15 @@ escola.wrmusicpro.com.br {
 }
 
 analytics.wrmusicpro.com.br {
-    reverse_proxy app:3000
+    # Ingestão roda no serviço independente (analytics-compose.yml).
+    # Se o serviço estiver fora, o tracker faz fallback para o tRPC legado do app.
+    handle /ingest/* {
+        reverse_proxy analytics:3002
+    }
+    # Dashboard do Analytics continua no MusicPro.
+    handle {
+        reverse_proxy app:3000
+    }
 }
 
 leads.wrmusicpro.com.br {

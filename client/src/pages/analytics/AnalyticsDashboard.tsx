@@ -296,6 +296,16 @@ function OverviewTab({ preset }: { preset: Preset }) {
 // ── Aba: Tempo Real ───────────────────────────────────────────────────────────
 function RealtimeTab() {
   const { data, refetch } = trpc.analytics.query.getOnlineUsers.useQuery(undefined, { refetchInterval: 10_000 });
+  const [range, setRange] = useState<"5m" | "30m" | "2h">("30m");
+  const { data: series, isError: seriesError } = trpc.analytics.query.getRealtimeSeries.useQuery(
+    { window: range },
+    { refetchInterval: 5_000, retry: false }
+  );
+
+  const points = series?.points ?? [];
+  const peak = series?.peak ?? null;
+  const fmtTime = (ts: string) => new Date(ts).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  const rangeLabel = range === "5m" ? "5 minutos" : range === "30m" ? "30 minutos" : "2 horas";
 
   const deviceIcon = (device: string | null) => {
     if (device === "mobile") return <Smartphone size={14} />;
@@ -314,6 +324,98 @@ function RealtimeTab() {
         <button onClick={() => refetch()} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
           <RefreshCw size={14} /> Atualizar
         </button>
+      </div>
+
+      {/* Gráfico de acessos em tempo real (sobe/desce conforme os picos) */}
+      <div className="rounded-2xl border border-border bg-card/60 backdrop-blur-md p-4 sm:p-5">
+        <div className="flex items-start justify-between gap-3 flex-wrap mb-4">
+          <div>
+            <p className="font-outfit text-sm font-bold flex items-center gap-2">
+              <Activity size={15} className="text-primary" /> Acessos em tempo real
+            </p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Picos e quedas nos últimos {rangeLabel}
+              {series?.source === "events" && " — coletando snapshots (exibindo histórico por minuto)"}
+              {series?.source === "unavailable" && " — fonte indisponível"}
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            {seriesError && (
+              <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                <WifiOff size={12} /> reconectando…
+              </span>
+            )}
+            <div className="flex p-1 bg-muted/40 rounded-xl border border-border/60">
+              {(["5m", "30m", "2h"] as const).map((r) => (
+                <button
+                  key={r}
+                  onClick={() => setRange(r)}
+                  className={cn(
+                    "px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition-colors",
+                    range === r ? "bg-primary text-white shadow" : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {r}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {peak && (
+          <div className="flex items-center gap-2 mb-3 flex-wrap">
+            <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-lg bg-violet-500/10 text-violet-600 dark:text-violet-400">
+              <TrendingUp size={11} /> Pico: {peak.pageViews} acessos às {fmtTime(peak.ts)}
+            </span>
+            <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+              <Users size={11} /> {peak.online} online no pico
+            </span>
+          </div>
+        )}
+
+        {points.length === 0 ? (
+          <div className="h-[220px] flex flex-col items-center justify-center gap-2 text-muted-foreground border border-dashed border-border/60 rounded-xl">
+            <Activity size={28} className="opacity-20" />
+            <p className="text-xs">Aguardando acessos… o gráfico começa a subir em instantes.</p>
+          </div>
+        ) : (
+          <div className="h-[240px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={points} margin={{ top: 6, right: 8, left: -18, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="rtViews" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#6366f1" stopOpacity={0.45} />
+                    <stop offset="95%" stopColor="#6366f1" stopOpacity={0.02} />
+                  </linearGradient>
+                  <linearGradient id="rtOnline" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.35} />
+                    <stop offset="95%" stopColor="#10b981" stopOpacity={0.02} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.15)" vertical={false} />
+                <XAxis dataKey="ts" tickFormatter={fmtTime} tick={{ fontSize: 10 }} stroke="rgba(148,163,184,0.5)" minTickGap={44} />
+                <YAxis allowDecimals={false} tick={{ fontSize: 10 }} stroke="rgba(148,163,184,0.5)" width={34} />
+                <Tooltip
+                  contentStyle={{ background: "rgba(15,23,42,0.95)", border: "1px solid rgba(148,163,184,0.2)", borderRadius: 12, fontSize: 12, color: "#e2e8f0" }}
+                  labelFormatter={(l) => fmtTime(String(l))}
+                  formatter={(value: any, name: any) => [
+                    value,
+                    name === "pageViews" ? "Acessos" : name === "online" ? "Online" : name === "sessions" ? "Sessões" : String(name),
+                  ]}
+                />
+                <Area type="monotone" dataKey="pageViews" stroke="#6366f1" strokeWidth={2} fill="url(#rtViews)" name="pageViews" />
+                <Area type="monotone" dataKey="online" stroke="#10b981" strokeWidth={2} fill="url(#rtOnline)" name="online" />
+                <Area type="monotone" dataKey="sessions" stroke="#f59e0b" strokeWidth={2} fillOpacity={0} name="sessions" />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+
+        <div className="flex items-center gap-4 mt-3 text-[10px] font-bold text-muted-foreground uppercase tracking-wider flex-wrap">
+          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-[#6366f1]" /> Acessos (page views)</span>
+          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-[#10b981]" /> Online</span>
+          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-[#f59e0b]" /> Novas sessões</span>
+        </div>
       </div>
 
       <div className="rounded-2xl border border-border bg-card/60 backdrop-blur-md overflow-hidden">

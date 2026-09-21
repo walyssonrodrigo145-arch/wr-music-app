@@ -23,6 +23,7 @@ import {
   analyticsPages,
   analyticsAiInsights,
   analyticsSecurityLogs,
+  analyticsRealtimeSnapshots,
   paymentDues,
   users,
   organizations,
@@ -38,21 +39,29 @@ import {
 } from "./services/AnalyticsQueue";
 import { getAsaasNextMonthRevenue } from "./utils/asaas";
 import { resolveGeoFromIp } from "./utils/geoIp";
+import { buildRealtimeSeries } from "./services/AnalyticsRealtime";
 import { eq, sql, desc, asc, gte, lte, and, count, sum, avg, lt, or, isNotNull, isNull, ne, notInArray } from "drizzle-orm";
 import { ENV } from "./_core/env";
 
 // ── Middleware Super Admin ────────────────────────────────────────────────────
 import { protectedProcedure } from "./_core/trpc";
 
+// SEGURANÇA (CA-007): acesso restrito vem de ENV (SUPER_ADMIN_EMAIL/EMAILS) ou
+// OWNER_OPEN_ID. O fallback abaixo só vale quando NENHUM admin está configurado
+// no ambiente (dev/local), para não travar o acesso por má configuração.
+const LEGACY_FALLBACK_ADMINS = ["walyssonrodrigo145@gmail.com", "ddwvitor@gmail.com"];
+
 const isSuperAdmin = protectedProcedure.use(async ({ ctx, next }) => {
-  const superAdminEmail = ENV.superAdminEmail?.toLowerCase() || "walyssonrodrigo145@gmail.com";
   const userEmail = ctx.user.email?.toLowerCase();
+  let configuredAdmins = ENV.superAdminEmails;
+  if (configuredAdmins.length === 0 && ENV.superAdminEmail) configuredAdmins = [ENV.superAdminEmail];
+  if (configuredAdmins.length === 0) {
+    configuredAdmins = LEGACY_FALLBACK_ADMINS;
+    console.warn("[Analytics] SUPER_ADMIN_EMAIL(S) não configurado — usando fallback legado de super admin.");
+  }
 
   const isMaster =
-    ENV.superAdminEmails.includes(userEmail || "") ||
-    userEmail === superAdminEmail ||
-    userEmail === "walyssonrodrigo145@gmail.com" ||
-    userEmail === "ddwvitor@gmail.com" ||
+    configuredAdmins.includes(userEmail || "") ||
     (ENV.ownerOpenId && ctx.user.openId === ENV.ownerOpenId);
 
   if (!isMaster) {
@@ -1366,6 +1375,72 @@ const analyticsQueryRouter = router({
       .orderBy(desc(analyticsOnline.lastPingAt))
       .limit(200);
   }),
+
+  // ── Série de acessos em tempo real (gráfico sobe/desce) ───────────────────
+  // Fonte principal: snapshots gravados pelo serviço independente de Analytics.
+  // Fallback (antes dos snapshots existirem): agrega page_views por minuto.
+  getRealtimeSeries: isSuperAdmin
+    .input(z.object({ window: z.enum(["5m", "30m", "2h"]).default("30m") }))
+    .query(async ({ input }) => {
+      const windowMs = input.window === "5m" ? 5 * 60_000 : input.window === "30m" ? 30 * 60_000 : 2 * 60 * 60_000;
+      const since = new Date(Date.now() - windowMs);
+      const empty = { points: [] as any[], peak: null as any, onlineNow: 0 };
+
+      const db = await getDb();
+      if (!db) return { ...empty, source: "unavailable" as const, window: input.window };
+
+      try {
+        const snapshots = await db
+          .select({
+            capturedAt: analyticsRealtimeSnapshots.capturedAt,
+            onlineCount: analyticsRealtimeSnapshots.onlineCount,
+            pageViews: analyticsRealtimeSnapshots.pageViews,
+            sessionsStarted: analyticsRealtimeSnapshots.sessionsStarted,
+            eventsCount: analyticsRealtimeSnapshots.eventsCount,
+          })
+          .from(analyticsRealtimeSnapshots)
+          .where(gte(analyticsRealtimeSnapshots.capturedAt, since))
+          .orderBy(asc(analyticsRealtimeSnapshots.capturedAt))
+          .limit(2000);
+
+        let source: "snapshots" | "events" = "snapshots";
+        let series = buildRealtimeSeries(snapshots, { windowMs, bucketMs: 30_000 });
+
+        if (snapshots.length === 0) {
+          const perMinute = await db
+            .select({
+              minute: sql<string>`to_char(date_trunc('minute', ${analyticsEvents.createdAt}), 'YYYY-MM-DD"T"HH24:MI:00Z')`,
+              views: sql<number>`COUNT(*)::int`,
+            })
+            .from(analyticsEvents)
+            .where(and(eq(analyticsEvents.eventName, "page_view"), gte(analyticsEvents.createdAt, since)))
+            .groupBy(sql`1`)
+            .orderBy(sql`1`);
+
+          source = "events";
+          series = buildRealtimeSeries(
+            perMinute.map((r) => ({
+              capturedAt: r.minute,
+              onlineCount: 0,
+              pageViews: r.views,
+              sessionsStarted: 0,
+              eventsCount: 0,
+            })),
+            { windowMs, bucketMs: 60_000 }
+          );
+        }
+
+        const [online] = await db
+          .select({ c: sql<number>`COUNT(*)::int` })
+          .from(analyticsOnline)
+          .where(sql`${analyticsOnline.lastPingAt} > NOW() - INTERVAL '2 minutes'`);
+
+        return { ...series, onlineNow: Number(online?.c || 0), source, window: input.window };
+      } catch (e) {
+        console.error("[analytics] getRealtimeSeries falhou:", e);
+        return { ...empty, source: "unavailable" as const, window: input.window };
+      }
+    }),
 
   // Marcar insight como lido
   markInsightRead: isSuperAdmin

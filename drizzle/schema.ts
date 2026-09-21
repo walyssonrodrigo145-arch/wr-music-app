@@ -1303,6 +1303,7 @@ export const analyticsEvents = pgTable("analytics_events", {
   sessionId: varchar("session_id", { length: 64 }).notNull(),
   visitorId: varchar("visitor_id", { length: 64 }).notNull(),
   userId: integer("user_id"),
+  organizationId: integer("organization_id"), // drift corrigido: coluna existia no banco desde db.ts
 
   // Evento
   eventName: analyticsEventNameEnum("event_name").notNull(),
@@ -1405,6 +1406,18 @@ export const analyticsOnline = pgTable("analytics_online", {
 }, (table) => [
   index("analytics_online_last_ping_idx").on(table.lastPingAt),
   index("analytics_online_visitor_id_idx").on(table.visitorId),
+]);
+
+// ── Snapshots de tempo real (gravados pelo serviço independente de Analytics) ─
+export const analyticsRealtimeSnapshots = pgTable("analytics_realtime_snapshots", {
+  id: serial("id").primaryKey(),
+  capturedAt: timestamp("captured_at").defaultNow().notNull(),
+  onlineCount: integer("online_count").default(0).notNull(),
+  pageViews: integer("page_views").default(0).notNull(),
+  sessionsStarted: integer("sessions_started").default(0).notNull(),
+  eventsCount: integer("events_count").default(0).notNull(),
+}, (table) => [
+  index("analytics_realtime_snapshots_captured_idx").on(table.capturedAt),
 ]);
 
 // ── Estatísticas agregadas por página ─────────────────────────────────────────

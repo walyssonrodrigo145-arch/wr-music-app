@@ -1,0 +1,17 @@
+{
+  "name": "musicpro-analytics",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "MusicPro Analytics — coletor independente (ingestão, snapshots e retenção).",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "postgres": "^3.4.4"
+  }
+}

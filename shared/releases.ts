@@ -26,6 +26,18 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: "2026.09.19.4",
+    date: "2026-09-19",
+    title: "Analytics em tempo real e serviço independente",
+    summary: "Novo gráfico de acessos subindo e descendo em tempo real — e a coleta de Analytics agora roda separada do MusicPro, sem cair nos deploys do sistema.",
+    items: [
+      { type: "novo", title: "Gráfico de acessos em tempo real", description: "Na aba Tempo Real, uma linha mostra os acessos (page views), usuários online e novas sessões nos últimos 5/30 min ou 2h, com destaque do pico. Atualiza sozinho a cada 5 segundos." },
+      { type: "melhoria", title: "Coleta separada do MusicPro", description: "O serviço de Analytics roda em container próprio: reiniciar/publicar o MusicPro não interrompe mais a coleta, e alterar o Analytics não reinicia o sistema." },
+      { type: "melhoria", title: "Dados antigos com limpeza automática", description: "Eventos, heatmap e logs de segurança passam a ter retenção automática (90/30/180 dias) com resumo diário por página — o banco não cresce sem controle." },
+      { type: "correcao", title: "Segurança do painel", description: "Acesso ao dashboard restrito pelos e-mails de super admin configurados no ambiente (sem e-mails fixos no código)." },
+    ],
+  },
+  {
     version: "2026.09.19.3",
     date: "2026-09-19",
     title: "IA agora separa Violão e Guitarra",

@@ -1,0 +1,32 @@
+# ─── MusicPro Analytics (serviço independente) ───────────────────────────────
+# Projeto compose SEPARADO do MusicPro:
+#   docker compose -f analytics-compose.yml up -d --build
+#
+# - Não é derrubado por rebuild/restart do MusicPro.
+# - Alterar o analytics não reinicia o MusicPro.
+# - Usa o MESMO Postgres do MusicPro (rede externa), conforme decisão do PRD.
+#
+# Pré-requisito: .env.analytics com DATABASE_URL apontando para o Postgres do
+# MusicPro (criado automaticamente pelo vps-script/deploy_analytics.js).
+services:
+  analytics:
+    build: ./analytics-service
+    restart: unless-stopped
+    env_file:
+      - .env.analytics
+    environment:
+      PORT: 3002
+    networks:
+      main-network:
+        aliases:
+          - analytics
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3002/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+networks:
+  main-network:
+    name: wr-music-app_default
+    external: true

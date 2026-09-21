@@ -49,6 +49,42 @@ function callTrpc(procedure: string, input: unknown): Promise<unknown> {
   }).catch(() => null);
 }
 
+// ── Ingestão no serviço independente de Analytics ─────────────────────────────
+// Em produção o Caddy roteia /ingest/* para o container `analytics`
+// (analytics-compose.yml). Sem env (dev/local), usa o tRPC legado do app.
+const INGEST_BASE = (
+  (import.meta.env.VITE_ANALYTICS_INGEST_URL as string | undefined) ||
+  (typeof location !== "undefined" && /(^|\.)wrmusicpro\.com\.br$/.test(location.hostname)
+    ? "https://analytics.wrmusicpro.com.br"
+    : "")
+).replace(/\/+$/, "");
+
+function postIngest(path: string, payload: unknown): Promise<unknown> {
+  return fetch(`${INGEST_BASE}${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+    keepalive: true,
+  }).then((res) => {
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json().catch(() => null);
+  });
+}
+
+/**
+ * Envia para o serviço independente; se estiver fora (rollout/queda),
+ * faz fallback no tRPC legado do próprio MusicPro — sem perder dados.
+ */
+function sendAnalytics(ingestPath: string, trpcProcedure: string, payload: unknown): void {
+  if (!INGEST_BASE) {
+    callTrpc(trpcProcedure, payload);
+    return;
+  }
+  postIngest(ingestPath, payload).catch(() => {
+    callTrpc(trpcProcedure, payload);
+  });
+}
+
 // ── Estado da sessão ──────────────────────────────────────────────────────────
 const VISITOR_KEY = "mp_visitor_id";
 const SESSION_KEY = "mp_session_id";
@@ -171,7 +207,7 @@ function buildBaseEvent() {
 function flushEventBuffer() {
   if (eventBuffer.length === 0) return;
   const events = eventBuffer.splice(0, 50);
-  callTrpc("analytics.event.trackBatch", { events }).catch(() => {});
+  sendAnalytics("/ingest/events", "analytics.event.trackBatch", { events });
 }
 
 function queueEvent(event: unknown) {
@@ -262,11 +298,11 @@ export function flushHeatmap() {
   if (heatmapBuffer.length === 0) return;
   const points = heatmapBuffer.splice(0, 100);
   const currentPath = typeof window !== "undefined" ? window.location.pathname : "/";
-  callTrpc("analytics.event.heatmap", {
+  sendAnalytics("/ingest/heatmap", "analytics.event.heatmap", {
     sessionId,
     pageUrl: currentPath,
     points,
-  }).catch(() => {});
+  });
 }
 
 function scheduleFlush() {
@@ -348,7 +384,7 @@ function startHeartbeat() {
   const sendPing = () => {
     const { device, os, browser } = detectDevice();
     const utms = getUTMParams();
-    callTrpc("analytics.event.heartbeat", {
+    sendAnalytics("/ingest/heartbeat", "analytics.event.heartbeat", {
       sessionId,
       visitorId,
       userId: currentUserId,
@@ -361,7 +397,7 @@ function startHeartbeat() {
       screenRes: getScreenRes(),
       utmSource: utms.utmSource,
       referrer: document.referrer || null,
-    }).catch(() => {});
+    });
   };
 
   sendPing();
@@ -381,7 +417,7 @@ export function initAnalytics() {
   const utms = getUTMParams();
 
   // Inicia a sessão no servidor
-  callTrpc("analytics.event.sessionStart", {
+  sendAnalytics("/ingest/session", "analytics.event.sessionStart", {
     visitor: { visitorId },
     session: {
       sessionId,
@@ -400,7 +436,7 @@ export function initAnalytics() {
       utmContent: utms.utmContent,
       utmTerm: utms.utmTerm,
     },
-  }).catch(() => {});
+  });
 
   setupScrollTracker();
   setupHeatmapTracker();
@@ -423,10 +459,19 @@ export function initAnalytics() {
     // o usuário saia da lista de "online" imediatamente.
     try {
       if (navigator.sendBeacon) {
-        navigator.sendBeacon(
-          "/api/trpc/analytics.event.trackBatch",
-          new Blob([JSON.stringify({ json: { events: [endEvent] } })], { type: "application/json" })
-        );
+        if (INGEST_BASE) {
+          // Cross-origin: usa text/plain (safelisted, sem preflight) — o serviço
+          // interpreta o corpo como JSON.
+          navigator.sendBeacon(
+            `${INGEST_BASE}/ingest/events`,
+            new Blob([JSON.stringify({ events: [endEvent] })], { type: "text/plain" })
+          );
+        } else {
+          navigator.sendBeacon(
+            "/api/trpc/analytics.event.trackBatch",
+            new Blob([JSON.stringify({ json: { events: [endEvent] } })], { type: "application/json" })
+          );
+        }
       }
     } catch (e) {
       // fallback: envia pela fila normal
