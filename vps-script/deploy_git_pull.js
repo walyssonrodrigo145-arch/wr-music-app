@@ -1,11 +1,16 @@
 const { Client } = require('ssh2');
 
+if (!process.env.VPS_PASSWORD) {
+  console.error('Defina VPS_PASSWORD no ambiente (ex.: carregue o .env) antes de rodar o deploy.');
+  process.exit(1);
+}
+
 const conn = new Client();
 const config = {
-  host: '179.197.76.174',
-  port: 22,
-  username: 'root',
-  password: 'REDACTED_AUDIT',
+  host: process.env.VPS_HOST || '179.197.76.174',
+  port: parseInt(process.env.VPS_PORT || '22', 10),
+  username: process.env.VPS_USER || 'root',
+  password: process.env.VPS_PASSWORD,
   readyTimeout: 30000
 };
 
