@@ -244,6 +244,19 @@ export function addDaysISO(dateISO: string, days: number): string {
   return date.toISOString().slice(0, 10);
 }
 
+/**
+ * Total de aulas planejadas na migração: soma das quantidades INDIVIDUAIS de
+ * cada aluno (fallback no padrão global), com clamp 1–104 por aluno.
+ */
+export function sumRequestedWeeks(items: Array<{ weeks?: number | null }>, defaultWeeks: number): number {
+  const fallback = Math.max(1, Math.min(104, Math.floor(Number(defaultWeeks) || 1)));
+  return items.reduce((acc, item) => {
+    const raw = item.weeks ?? fallback;
+    const weeks = Math.max(1, Math.min(104, Math.floor(Number(raw) || fallback)));
+    return acc + weeks;
+  }, 0);
+}
+
 /** Primeira data (a partir de startISO) que cai no dia da semana pedido. */
 export function firstWeekdayISO(startISO: string, weekday: number): string {
   const [y, m, d] = startISO.split("-").map(Number);
@@ -1564,6 +1577,8 @@ export const lessonsRouters = {
         title: z.string().max(255).optional(),
         instrumentId: z.number().nullable().optional(),
         studioRoomId: z.number().nullable().optional(),
+        // Quantidade INDIVIDUAL de semanas/aulas (fallback: `weeks` global)
+        weeks: z.number().int().min(1).max(104).optional(),
       })).min(1, "Selecione pelo menos um aluno").max(100, "Limite de 100 alunos por operação"),
       startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Data inicial inválida (AAAA-MM-DD)"),
       weeks: z.number().min(1).max(104, "Limite de 104 semanas por operação"),
@@ -1572,16 +1587,29 @@ export const lessonsRouters = {
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Banco de dados não disponível" });
       const orgId = ctx.user.organizationId!;
 
-      const totalLessons = input.items.length * input.weeks;
+      // Quantidade por aluno: individual quando informada, senão o padrão global
+      const planned = input.items.map((item) => ({
+        item,
+        weeks: Math.max(1, Math.min(104, Math.floor(item.weeks ?? input.weeks))),
+      }));
+      const totalLessons = sumRequestedWeeks(input.items, input.weeks);
       if (totalLessons > 500) {
-        throw new TRPCError({ code: "BAD_REQUEST", message: `Esta operação geraria ${totalLessons} aulas (limite: 500). Reduza os alunos ou as semanas.` });
+        throw new TRPCError({ code: "BAD_REQUEST", message: `Esta operação geraria ${totalLessons} aulas (limite: 500). Reduza as semanas ou os alunos.` });
       }
 
+      // Nomes dos alunos para o relatório individual
+      const studentIds = Array.from(new Set(planned.map((p) => p.item.studentId)));
+      const nameRows = studentIds.length > 0
+        ? await db.select({ id: students.id, name: students.name }).from(students)
+            .where(and(eq(students.organizationId, orgId), inArray(students.id, studentIds)))
+        : [];
+      const nameById = new Map<number, string>(nameRows.map((r: any) => [Number(r.id), r.name]));
+
       const rows: MigrationLessonRow[] = [];
-      for (const item of input.items) {
+      for (const { item, weeks } of planned) {
         const firstISO = firstWeekdayISO(input.startDate, item.weekday);
         const groupId = nanoid();
-        for (let w = 0; w < input.weeks; w++) {
+        for (let w = 0; w < weeks; w++) {
           const dateISO = addDaysISO(firstISO, w * 7);
           rows.push({
             studentId: item.studentId,
@@ -1598,6 +1626,23 @@ export const lessonsRouters = {
 
       const result = await insertLessonsValidated(db, ctx, rows);
 
+      // Relatório por aluno (CONSOLIDADO por aluno — cobre o mesmo aluno repetido no lote)
+      const requestedByStudent = new Map<number, number>();
+      for (const { item, weeks } of planned) {
+        requestedByStudent.set(item.studentId, (requestedByStudent.get(item.studentId) ?? 0) + weeks);
+      }
+      const skippedByStudent = new Map<number, number>();
+      for (const s of result.skipped) {
+        if (s.studentId == null) continue;
+        skippedByStudent.set(s.studentId, (skippedByStudent.get(s.studentId) ?? 0) + 1);
+      }
+      const perStudent = Array.from(requestedByStudent.entries()).map(([studentId, requested]) => ({
+        studentId,
+        studentName: nameById.get(studentId) ?? `Aluno #${studentId}`,
+        requested,
+        generated: Math.max(0, requested - (skippedByStudent.get(studentId) ?? 0)),
+      }));
+
       await db.insert(migrationRuns).values({
         organizationId: orgId,
         userId: ctx.user.id,
@@ -1606,7 +1651,8 @@ export const lessonsRouters = {
         skipped: result.skipped.length,
         summary: JSON.stringify({
           students: input.items.length,
-          weeks: input.weeks,
+          weeksDefault: input.weeks,
+          perStudent: perStudent.slice(0, 100),
           startDate: input.startDate,
           skipped: result.skipped.slice(0, 100),
         }),
@@ -1616,6 +1662,7 @@ export const lessonsRouters = {
         success: true,
         created: result.created,
         skipped: result.skipped,
+        perStudent,
         totalRequested: rows.length,
       };
     }),

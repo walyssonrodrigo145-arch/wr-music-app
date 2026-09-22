@@ -93,12 +93,19 @@ function ResultPanel({ title, created, skipped, totalRequested }: {
 }
 
 // ─── Aba: Aulas (assistente em lote) ─────────────────────────────────────────
+interface LessonConfig {
+  weekday: number;
+  time: string;
+  duration: number;
+  weeks: number;
+}
+
 function LessonsTab({ students }: { students: any[] }) {
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Set<number>>(new Set());
-  const [config, setConfig] = useState<Record<number, { weekday: number; time: string; duration: number }>>({});
+  const [config, setConfig] = useState<Record<number, LessonConfig>>({});
   const [startDate, setStartDate] = useState(todayISO());
-  const [weeks, setWeeks] = useState(12);
+  const [weeks, setWeeks] = useState(12); // padrão global (fallback)
   const [result, setResult] = useState<any>(null);
 
   const [defaultWeekday, setDefaultWeekday] = useState(1);
@@ -123,27 +130,41 @@ function LessonsTab({ students }: { students: any[] }) {
   const toggle = (id: number) => {
     setSelected((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        if (next.size >= 100) {
+          toast.info("Limite de 100 alunos por operação — desmarque algum antes de adicionar outro.");
+          return prev;
+        }
+        next.add(id);
+      }
       return next;
     });
-    setConfig((prev) => prev[id] ? prev : { ...prev, [id]: { weekday: defaultWeekday, time: defaultTime, duration: defaultDuration } });
+    setConfig((prev) => prev[id] ? prev : { ...prev, [id]: { weekday: defaultWeekday, time: defaultTime, duration: defaultDuration, weeks } });
   };
 
   const applyDefaultsToAll = () => {
-    const next: Record<number, { weekday: number; time: string; duration: number }> = {};
+    const next: Record<number, LessonConfig> = {};
     Array.from(selected).forEach((id) => {
-      next[id] = { weekday: defaultWeekday, time: defaultTime, duration: defaultDuration };
+      next[id] = { weekday: defaultWeekday, time: defaultTime, duration: defaultDuration, weeks };
     });
     setConfig(next);
-    toast.success("Horário padrão aplicado aos alunos selecionados.");
+    toast.success("Padrão aplicado aos alunos selecionados.");
   };
 
-  const totalLessons = selected.size * weeks;
+  // Total = soma das quantidades INDIVIDUAIS (fallback no padrão global)
+  const totalLessons = useMemo(() => {
+    let total = 0;
+    Array.from(selected).forEach((id) => {
+      total += Math.max(1, Math.min(104, Math.floor(config[id]?.weeks ?? weeks)));
+    });
+    return total;
+  }, [selected, config, weeks]);
 
   const handleGenerate = () => {
     if (selected.size === 0) return toast.error("Selecione pelo menos um aluno.");
-    if (totalLessons > 500) return toast.error(`Esta operação geraria ${totalLessons} aulas (limite: 500). Reduza os alunos ou as semanas.`);
+    if (totalLessons > 500) return toast.error(`Esta operação geraria ${totalLessons} aulas (limite: 500). Reduza as semanas ou os alunos.`);
     setResult(null);
     mutation.mutate({
       items: Array.from(selected).map((id) => ({
@@ -151,9 +172,10 @@ function LessonsTab({ students }: { students: any[] }) {
         weekday: config[id]?.weekday ?? defaultWeekday,
         time: config[id]?.time ?? defaultTime,
         duration: config[id]?.duration ?? defaultDuration,
+        weeks: Math.max(1, Math.min(104, Math.floor(config[id]?.weeks ?? weeks))),
       })),
       startDate,
-      weeks,
+      weeks: Math.min(104, Math.max(1, Math.floor(weeks) || 1)),
     });
   };
 
@@ -166,7 +188,7 @@ function LessonsTab({ students }: { students: any[] }) {
             <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="h-10 rounded-xl font-bold" />
           </div>
           <div className="space-y-1.5">
-            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Semanas</Label>
+            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Semanas (padrão)</Label>
             <Input type="number" min={1} max={104} value={weeks} onChange={(e) => setWeeks(Number(e.target.value))} className="h-10 rounded-xl font-bold" />
           </div>
           <div className="space-y-1.5">
@@ -195,13 +217,17 @@ function LessonsTab({ students }: { students: any[] }) {
             {students.length} aluno(s) ({activeCount} ativos) · {selected.size} selecionado(s) · {totalLessons} aula(s) previstas
           </span>
         </div>
+        <p className="text-[11px] text-muted-foreground flex items-start gap-1.5">
+          <Sparkles size={12} className="mt-0.5 shrink-0" />
+          Cada aluno tem o próprio horário e a própria quantidade de semanas — ajuste na lista abaixo. O valor "padrão" só é aplicado ao selecionar/marcar "Aplicar padrão".
+        </p>
       </div>
 
       <div className="rounded-3xl border border-border bg-card overflow-hidden">
         <div className="p-4 border-b border-border/60 flex items-center gap-3 flex-wrap">
           <Users size={15} className="text-primary" />
           <Input placeholder="Buscar aluno..." value={search} onChange={(e) => setSearch(e.target.value)} className="h-9 rounded-xl max-w-xs" />
-          <Button type="button" variant="ghost" onClick={() => setSelected(new Set(filtered.map((s) => s.id)))} className="h-9 text-[10px] font-black uppercase tracking-widest">
+          <Button type="button" variant="ghost" onClick={() => setSelected(new Set(filtered.slice(0, 100).map((s) => s.id)))} className="h-9 text-[10px] font-black uppercase tracking-widest">
             Selecionar todos
           </Button>
           <Button type="button" variant="ghost" onClick={() => setSelected(new Set())} className="h-9 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
@@ -213,15 +239,16 @@ function LessonsTab({ students }: { students: any[] }) {
             <p className="p-6 text-center text-sm text-muted-foreground">Nenhum aluno encontrado.</p>
           ) : filtered.map((s) => {
             const isSelected = selected.has(s.id);
-            const cfg = config[s.id] ?? { weekday: defaultWeekday, time: defaultTime, duration: defaultDuration };
+            const cfg = config[s.id] ?? { weekday: defaultWeekday, time: defaultTime, duration: defaultDuration, weeks };
             return (
               <div key={s.id} className={cn("p-3 sm:p-4 transition-colors", isSelected && "bg-primary/5")}>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 flex-wrap">
                   <Checkbox checked={isSelected} onCheckedChange={() => toggle(s.id)} />
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-bold truncate">{s.name}</p>
                     <p className="text-[10px] text-muted-foreground uppercase tracking-widest">
-                      {s.status !== "ativo" ? "INATIVO · " : ""}{s.phone || "sem telefone"}
+                      {s.status !== "ativo" ? "INATIVO · " : ""}
+                      {isSelected ? `${Math.max(1, Math.min(104, Math.floor(cfg.weeks)))} aula(s)` : (s.phone || "sem telefone")}
                     </p>
                   </div>
                   {isSelected && (
@@ -234,7 +261,14 @@ function LessonsTab({ students }: { students: any[] }) {
                         {WEEKDAYS.map((d) => <option key={d.value} value={d.value}>{d.label}</option>)}
                       </select>
                       <Input type="time" value={cfg.time} onChange={(e) => setConfig((prev) => ({ ...prev, [s.id]: { ...cfg, time: e.target.value } }))} className="h-9 rounded-xl w-28 text-xs font-bold" />
-                      <Input type="number" min={15} max={240} value={cfg.duration} onChange={(e) => setConfig((prev) => ({ ...prev, [s.id]: { ...cfg, duration: Number(e.target.value) } }))} className="h-9 rounded-xl w-20 text-xs font-bold" />
+                      <Input type="number" min={15} max={240} value={cfg.duration} onChange={(e) => setConfig((prev) => ({ ...prev, [s.id]: { ...cfg, duration: Number(e.target.value) } }))} className="h-9 rounded-xl w-20 text-xs font-bold" title="Duração (min)" />
+                      <Input
+                        type="number" min={1} max={104}
+                        value={cfg.weeks}
+                        onChange={(e) => setConfig((prev) => ({ ...prev, [s.id]: { ...cfg, weeks: Number(e.target.value) } }))}
+                        className="h-9 rounded-xl w-20 text-xs font-bold"
+                        title="Semanas/aulas deste aluno"
+                      />
                     </div>
                   )}
                 </div>
@@ -246,7 +280,7 @@ function LessonsTab({ students }: { students: any[] }) {
 
       <Button
         onClick={handleGenerate}
-        disabled={mutation.isPending || selected.size === 0}
+        disabled={mutation.isPending || selected.size === 0 || totalLessons > 500}
         className="h-12 px-6 rounded-2xl font-black text-[11px] uppercase tracking-widest"
       >
         {mutation.isPending ? <Loader2 size={16} className="mr-2 animate-spin" /> : <CalendarPlus size={16} className="mr-2" />}
@@ -254,7 +288,36 @@ function LessonsTab({ students }: { students: any[] }) {
       </Button>
 
       {result && (
-        <ResultPanel title="Aulas geradas" created={result.created} skipped={result.skipped || []} totalRequested={result.totalRequested} />
+        <>
+          {Array.isArray(result.perStudent) && result.perStudent.length > 0 && (
+            <div className="rounded-3xl border border-border bg-card overflow-hidden">
+              <div className="px-5 py-3 border-b border-border/60">
+                <span className="text-xs font-black uppercase tracking-widest text-muted-foreground">Resumo por aluno</span>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border bg-muted/30">
+                      {["Aluno", "Definido (aulas)", "Gerado"].map((h) => (
+                        <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {result.perStudent.map((p: any) => (
+                      <tr key={p.studentId} className="border-b border-border/50">
+                        <td className="px-4 py-2.5 font-medium">{p.studentName}</td>
+                        <td className="px-4 py-2.5 tabular-nums">{p.requested}</td>
+                        <td className="px-4 py-2.5 tabular-nums font-black text-emerald-600 dark:text-emerald-400">{p.generated}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+          <ResultPanel title="Aulas geradas" created={result.created} skipped={result.skipped || []} totalRequested={result.totalRequested} />
+        </>
       )}
     </div>
   );
@@ -272,6 +335,8 @@ function DuesTab({ students }: { students: any[] }) {
   const [amount, setAmount] = useState("");
   const [planId, setPlanId] = useState<number | "">("");
   const [monthsTouched, setMonthsTouched] = useState(false);
+  // Quantidade INDIVIDUAL por aluno (fallback: `monthsCount` global)
+  const [monthsByStudent, setMonthsByStudent] = useState<Record<number, number>>({});
   const [result, setResult] = useState<any>(null);
 
   const utils = trpc.useUtils();
@@ -322,6 +387,26 @@ function DuesTab({ students }: { students: any[] }) {
     setMonthsCount(Math.min(12, Math.max(1, max)));
   }, [selectedPlan, remainingByStudent, monthsTouched]);
 
+  // Quantidade SUGERIDA por aluno: com plano → restante do plano (calculado
+  // quando as contagens chegam); sem plano → o padrão global. O valor exibido é
+  // `monthsByStudent[id] ?? sugestão`, então mudar o padrão/plano atualiza os
+  // alunos que NÃO foram ajustados manualmente.
+  const suggestedMonths = (id: number): number => {
+    if (selectedPlan) {
+      const remaining = remainingByStudent.get(id) ?? 0;
+      return Math.min(12, Math.max(1, remaining));
+    }
+    return Math.min(12, Math.max(1, monthsCount));
+  };
+
+  const applyMonthsToAll = () => {
+    const value = Math.min(12, Math.max(1, monthsCount));
+    const next: Record<number, number> = {};
+    selectedIds.forEach((id) => { next[id] = value; });
+    setMonthsByStudent(next);
+    toast.success(`Aplicado ${value} mensalidade(s) a todos os selecionados.`);
+  };
+
   const filtered = useMemo(() => {
     const q = normName(search);
     return students.filter((s) => !q || normName(s.name).includes(q));
@@ -353,11 +438,16 @@ function DuesTab({ students }: { students: any[] }) {
       studentIds: Array.from(selected),
       startMonth,
       startYear,
-      monthsCount,
+      monthsCount: Math.min(12, Math.max(1, Math.floor(monthsCount) || 1)),
       dueDay: dueDay === "" ? undefined : Number(dueDay),
       amount: amount ? parseBRL(amount) : undefined,
       planId: planId === "" ? undefined : Number(planId),
       applyPlanToStudents: true,
+      // Quantidade individual por aluno (ajustada ou sugerida)
+      studentMonths: Array.from(selected).map((id) => ({
+        studentId: id,
+        monthsCount: Math.max(1, Math.min(12, Math.floor(monthsByStudent[id] ?? suggestedMonths(id)))),
+      })),
     });
   };
 
@@ -369,7 +459,12 @@ function DuesTab({ students }: { students: any[] }) {
           <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Plano do aluno (opcional)</Label>
           <select
             value={planId}
-            onChange={(e) => { setPlanId(e.target.value === "" ? "" : Number(e.target.value)); setMonthsTouched(false); }}
+            onChange={(e) => {
+              setPlanId(e.target.value === "" ? "" : Number(e.target.value));
+              setMonthsTouched(false);
+              // Recalcula as sugestões individuais para o novo plano
+              setMonthsByStudent({});
+            }}
             className="w-full sm:max-w-md h-10 rounded-xl border border-border bg-background px-3 text-sm font-bold outline-none focus:ring-2 focus:ring-primary/20"
           >
             <option value="">Não vincular plano (usar mensalidade/plano atual do aluno)</option>
@@ -413,13 +508,21 @@ function DuesTab({ students }: { students: any[] }) {
           </div>
           <div className="space-y-1.5">
             <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-              {selectedPlan ? "Mensalidades a gerar" : "Meses"}
+              {selectedPlan ? "Mensalidades (padrão)" : "Meses (padrão)"}
             </Label>
             <Input
               type="number" min={1} max={12} value={monthsCount}
               onChange={(e) => { setMonthsCount(Number(e.target.value)); setMonthsTouched(true); }}
               className="h-10 rounded-xl font-bold"
             />
+            <button
+              type="button"
+              onClick={applyMonthsToAll}
+              disabled={selected.size === 0}
+              className="text-[10px] font-black uppercase tracking-widest text-primary hover:underline disabled:opacity-40 disabled:no-underline"
+            >
+              Aplicar a todos
+            </button>
           </div>
           <div className="space-y-1.5">
             <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Vencimento (opcional)</Label>
@@ -468,7 +571,7 @@ function DuesTab({ students }: { students: any[] }) {
             const launched = countByStudent.get(s.id) ?? 0;
             const remaining = remainingByStudent.get(s.id);
             return (
-              <label key={s.id} className={cn("flex items-center gap-3 p-3 sm:p-4 cursor-pointer transition-colors", isSelected && "bg-primary/5")}>
+              <div key={s.id} className={cn("flex items-center gap-3 p-3 sm:p-4 transition-colors flex-wrap", isSelected && "bg-primary/5")}>
                 <Checkbox checked={isSelected} onCheckedChange={() => toggle(s.id)} />
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-bold truncate">{s.name}</p>
@@ -485,7 +588,19 @@ function DuesTab({ students }: { students: any[] }) {
                         : "Sem mensalidade cadastrada (usará o plano)"}
                   </p>
                 </div>
-              </label>
+                {isSelected && (
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="number" min={1} max={12}
+                      value={monthsByStudent[s.id] ?? suggestedMonths(s.id)}
+                      onChange={(e) => setMonthsByStudent((prev) => ({ ...prev, [s.id]: Number(e.target.value) }))}
+                      className="h-9 rounded-xl w-20 text-xs font-bold"
+                      title="Mensalidades a gerar para este aluno"
+                    />
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">mensalidade(s)</span>
+                  </div>
+                )}
+              </div>
             );
           })}
         </div>
@@ -522,7 +637,7 @@ function DuesTab({ students }: { students: any[] }) {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-border bg-muted/30">
-                      {["Aluno", "Lançadas antes", "Restantes", "Geradas"].map((h) => (
+                      {["Aluno", "Lançadas antes", "Restantes", "Definido", "Geradas"].map((h) => (
                         <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
@@ -533,6 +648,7 @@ function DuesTab({ students }: { students: any[] }) {
                         <td className="px-4 py-2.5 font-medium">{p.studentName}</td>
                         <td className="px-4 py-2.5 tabular-nums">{p.launchedBefore}</td>
                         <td className="px-4 py-2.5 tabular-nums">{p.remaining ?? "—"}</td>
+                        <td className="px-4 py-2.5 tabular-nums">{p.requested ?? "—"}</td>
                         <td className="px-4 py-2.5 tabular-nums font-black text-emerald-600 dark:text-emerald-400">{p.generated}</td>
                       </tr>
                     ))}

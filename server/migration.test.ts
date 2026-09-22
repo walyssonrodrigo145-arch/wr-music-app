@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { addDaysISO, firstWeekdayISO } from "./routers/lessonsRouters";
+import { addDaysISO, firstWeekdayISO, sumRequestedWeeks } from "./routers/lessonsRouters";
 import { resolveMigrationFee, resolvePlanFee, computeRemainingMonths } from "./routers/financeiroRouters";
 import { periodicityStep } from "@shared/billing";
 import { computeDaysLeft, isSubscriptionOverdue, shouldShowRenewalNotice } from "@shared/subscriptionAlerts";
@@ -26,6 +26,18 @@ describe("Migração — datas das séries de aulas", () => {
   it("firstWeekdayISO cruza mês e ano corretamente", () => {
     expect(firstWeekdayISO("2026-09-28", 6)).toBe("2026-10-03");
     expect(firstWeekdayISO("2026-12-28", 6)).toBe("2027-01-02");
+  });
+
+  it("sumRequestedWeeks soma quantidades individuais com fallback no padrão", () => {
+    // Individual vence o padrão
+    expect(sumRequestedWeeks([{ weeks: 12 }, { weeks: 20 }], 8)).toBe(32);
+    // Sem individual → usa o padrão
+    expect(sumRequestedWeeks([{}, {}], 8)).toBe(16);
+    // Mistura: um individual e outro no padrão
+    expect(sumRequestedWeeks([{ weeks: 4 }, {}], 10)).toBe(14);
+    // Clamp 1–104 e valores inválidos caem no padrão
+    expect(sumRequestedWeeks([{ weeks: 0 }, { weeks: 999 }], 8)).toBe(8 + 104);
+    expect(sumRequestedWeeks([{ weeks: null }], 8)).toBe(8);
   });
 });
 

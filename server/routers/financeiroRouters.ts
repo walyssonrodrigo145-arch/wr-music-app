@@ -1217,6 +1217,11 @@ export const financeiroRouters = {
       planId: z.number().int().positive().optional(),
       // Vincular os alunos ao plano no cadastro (default: true quando planId informado)
       applyPlanToStudents: z.boolean().optional(),
+      // Quantidade INDIVIDUAL por aluno (fallback: `monthsCount` global)
+      studentMonths: z.array(z.object({
+        studentId: z.number(),
+        monthsCount: z.number().int().min(1).max(12),
+      })).max(200).optional(),
     })).mutation(async ({ ctx, input }) => {
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Banco de dados não disponível" });
@@ -1285,19 +1290,26 @@ export const financeiroRouters = {
         : [];
       const existingSet = new Set(existing.map((e: any) => `${e.studentId}_${e.month}_${e.year}`));
 
+      const monthsByStudent = new Map<number, number>(
+        (input.studentMonths || []).map((m) => [Number(m.studentId), Math.max(1, Math.min(12, Math.floor(m.monthsCount)))])
+      );
+
       const rows: any[] = [];
       const skipped: Array<{ studentId: number | null; studentName: string | null; month: number | null; year: number | null; reason: string }> = [];
-      const perStudent: Array<{ studentId: number; studentName: string; launchedBefore: number; remaining: number | null; generated: number }> = [];
+      const perStudent: Array<{ studentId: number; studentName: string; launchedBefore: number; remaining: number | null; requested: number; generated: number }> = [];
 
       for (const student of owned) {
         if (student.status !== "ativo") {
           skipped.push({ studentId: student.id, studentName: student.name, month: null, year: null, reason: "Aluno não está ativo." });
+          perStudent.push({ studentId: student.id, studentName: student.name, launchedBefore: 0, remaining: null, requested: 0, generated: 0 });
           continue;
         }
 
         const launchedBefore = launchedByStudent.get(Number(student.id)) ?? 0;
         const periodicity = student.billingPeriodicity || "mensal";
-        let monthsToGenerate = input.monthsCount;
+        // Quantidade individual do aluno (fallback: global)
+        const requested = monthsByStudent.get(Number(student.id)) ?? input.monthsCount;
+        let monthsToGenerate = requested;
         let fee = 0;
         let remaining: number | null = null;
 
@@ -1307,7 +1319,7 @@ export const financeiroRouters = {
           // (ex.: 2 faturas bimestrais = 4 meses do plano).
           fee = resolvePlanFee(selectedPlan.valorMensal, input.amount);
           remaining = computeRemainingMonths(selectedPlan.duracaoMeses, launchedBefore, periodicityStep(periodicity));
-          monthsToGenerate = Math.min(input.monthsCount, remaining);
+          monthsToGenerate = Math.min(requested, remaining);
           if (remaining <= 0) {
             skipped.push({
               studentId: student.id,
@@ -1316,7 +1328,7 @@ export const financeiroRouters = {
               year: null,
               reason: `Plano já completo (${launchedBefore}/${selectedPlan.duracaoMeses} mensalidades).`,
             });
-            perStudent.push({ studentId: student.id, studentName: student.name, launchedBefore, remaining, generated: 0 });
+            perStudent.push({ studentId: student.id, studentName: student.name, launchedBefore, remaining, requested, generated: 0 });
             continue;
           }
         } else {
@@ -1326,6 +1338,7 @@ export const financeiroRouters = {
 
         if (fee <= 0) {
           skipped.push({ studentId: student.id, studentName: student.name, month: null, year: null, reason: "Sem valor de mensalidade (aluno sem mensalidade e sem plano com valor)." });
+          perStudent.push({ studentId: student.id, studentName: student.name, launchedBefore, remaining, requested, generated: 0 });
           continue;
         }
 
@@ -1356,7 +1369,7 @@ export const financeiroRouters = {
           generated++;
         }
 
-        perStudent.push({ studentId: student.id, studentName: student.name, launchedBefore, remaining, generated });
+        perStudent.push({ studentId: student.id, studentName: student.name, launchedBefore, remaining, requested, generated });
       }
 
       // ── Vínculo em lote ao plano (antes de gerar: vale mesmo sem novas faturas) ──
