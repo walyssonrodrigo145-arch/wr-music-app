@@ -3,7 +3,7 @@
 // o código preservado. O código é revalidado no backend no momento do cadastro.
 
 import { useEffect } from "react";
-import { Link, useLocation } from "wouter";
+
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import {
@@ -52,7 +52,6 @@ const BENEFITS = [
 
 export default function PublicReferralPage({ params }: { params?: { codigo?: string } }) {
   const code = String(params?.codigo || "").trim().toUpperCase();
-  const [, navigate] = useLocation();
   const { data, isLoading } = trpc.referral.getPublicInfo.useQuery(
     { code },
     { enabled: code.length >= 2, retry: false }
@@ -63,7 +62,13 @@ export default function PublicReferralPage({ params }: { params?: { codigo?: str
     if (data?.valid && data.active && code) saveReferralCode(code);
   }, [data?.valid, data?.active, code]);
 
-  const startSignup = () => navigate(`/cadastro?ref=${encodeURIComponent(code)}`);
+  // IMPORTANTE: esta página é renderizada fora do <Switch> do wouter (bloco
+  // especial do Router). Usar `navigate()` (pushState) NÃO re-renderiza o bloco
+  // e a tela ficava "presa" — por isso a navegação é completa (full reload).
+  const go = (path: string) => {
+    window.location.href = path;
+  };
+  const startSignup = () => go(`/cadastro?ref=${encodeURIComponent(code)}`);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 text-white flex flex-col">
@@ -74,9 +79,9 @@ export default function PublicReferralPage({ params }: { params?: { codigo?: str
           </div>
           <span className="font-black tracking-tight text-lg">MusicPro</span>
         </div>
-        <Link href="/login" className="text-sm text-slate-400 hover:text-white transition-colors">
+        <a href="/login" className="text-sm text-slate-400 hover:text-white transition-colors">
           Já sou cliente
-        </Link>
+        </a>
       </header>
 
       <main className="flex-1 w-full max-w-3xl mx-auto px-6 flex flex-col items-center justify-center text-center py-12">
@@ -91,7 +96,7 @@ export default function PublicReferralPage({ params }: { params?: { codigo?: str
               e começar gratuitamente.
             </p>
             <Button
-              onClick={() => navigate("/cadastro")}
+              onClick={() => go("/cadastro")}
               className="h-12 px-6 rounded-2xl bg-violet-600 hover:bg-violet-700 font-black"
             >
               Conhecer o MusicPro <ArrowRight size={16} className="ml-2" />
@@ -105,7 +110,7 @@ export default function PublicReferralPage({ params }: { params?: { codigo?: str
               As indicações estão pausadas no momento. Você ainda pode começar a usar o MusicPro.
             </p>
             <Button
-              onClick={() => navigate("/cadastro")}
+              onClick={() => go("/cadastro")}
               className="h-12 px-6 rounded-2xl bg-violet-600 hover:bg-violet-700 font-black"
             >
               Começar grátis <ArrowRight size={16} className="ml-2" />
@@ -163,9 +168,9 @@ export default function PublicReferralPage({ params }: { params?: { codigo?: str
       </main>
 
       <footer className="w-full max-w-5xl mx-auto px-6 py-6 text-center text-xs text-slate-500">
-        <Link href="/termos-de-uso" className="hover:text-slate-300 transition-colors">Termos de Uso</Link>
+        <a href="/termos-de-uso" className="hover:text-slate-300 transition-colors">Termos de Uso</a>
         <span className="mx-2">·</span>
-        <Link href="/politica-privacidade" className="hover:text-slate-300 transition-colors">Política de Privacidade</Link>
+        <a href="/politica-privacidade" className="hover:text-slate-300 transition-colors">Política de Privacidade</a>
       </footer>
     </div>
   );
