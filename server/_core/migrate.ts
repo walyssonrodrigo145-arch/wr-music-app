@@ -713,13 +713,16 @@ export async function runAutoMigrations() {
         "releasedAt" timestamp DEFAULT now() NOT NULL,
         "expiresAt" timestamp,
         "usedAt" timestamp,
+        "usedInvoiceId" varchar(64),
         "canceledAt" timestamp,
         "cancelReason" text,
         "createdAt" timestamp DEFAULT now() NOT NULL,
         "updatedAt" timestamp DEFAULT now() NOT NULL
       );` },
+      { table: 'referral_rewards', sql: `ALTER TABLE "referral_rewards" ADD COLUMN IF NOT EXISTS "usedInvoiceId" varchar(64)` },
       { table: 'referral_rewards', sql: `CREATE INDEX IF NOT EXISTS "referral_rewards_org_status_idx" ON "referral_rewards" ("organizationId", "status")` },
-      { table: 'referral_rewards', sql: `CREATE INDEX IF NOT EXISTS "referral_rewards_referral_idx" ON "referral_rewards" ("referralId")` },
+      // 1 recompensa por indicação — bloqueia duplicidade em corrida de webhooks
+      { table: 'referral_rewards', sql: `CREATE UNIQUE INDEX IF NOT EXISTS "referral_rewards_referral_unique" ON "referral_rewards" ("referralId")` },
       { table: 'referral_events', sql: `CREATE TABLE IF NOT EXISTS "referral_events" (
         "id" serial PRIMARY KEY NOT NULL,
         "organizationId" integer,
@@ -733,6 +736,8 @@ export async function runAutoMigrations() {
       );` },
       { table: 'referral_events', sql: `CREATE INDEX IF NOT EXISTS "referral_events_referral_idx" ON "referral_events" ("referralId")` },
       { table: 'referral_events', sql: `CREATE INDEX IF NOT EXISTS "referral_events_org_idx" ON "referral_events" ("organizationId", "createdAt")` },
+      // ── PLANOS & BOLSAS: postergar o prazo do desconto para o próximo dia útil ──
+      { table: 'school_plans', sql: `ALTER TABLE "school_plans" ADD COLUMN IF NOT EXISTS "postergarDiaUtil" boolean DEFAULT false NOT NULL` },
     ];
 
     for (const m of migrations) {

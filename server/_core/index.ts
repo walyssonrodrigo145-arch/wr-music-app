@@ -843,7 +843,15 @@ async function startServer() {
           .set({ subscriptionStatus: "past_due", updatedAt: new Date() })
           .where(eq(organizations.id, targetOrg.id));
         debugLog(`[Asaas Platform Webhook] Assinatura ATRASADA para customer ${payment.customer}`);
-      } else if (event === "SUBSCRIPTION_CANCELED" || event === "SUBSCRIPTION_DELETED" || event === "PAYMENT_REFUNDED") {
+      } else if (
+        event === "SUBSCRIPTION_CANCELED" ||
+        event === "SUBSCRIPTION_DELETED" ||
+        event === "SUBSCRIPTION_INACTIVATED" ||
+        event === "PAYMENT_REFUNDED" ||
+        event === "PAYMENT_CHARGEBACK_REQUESTED" ||
+        event === "PAYMENT_CHARGEBACK_DISPUTE" ||
+        event === "PAYMENT_AWAITING_CHARGEBACK_REVERSAL"
+      ) {
         // ── BUG 2 FIX: Tratar cancelamento de assinatura pelo portal Asaas ───
         await db
           .update(organizations)

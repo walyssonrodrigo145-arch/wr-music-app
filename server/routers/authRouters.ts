@@ -82,6 +82,20 @@ export const authRouters = {
         ))
         .orderBy(asc(systemPlans.order), asc(systemPlans.priceMonthly));
     }),
+    // Cadastro público (inclusive via link de indicação): TODOS os planos ativos
+    // pagos — sem o filtro de vitrine (showOnLanding) usado na landing.
+    getSignupPlans: publicProcedure.query(async () => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      const { systemPlans } = await import("../../drizzle/schema");
+      const { asc, eq, and, sql } = await import("drizzle-orm");
+      return await db.select().from(systemPlans)
+        .where(and(
+          eq(systemPlans.isActive, true),
+          sql`CAST(${systemPlans.priceMonthly} AS numeric) > 0`
+        ))
+        .orderBy(asc(systemPlans.order), asc(systemPlans.priceMonthly));
+    }),
     validateCoupon: publicProcedure
       .input(z.object({ code: z.string() }))
       .mutation(async ({ input }) => {
@@ -545,6 +559,10 @@ export const authRouters = {
         
         if (!planInfo) {
           throw new Error("O plano selecionado não é válido ou foi removido.");
+        }
+        // Nunca confiar no frontend: só aceita plano ATIVO e pago (mesma regra da vitrine)
+        if (!planInfo.isActive || Number(planInfo.priceMonthly) <= 0) {
+          throw new Error("O plano selecionado não está disponível para contratação.");
         }
 
         // Criar organização com status trialing (7 dias grátis)

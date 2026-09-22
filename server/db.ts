@@ -306,12 +306,14 @@ async function ensureSchemaConsistency(db: any) {
         "valorCheio" numeric(10, 2),
         "taxaInscricao" numeric(10, 2) DEFAULT 0 NOT NULL,
         "diasLimite" varchar(20) DEFAULT '10,20' NOT NULL,
+        "postergarDiaUtil" boolean DEFAULT false NOT NULL,
         "descricao" text,
         "ativo" boolean DEFAULT true NOT NULL,
         "createdAt" timestamp DEFAULT now() NOT NULL,
         "updatedAt" timestamp DEFAULT now() NOT NULL
       )
     `);
+    await db.execute(sql`ALTER TABLE "school_plans" ADD COLUMN IF NOT EXISTS "postergarDiaUtil" boolean DEFAULT false NOT NULL`);
     await db.execute(sql`ALTER TABLE "students" ADD COLUMN IF NOT EXISTS "schoolPlanId" integer`);
 
     // Desafios (PRD_RANKINGS §55)

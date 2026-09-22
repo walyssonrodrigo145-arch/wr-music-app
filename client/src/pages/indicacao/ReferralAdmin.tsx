@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { formatBRL as formatMoneyBRL } from "@/lib/money";
 import {
   Gift, Settings, ListChecks, Ticket, ShieldAlert, ScrollText,
   Loader2, Save, Trophy, TrendingUp, Ban, Activity,
@@ -56,7 +57,7 @@ function fmtDateTime(iso: string | Date | null | undefined) {
 }
 
 function fmtBRL(cents: number) {
-  return (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  return formatMoneyBRL(cents / 100);
 }
 
 function DashboardTab() {
@@ -212,8 +213,13 @@ function ConfigTab() {
         {numberField("minActiveDays", "Permanência mínima do indicado", 0, 365, "dias de assinatura ativa")}
       </div>
       <div className="grid sm:grid-cols-1 gap-4">
-        {toggleField("allowAccumulation", "Permitir acumular recompensas", "Se desligado, apenas o desconto mais antigo é aplicado por cobrança.")}
-        {toggleField("blockSelfReferral", "Bloquear autoindicação", "Impede que a própria escola (ou seu e-mail) use o próprio código.")}
+        {toggleField("allowAccumulation", "Permitir acumular recompensas", "Se desligado, apenas o desconto mais antigo é aplicado por cobrança — os demais créditos continuam guardados.")}
+      </div>
+      <div className="rounded-2xl border border-border bg-muted/20 p-4">
+        <p className="text-xs font-black">Antifraude obrigatório (sempre ativo)</p>
+        <p className="text-xs text-muted-foreground mt-1">
+          Autoindicação, CNPJ/e-mail/telefone já cadastrados e uma escola com múltiplos indicadores são bloqueados automaticamente.
+        </p>
       </div>
       <div className="grid sm:grid-cols-2 gap-4">
         <div className="space-y-1.5">
@@ -245,7 +251,6 @@ function ConfigTab() {
           rewardValidityDays: form.rewardValidityDays,
           minActiveDays: form.minActiveDays,
           allowAccumulation: form.allowAccumulation,
-          blockSelfReferral: form.blockSelfReferral,
           pageHeadline: form.pageHeadline,
           pageSubtitle: form.pageSubtitle || null,
         })}
@@ -460,6 +465,9 @@ function AuditTab() {
 export default function ReferralAdmin() {
   const { user, loading } = useAuth();
   const [tab, setTab] = useState<TabId>("dashboard");
+  const { data: config } = trpc.referral.adminGetConfig.useQuery(undefined, {
+    enabled: Boolean(user?.isSuperAdmin),
+  });
 
   if (!loading && !user?.isSuperAdmin) {
     return (
@@ -509,7 +517,7 @@ export default function ReferralAdmin() {
       {tab === "audit" && <AuditTab />}
 
       <p className="text-[10px] text-muted-foreground flex items-center gap-1.5 pt-4">
-        <TrendingUp size={11} /> Regra vigente: 1ª convertida = 30% OFF · 2ª = 60% OFF · 3ª = mensalidade grátis (ciclo reinicia).
+        <TrendingUp size={11} /> Regra vigente: 1ª convertida = {config?.rewardPercent1 ?? 30}% OFF · 2ª = {config?.rewardPercent2 ?? 60}% OFF · 3ª = {config?.rewardPercent3 ?? 100}% OFF (ciclo reinicia).
       </p>
     </div>
   );

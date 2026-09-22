@@ -10,7 +10,7 @@
 // Operações são idempotentes (webhooks podem repetir).
 // ═══════════════════════════════════════════════════════════════════════════════
 
-import { and, desc, eq, gte, inArray, isNull, or, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { getDb } from "../db";
 import {
   organizations,
@@ -228,11 +228,14 @@ export async function getPublicReferralInfo(db: Db, rawCode: string): Promise<Pu
 
   if (!row || row.active === false) return fallback;
 
+  const thirdLabel = config.rewardPercent3 >= 100
+    ? "mensalidade grátis na 3ª"
+    : `${config.rewardPercent3}% OFF na 3ª`;
   return {
     ...fallback,
     valid: true,
     schoolName: row.orgName ?? null,
-    rewardSummary: `${config.rewardPercent1}% OFF na 1ª indicação · ${config.rewardPercent2}% OFF na 2ª · mensalidade grátis na 3ª`,
+    rewardSummary: `${config.rewardPercent1}% OFF na 1ª indicação · ${config.rewardPercent2}% OFF na 2ª · ${thirdLabel}`,
   };
 }
 
@@ -292,10 +295,16 @@ export async function attachReferralOnSignup(db: Db, input: AttachReferralInput)
   // ── Antifraude: a escola indicada já existe com mesmo CNPJ/e-mail/telefone? ──
   const cnpjDigits = onlyDigits(input.cpfCnpj);
   if (cnpjDigits.length >= 11) {
+    // Compara apenas os dígitos (o cadastro pode ter máscara ou não)
     const [sameCnpj] = await db
       .select({ id: organizations.id })
       .from(organizations)
-      .where(and(eq(organizations.cnpj, input.cpfCnpj!), sql`${organizations.id} <> ${input.referredOrgId}`))
+      .where(
+        and(
+          sql`regexp_replace(COALESCE(${organizations.cnpj}, ''), '[^0-9]', '', 'g') = ${cnpjDigits}`,
+          sql`${organizations.id} <> ${input.referredOrgId}`
+        )
+      )
       .limit(1);
     if (sameCnpj) {
       await logEvent(db, {
@@ -427,30 +436,19 @@ export async function onSubscriptionPaid(db: Db, referredOrgId: number): Promise
   const percent = Math.max(0, Math.min(100, rewardPercentForPosition(config, cyclePosition)));
 
   const now = new Date();
-  await db
-    .update(referrals)
-    .set({
-      status: "RECOMPENSA_LIBERADA",
-      cyclePosition,
-      rewardPercent: percent,
-      convertedAt: now,
-      updatedAt: now,
-    })
-    .where(eq(referrals.id, referral.id));
 
-  // Sem acúmulo: a nova recompensa substitui as disponíveis anteriores.
-  if (!config.allowAccumulation) {
-    await db
-      .update(referralRewards)
-      .set({ status: "CANCELADA", canceledAt: now, cancelReason: "Acúmulo desativado", updatedAt: now })
-      .where(and(eq(referralRewards.organizationId, referral.referrerOrgId), inArray(referralRewards.status, ["DISPONIVEL", "PARCIALMENTE_UTILIZADA"])));
-  }
-
+  // Sem acúmulo: a nova recompensa NÃO cancela as anteriores — apenas a mais
+  // antiga é aplicada por cobrança (ver computeDiscountPlan). Nenhum crédito
+  // conquistado é perdido.
   const expiresAt = config.rewardValidityDays > 0
     ? new Date(now.getTime() + config.rewardValidityDays * 24 * 60 * 60 * 1000)
     : null;
 
-  const [reward] = await db
+  // Cria a recompensa ANTES de marcar a indicação como convertida. Se a
+  // inserção falhar, o retry do webhook ainda encontra a indicação em
+  // PENDENTE/TESTE e refaz a conversão (nunca fica sem crédito).
+  // O índice único em referralId protege contra webhooks concorrentes.
+  const [createdReward] = await db
     .insert(referralRewards)
     .values({
       referralId: referral.id,
@@ -461,7 +459,29 @@ export async function onSubscriptionPaid(db: Db, referredOrgId: number): Promise
       releasedAt: now,
       expiresAt,
     })
+    .onConflictDoNothing({ target: referralRewards.referralId })
     .returning();
+
+  let reward = createdReward;
+  if (!reward) {
+    const [raced] = await db
+      .select()
+      .from(referralRewards)
+      .where(eq(referralRewards.referralId, referral.id))
+      .limit(1);
+    reward = raced;
+  }
+
+  await db
+    .update(referrals)
+    .set({
+      status: "RECOMPENSA_LIBERADA",
+      cyclePosition,
+      rewardPercent: percent,
+      convertedAt: now,
+      updatedAt: now,
+    })
+    .where(eq(referrals.id, referral.id));
 
   await logEvent(db, {
     organizationId: referral.referrerOrgId,
@@ -715,8 +735,9 @@ export async function findPendingInvoice(db: Db, orgId: number): Promise<Pending
   if (org.asaasCustomerId) {
     try {
       const { ENV } = await import("../_core/env");
+      // Sem filtro de status na URL: PENDING e OVERDUE são filtrados abaixo
       const res = await fetch(
-        `${ENV.asaasBaseUrl}/payments?customer=${org.asaasCustomerId}&status=PENDING&limit=5`,
+        `${ENV.asaasBaseUrl}/payments?customer=${org.asaasCustomerId}&limit=10`,
         { headers: { access_token: ENV.asaasApiKey } }
       );
       if (res.ok) {
@@ -736,16 +757,9 @@ export async function findPendingInvoice(db: Db, orgId: number): Promise<Pending
  * Aplica os créditos de indicação na PRÓXIMA fatura pendente da escola.
  * Consome as recompensas somente após o Asaas confirmar a alteração do valor.
  */
-export async function applyCreditsToNextInvoice(
-  db: Db,
-  orgId: number
-): Promise<{ appliedCents: number; invoiceValueCents: number | null; invoiceUrl: string | null }> {
-  const config = await getReferralConfig(db);
-  await expireRewards(db);
-
-  const invoice = await findPendingInvoice(db, orgId);
-  if (!invoice || invoice.value <= 0) return { appliedCents: 0, invoiceValueCents: null, invoiceUrl: invoice?.invoiceUrl ?? null };
-
+/** Recompensas elegíveis para uso: status válido, não expiradas e (quando
+ *  exigido) indicado com assinatura ATIVA pelo período mínimo configurado. */
+async function getEligibleRewards(db: Db, orgId: number, config: ReferralConfigView) {
   const now = new Date();
   const rewards = await db
     .select()
@@ -758,36 +772,122 @@ export async function applyCreditsToNextInvoice(
     )
     .orderBy(referralRewards.releasedAt);
 
-  const valid = (rewards as any[]).filter((r) => {
-    if (r.expiresAt && new Date(r.expiresAt) < now) return false;
-    if (config.minActiveDays > 0) {
-      const minDate = new Date(new Date(r.releasedAt).getTime() + config.minActiveDays * 24 * 60 * 60 * 1000);
-      if (minDate > now) return false;
-    }
-    return true;
+  const notExpired = (rewards as any[]).filter((r) => !r.expiresAt || new Date(r.expiresAt) >= now);
+  if (config.minActiveDays <= 0) return notExpired;
+
+  const referralIds: number[] = Array.from(new Set<number>(notExpired.map((r: any) => Number(r.referralId)).filter(Boolean)));
+  if (referralIds.length === 0) return [];
+
+  const refRows = await db
+    .select({ id: referrals.id, referredOrgId: referrals.referredOrgId, convertedAt: referrals.convertedAt })
+    .from(referrals)
+    .where(inArray(referrals.id, referralIds));
+  const orgIds: number[] = Array.from(new Set<number>(refRows.map((r: any) => Number(r.referredOrgId))));
+  const orgs = orgIds.length > 0
+    ? await db
+        .select({ id: organizations.id, subscriptionStatus: organizations.subscriptionStatus })
+        .from(organizations)
+        .where(inArray(organizations.id, orgIds))
+    : [];
+  const activeOrgs = new Set<number>(orgs.filter((o: any) => o.subscriptionStatus === "active").map((o: any) => Number(o.id)));
+  const refById = new Map<number, any>(refRows.map((r: any) => [Number(r.id), r]));
+
+  return notExpired.filter((r: any) => {
+    const ref = refById.get(Number(r.referralId));
+    if (!ref || !activeOrgs.has(Number(ref.referredOrgId))) return false;
+    const base = ref.convertedAt ? new Date(ref.convertedAt).getTime() : new Date(r.releasedAt).getTime();
+    return base + config.minActiveDays * 24 * 60 * 60 * 1000 <= now.getTime();
   });
-  if (valid.length === 0) return { appliedCents: 0, invoiceValueCents: Math.round(invoice.value * 100), invoiceUrl: invoice.invoiceUrl };
+}
 
-  // Sem acúmulo: aplica apenas a recompensa mais antiga disponível.
-  const applicable = config.allowAccumulation ? valid : valid.slice(0, 1);
-
-  const maxDiscountPercent = Math.max(0, Math.min(100, Number(config.maxDiscountPercent) || 100));
-  const invoiceCents = Math.round(invoice.value * 100);
-  let remainingCents = invoiceCents;
+/**
+ * Calcula o desconto respeitando o TETO TOTAL da fatura (`maxDiscountPercent`).
+ * O percentual de cada recompensa é individual, mas a soma nunca ultrapassa o teto.
+ */
+function computeDiscountPlan(invoiceCents: number, rewards: any[], config: ReferralConfigView) {
+  // 0 é um teto VÁLIDO (nenhum desconto) — não pode virar 100 pelo `||`
+  const rawMax = Number(config.maxDiscountPercent);
+  const maxDiscountPercent = Number.isFinite(rawMax) ? Math.max(0, Math.min(100, rawMax)) : 100;
+  const maxTotalDiscount = Math.floor((invoiceCents * maxDiscountPercent) / 100);
+  const applicable = config.allowAccumulation ? rewards : rewards.slice(0, 1);
+  let remaining = Math.min(invoiceCents, maxTotalDiscount);
   let totalDiscount = 0;
   const consumptions: Array<{ rewardId: number; discountCents: number }> = [];
 
   for (const reward of applicable) {
-    const percent = Math.min(Number(reward.percent) || 0, maxDiscountPercent);
+    if (remaining <= 0) break;
+    const percent = Math.max(0, Math.min(100, Number(reward.percent) || 0));
     let discount = Math.floor((invoiceCents * percent) / 100);
-    discount = Math.min(discount, remainingCents);
+    discount = Math.min(discount, remaining);
     if (discount <= 0) continue;
     totalDiscount += discount;
-    remainingCents -= discount;
+    remaining -= discount;
     consumptions.push({ rewardId: reward.id, discountCents: discount });
-    if (remainingCents <= 0) break;
   }
+  return { totalDiscount, consumptions, maxTotalDiscount };
+}
 
+/**
+ * Recupera reservas presas em PROCESSANDO (crash durante a aplicação).
+ * Reservas que JÁ têm `usedInvoiceId` não voltam automaticamente: o desconto
+ * pode ter sido aplicado no Asaas antes do crash — devolver para DISPONIVEL
+ * causaria desconto em dobro. Ficam em PROCESSANDO para conferência manual.
+ */
+async function recoverStuckRewards(db: Db): Promise<void> {
+  try {
+    await db
+      .update(referralRewards)
+      .set({ status: "DISPONIVEL", updatedAt: new Date() })
+      .where(
+        and(
+          eq(referralRewards.status, "PROCESSANDO"),
+          isNull(referralRewards.usedInvoiceId),
+          sql`${referralRewards.updatedAt} < NOW() - INTERVAL '5 minutes'`
+        )
+      );
+  } catch (err: any) {
+    console.warn("[ReferralEngine] Falha ao recuperar reservas presas:", err?.message || err);
+  }
+}
+
+/**
+ * Aplica os créditos de indicação na PRÓXIMA fatura pendente da escola.
+ * Reserva atômica (PROCESSANDO) antes de chamar o Asaas — evita consumo duplo
+ * em chamadas concorrentes; devolve a reserva se o gateway recusar.
+ */
+export async function applyCreditsToNextInvoice(
+  db: Db,
+  orgId: number
+): Promise<{ appliedCents: number; invoiceValueCents: number | null; invoiceUrl: string | null }> {
+  const config = await getReferralConfig(db);
+  await recoverStuckRewards(db);
+  await expireRewards(db);
+
+  const invoice = await findPendingInvoice(db, orgId);
+  if (!invoice || invoice.value <= 0) return { appliedCents: 0, invoiceValueCents: null, invoiceUrl: invoice?.invoiceUrl ?? null };
+
+  const invoiceCents = Math.round(invoice.value * 100);
+  const eligible = await getEligibleRewards(db, orgId, config);
+  if (eligible.length === 0) return { appliedCents: 0, invoiceValueCents: invoiceCents, invoiceUrl: invoice.invoiceUrl };
+
+  const plan = computeDiscountPlan(invoiceCents, eligible, config);
+  if (plan.totalDiscount <= 0) return { appliedCents: 0, invoiceValueCents: invoiceCents, invoiceUrl: invoice.invoiceUrl };
+
+  // ── Reserva atômica: apenas quem mudar para PROCESSANDO participa ──────────
+  const now = new Date();
+  const reserved = await db
+    .update(referralRewards)
+    .set({ status: "PROCESSANDO", usedInvoiceId: invoice.id, updatedAt: now })
+    .where(
+      and(
+        inArray(referralRewards.id, plan.consumptions.map((c) => c.rewardId)),
+        inArray(referralRewards.status, ["DISPONIVEL", "PARCIALMENTE_UTILIZADA"])
+      )
+    )
+    .returning({ id: referralRewards.id });
+  const reservedSet = new Set<number>(reserved.map((r: any) => Number(r.id)));
+  const consumptions = plan.consumptions.filter((c) => reservedSet.has(c.rewardId));
+  const totalDiscount = consumptions.reduce((acc, c) => acc + c.discountCents, 0);
   if (totalDiscount <= 0) return { appliedCents: 0, invoiceValueCents: invoiceCents, invoiceUrl: invoice.invoiceUrl };
 
   const newValue = Math.max(0, (invoiceCents - totalDiscount) / 100);
@@ -796,6 +896,11 @@ export async function applyCreditsToNextInvoice(
     const { updateAsaasPaymentValue } = await import("../utils/asaas");
     await updateAsaasPaymentValue(invoice.id, newValue);
   } catch (err: any) {
+    // Nada foi aplicado — devolve as reservas para DISPONIVEL (limpa o vínculo)
+    await db
+      .update(referralRewards)
+      .set({ status: "DISPONIVEL", usedInvoiceId: null, updatedAt: new Date() })
+      .where(inArray(referralRewards.id, consumptions.map((c) => c.rewardId)));
     console.warn("[ReferralEngine] Não foi possível aplicar o desconto na fatura:", err?.message || err);
     return { appliedCents: 0, invoiceValueCents: invoiceCents, invoiceUrl: invoice.invoiceUrl };
   }
@@ -838,52 +943,21 @@ export async function applyCreditsToNextInvoice(
 /** Prévia (sem aplicar) do desconto na próxima fatura — usada pelo painel da escola. */
 export async function previewCreditsForNextInvoice(db: Db, orgId: number) {
   const config = await getReferralConfig(db);
+  await recoverStuckRewards(db);
   await expireRewards(db);
   const invoice = await findPendingInvoice(db, orgId);
 
-  const rewards = await db
-    .select()
-    .from(referralRewards)
-    .where(
-      and(
-        eq(referralRewards.organizationId, orgId),
-        inArray(referralRewards.status, ["DISPONIVEL", "PARCIALMENTE_UTILIZADA"])
-      )
-    )
-    .orderBy(referralRewards.releasedAt);
-
-  const now = new Date();
-  const valid = (rewards as any[]).filter((r) => {
-    if (r.expiresAt && new Date(r.expiresAt) < now) return false;
-    if (config.minActiveDays > 0) {
-      const minDate = new Date(new Date(r.releasedAt).getTime() + config.minActiveDays * 24 * 60 * 60 * 1000);
-      if (minDate > now) return false;
-    }
-    return true;
-  });
-
+  const eligible = await getEligibleRewards(db, orgId, config);
   const invoiceCents = invoice ? Math.round(invoice.value * 100) : 0;
-  const maxDiscountPercent = Math.max(0, Math.min(100, Number(config.maxDiscountPercent) || 100));
-  const applicable = config.allowAccumulation ? valid : valid.slice(0, 1);
-  let remaining = invoiceCents;
-  let discountCents = 0;
-  for (const reward of applicable) {
-    const percent = Math.min(Number(reward.percent) || 0, maxDiscountPercent);
-    let discount = Math.floor((invoiceCents * percent) / 100);
-    discount = Math.min(discount, remaining);
-    if (discount <= 0) continue;
-    discountCents += discount;
-    remaining -= discount;
-    if (remaining <= 0) break;
-  }
+  const plan = computeDiscountPlan(invoiceCents, eligible, config);
 
   return {
     hasInvoice: Boolean(invoice),
     invoiceValueCents: invoiceCents,
     invoiceUrl: invoice?.invoiceUrl ?? null,
-    discountCents,
-    finalValueCents: Math.max(0, invoiceCents - discountCents),
-    rewards: valid.map((r: any) => ({
+    discountCents: plan.totalDiscount,
+    finalValueCents: Math.max(0, invoiceCents - plan.totalDiscount),
+    rewards: eligible.map((r: any) => ({
       id: r.id,
       percent: Number(r.percent) || 0,
       status: r.status,
@@ -947,7 +1021,7 @@ export async function getReferralDashboard(db: Db, days = 30) {
   await expireRewards(db);
   const since = new Date(Date.now() - Math.max(1, days) * 24 * 60 * 60 * 1000);
 
-  const rows = await db.select().from(referrals);
+  const rows = await db.select().from(referrals).orderBy(desc(referrals.createdAt));
   const rewards = await db.select().from(referralRewards);
 
   const converted = rows.filter((r: any) => CONVERTED_STATUSES.includes(r.status));
@@ -1145,8 +1219,10 @@ export async function listReferralEvents(db: Db, referralId?: number, limit = 20
   return query;
 }
 
-/** Usado pelo cadastro: dias grátis configurados pelo SuperAdmin. */
+/** Usado pelo cadastro: dias grátis configurados pelo SuperAdmin (0 é válido). */
 export async function getTrialDays(db: Db): Promise<number> {
   const config = await getReferralConfig(db);
-  return Math.max(0, Math.min(90, Number(config.trialDays) || 7));
+  const value = Number(config.trialDays);
+  if (!Number.isFinite(value)) return 7;
+  return Math.max(0, Math.min(90, value));
 }

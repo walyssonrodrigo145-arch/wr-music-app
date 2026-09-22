@@ -7,6 +7,7 @@ import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { formatBRL as formatMoneyBRL } from "@/lib/money";
 import {
   Gift, Copy, MessageCircle, Users, Clock, CheckCircle2,
   Loader2, Sparkles, Ticket, TrendingUp, ArrowRight,
@@ -32,7 +33,7 @@ const REWARD_STATUS_META: Record<string, { label: string; cls: string }> = {
 };
 
 function formatBRL(cents: number) {
-  return (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  return formatMoneyBRL(cents / 100);
 }
 
 function fmtDate(iso: string | null) {

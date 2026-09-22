@@ -27,6 +27,9 @@ const planInput = z.object({
   valorCheio: z.number().min(0).max(100000).nullable().optional(),
   taxaInscricao: z.number().min(0).max(100000).default(0),
   diasLimite: z.string().max(20).default("10,20"),
+  // Posterga o prazo do desconto para o próximo dia útil quando o limite cai em fim de semana.
+  // Optional para o update não zerar a flag quando o campo não for enviado.
+  postergarDiaUtil: z.boolean().optional(),
   descricao: z.string().max(500).optional().nullable(),
   ativo: z.boolean().default(true),
 });
@@ -86,6 +89,7 @@ export const schoolPlansRouter = router({
       valorCheio: input.valorCheio != null ? input.valorCheio.toFixed(2) : null,
       taxaInscricao: input.taxaInscricao.toFixed(2),
       diasLimite: sanitizeDiasLimite(input.diasLimite),
+      postergarDiaUtil: input.postergarDiaUtil ?? false,
       descricao: input.descricao ?? null,
       ativo: input.ativo,
       createdAt: new Date(),
@@ -112,6 +116,8 @@ export const schoolPlansRouter = router({
       valorCheio: input.valorCheio != null ? input.valorCheio.toFixed(2) : null,
       taxaInscricao: input.taxaInscricao.toFixed(2),
       diasLimite: sanitizeDiasLimite(input.diasLimite),
+      // Só sobrescreve a flag quando enviada (evita zerar em chamadas legadas)
+      ...(input.postergarDiaUtil !== undefined ? { postergarDiaUtil: input.postergarDiaUtil } : {}),
       descricao: input.descricao ?? null,
       ativo: input.ativo,
       updatedAt: new Date(),

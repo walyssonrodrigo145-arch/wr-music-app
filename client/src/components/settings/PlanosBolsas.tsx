@@ -35,6 +35,7 @@ interface PlanForm {
   valorCheio: string;
   taxaInscricao: string;
   diasLimite: string;
+  postergarDiaUtil: boolean;
   descricao: string;
   ativo: boolean;
 }
@@ -49,6 +50,7 @@ const emptyForm: PlanForm = {
   valorCheio: "",
   taxaInscricao: "",
   diasLimite: "10,20",
+  postergarDiaUtil: false,
   descricao: "",
   ativo: true,
 };
@@ -105,6 +107,7 @@ export function PlanosBolsas() {
       valorCheio: p.valorCheio ? String(Number(p.valorCheio).toFixed(2)) : "",
       taxaInscricao: p.taxaInscricao ? String(Number(p.taxaInscricao).toFixed(2)) : "",
       diasLimite: p.diasLimite || "10,20",
+      postergarDiaUtil: p.postergarDiaUtil ?? false,
       descricao: p.descricao || "",
       ativo: p.ativo ?? true,
     });
@@ -124,6 +127,8 @@ export function PlanosBolsas() {
       valorCheio: form.valorCheio ? parseBRL(form.valorCheio) : null,
       taxaInscricao: form.taxaInscricao ? parseBRL(form.taxaInscricao) : 0,
       diasLimite: form.diasLimite,
+      // A postergação só faz sentido com valor cheio definido
+      postergarDiaUtil: form.valorCheio ? form.postergarDiaUtil : false,
       descricao: form.descricao || null,
       ativo: form.ativo,
     };
@@ -217,9 +222,14 @@ export function PlanosBolsas() {
               </div>
 
               {p.isBolsa && p.diasLimite && (
-                <div className="flex items-center gap-1.5 text-[10px] font-bold text-muted-foreground bg-muted/30 rounded-xl px-3 py-2">
+                <div className="flex items-center gap-1.5 text-[10px] font-bold text-muted-foreground bg-muted/30 rounded-xl px-3 py-2 flex-wrap">
                   <CalendarClock size={11} className="text-indigo-500 shrink-0" />
                   Vencimento até dia {p.diasLimite.split(",").join(" ou ")} — após isso, valor cheio{p.valorCheio ? ` (${formatBRL(Number(p.valorCheio))})` : ""}
+                  {p.postergarDiaUtil && p.valorCheio && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 font-black uppercase tracking-widest">
+                      Posterga p/ próximo dia útil
+                    </span>
+                  )}
                 </div>
               )}
               {p.descricao && <p className="text-[11px] text-muted-foreground font-medium line-clamp-2">{p.descricao}</p>}
@@ -302,7 +312,28 @@ export function PlanosBolsas() {
                     <Input value={form.valorCheio} onChange={(e) => setForm(f => ({ ...f, valorCheio: e.target.value }))} placeholder="R$ 300,00" className="h-11 rounded-xl font-bold" inputMode="decimal" />
                   </div>
                 </div>
-                <p className="text-[10px] text-muted-foreground font-medium -mt-2">Após o dia limite sem pagamento, será cobrado o valor cheio (automação do valor cheio entra na próxima fase).</p>
+                <p className="text-[10px] text-muted-foreground font-medium -mt-2">Após o dia limite sem pagamento, será cobrado o valor cheio automaticamente.</p>
+
+                <div className={cn(
+                  "flex items-center justify-between p-3.5 rounded-2xl border transition-colors",
+                  form.valorCheio ? "bg-indigo-500/5 border-indigo-500/20" : "bg-muted/30 border-border/50 opacity-60"
+                )}>
+                  <div>
+                    <p className="text-xs font-black text-foreground flex items-center gap-1.5">
+                      <CalendarClock size={13} className="text-indigo-500" /> Postergar para o próximo dia útil
+                    </p>
+                    <p className="text-[10px] text-muted-foreground font-medium mt-0.5">
+                      {form.valorCheio
+                        ? "Se o dia limite cair em sábado ou domingo, o valor promocional vale até segunda-feira."
+                        : "Preencha o valor cheio para habilitar esta opção."}
+                    </p>
+                  </div>
+                  <Switch
+                    checked={form.postergarDiaUtil}
+                    disabled={!form.valorCheio}
+                    onCheckedChange={(v) => setForm(f => ({ ...f, postergarDiaUtil: v }))}
+                  />
+                </div>
               </>
             )}
 

@@ -368,6 +368,39 @@ export interface ScholarshipLateResult {
   complements: number;
 }
 
+/** Último dia do mês (1..31) de um ano/mês (month 1..12). */
+export function lastDayOfMonth(year: number, month: number): number {
+  return new Date(Date.UTC(year, month, 0)).getUTCDate();
+}
+
+/**
+ * Normaliza o dia limite para uma data real do mês da fatura.
+ * Ex.: dia 31 em fevereiro → 28/29 (evita strings inválidas como "2026-02-31").
+ */
+export function normalizeLimitDate(dueStr: string, limitDay: number): string {
+  const year = parseInt(dueStr.slice(0, 4), 10);
+  const month = parseInt(dueStr.slice(5, 7), 10);
+  const maxDay = lastDayOfMonth(year, month);
+  const day = Math.min(Math.max(1, limitDay), maxDay);
+  return `${dueStr.slice(0, 7)}-${String(day).padStart(2, "0")}`;
+}
+
+/**
+ * Próximo dia útil (segunda a sexta) a partir de uma data YYYY-MM-DD.
+ * Se a data já for dia útil, retorna a própria data. Sábado/domingo → segunda.
+ * Feriados NÃO são considerados nesta versão (decisão registrada no PRD).
+ */
+export function proximoDiaUtil(dateStr: string): string {
+  const [y, m, d] = String(dateStr).split("-").map(Number);
+  if (!Number.isFinite(y) || !Number.isFinite(m) || !Number.isFinite(d)) return dateStr;
+  const date = new Date(Date.UTC(y, m - 1, d));
+  const dow = date.getUTCDay(); // 0=domingo, 6=sábado
+  const addDays = dow === 6 ? 2 : dow === 0 ? 1 : 0;
+  if (addDays === 0) return dateStr;
+  date.setUTCDate(date.getUTCDate() + addDays);
+  return date.toISOString().slice(0, 10);
+}
+
 const SCHOLARSHIP_RUN_INTERVAL_MS = 10 * 60 * 1000; // guard: job roda a cada 1 min
 let _scholarshipLastRunAt = 0;
 
@@ -432,47 +465,76 @@ export async function applyScholarshipLateFullValue(): Promise<ScholarshipLateRe
       .filter((d) => Number.isFinite(d) && d >= 1 && d <= 31);
     if (limites.length === 0) continue;
     const futuros = limites.filter((d) => d >= dueDay).sort((a, b) => a - b);
-    const limiteDia = futuros[0] ?? limites[limites.length - 1];
-    const limiteStr = `${dueStr.slice(0, 7)}-${String(limiteDia).padStart(2, "0")}`;
+    // Fallback pelo MAIOR limite (não depende do CSV estar ordenado)
+    const limiteDia = futuros[0] ?? Math.max(...limites);
+    // Data real do limite no mês da fatura (dia 31 em fevereiro → 28/29)
+    const limiteBaseStr = normalizeLimitDate(dueStr, limiteDia);
+    // Postergação opcional: se o limite cair em sábado/domingo, o prazo do
+    // desconto vai até o próximo dia útil (não altera o vencimento da fatura).
+    const limitePostergado = plan.postergarDiaUtil ? proximoDiaUtil(limiteBaseStr) : limiteBaseStr;
+    const limiteStr = limitePostergado;
+    const prazoLabel = limitePostergado !== limiteBaseStr
+      ? `dia ${limiteDia} (postergado para ${limitePostergado} — próximo dia útil)`
+      : `dia ${limiteDia}`;
 
     // Ainda no prazo → não aplica
     if (todayStr <= limiteStr) continue;
 
-    if (row.asaasId || row.mpPaymentId) {
-      // ── Fatura já emitida em gateway: COMPLEMENTO da diferença (dedup) ──
-      const [dup] = await db.select({ id: paymentDues.id }).from(paymentDues)
-        .where(_and(
-          _eq(paymentDues.organizationId, row.organizationId),
-          _eq(paymentDues.studentId, row.studentId),
-          _eq(paymentDues.month, row.month),
-          _eq(paymentDues.year, row.year),
-          _sql`${paymentDues.notes} LIKE 'Complemento valor cheio%'`,
-        ))
-        .limit(1);
-      if (dup) continue;
-      await db.insert(paymentDues).values({
-        organizationId: row.organizationId,
-        userId: row.userId,
-        studentId: row.studentId,
-        amount: (valorCheio - amountAtual).toFixed(2),
-        dueDate: row.dueDate,
-        month: row.month,
-        year: row.year,
-        status: 'pendente' as const,
-        notes: `Complemento valor cheio — Plano ${plan.nome} (atraso após dia ${limiteDia})`,
-        billingPeriodicity: 'mensal',
-      });
-      result.complements++;
-    } else {
-      // ── Fatura apenas interna: ajusta o valor na própria fatura ──
-      if ((row.notes || "").includes("Valor cheio aplicado")) continue;
-      await db.update(paymentDues).set({
-        amount: valorCheio.toFixed(2),
-        originalAmount: row.originalAmount ?? amountAtual.toFixed(2),
-        notes: [row.notes, `Valor cheio aplicado (atraso após dia ${limiteDia})`].filter(Boolean).join(" • "),
-        updatedAt: new Date(),
-      }).where(_eq(paymentDues.id, row.id));
-      result.adjusted++;
+    // Isolamento por fatura: uma falha não aborta os ajustes das demais.
+    try {
+      if (row.asaasId || row.mpPaymentId) {
+        // ── Fatura já emitida em gateway: COMPLEMENTO da diferença (dedup) ──
+        const [dup] = await db.select({ id: paymentDues.id }).from(paymentDues)
+          .where(_and(
+            _eq(paymentDues.organizationId, row.organizationId),
+            _eq(paymentDues.studentId, row.studentId),
+            _eq(paymentDues.month, row.month),
+            _eq(paymentDues.year, row.year),
+            _sql`${paymentDues.notes} LIKE 'Complemento valor cheio%'`,
+          ))
+          .limit(1);
+        if (dup) continue;
+
+        // A escola tem índice único (org, aluno, mês, ano): se já existir a fatura
+        // original, o complemento não pode ser criado como linha separada.
+        // Nesse caso registramos a pendência na própria fatura (idempotente) e
+        // seguimos — sem quebrar a rodada.
+        const [created] = await db.insert(paymentDues).values({
+          organizationId: row.organizationId,
+          userId: row.userId,
+          studentId: row.studentId,
+          amount: (valorCheio - amountAtual).toFixed(2),
+          dueDate: row.dueDate,
+          month: row.month,
+          year: row.year,
+          status: 'pendente' as const,
+          notes: `Complemento valor cheio — Plano ${plan.nome} (atraso após ${prazoLabel})`,
+          billingPeriodicity: 'mensal',
+        }).onConflictDoNothing({
+          target: [paymentDues.organizationId, paymentDues.studentId, paymentDues.month, paymentDues.year],
+        }).returning({ id: paymentDues.id });
+
+        if (created) {
+          result.complements++;
+        } else if (!(row.notes || "").includes("Valor cheio pendente")) {
+          await db.update(paymentDues).set({
+            notes: [row.notes, `Valor cheio pendente (atraso após ${prazoLabel}) — complemento bloqueado por fatura existente`].filter(Boolean).join(" • "),
+            updatedAt: new Date(),
+          }).where(_eq(paymentDues.id, row.id));
+        }
+      } else {
+        // ── Fatura apenas interna: ajusta o valor na própria fatura ──
+        if ((row.notes || "").includes("Valor cheio aplicado")) continue;
+        await db.update(paymentDues).set({
+          amount: valorCheio.toFixed(2),
+          originalAmount: row.originalAmount ?? amountAtual.toFixed(2),
+          notes: [row.notes, `Valor cheio aplicado (atraso após ${prazoLabel})`].filter(Boolean).join(" • "),
+          updatedAt: new Date(),
+        }).where(_eq(paymentDues.id, row.id));
+        result.adjusted++;
+      }
+    } catch (rowErr: any) {
+      console.error(`[BillingEngine] Falha ao aplicar valor cheio na fatura ${row.id}:`, rowErr?.message || rowErr);
     }
   }
 

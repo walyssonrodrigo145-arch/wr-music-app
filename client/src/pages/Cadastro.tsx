@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Music, AlertCircle, ArrowRight, Loader2, Mail, CheckCircle2, Phone, Gift } from "lucide-react";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { clearReferralCode, readReferralCode, saveReferralCode } from "./indicacao/PublicReferralPage";
 
 export default function Cadastro() {
@@ -20,8 +19,27 @@ export default function Cadastro() {
   const [password, setPassword] = useState("");
   const [planType, setPlanType] = useState<"MONTHLY" | "YEARLY">("MONTHLY");
 
-  const { data: plans } = trpc.publicData.getPlans.useQuery();
-  const mainPlan = plans?.find(p => p.showOnLanding) || plans?.[0];
+  // Todos os planos ativos pagos (inclusive os que não estão na vitrine da landing)
+  const { data: plans, isError: plansError } = trpc.publicData.getSignupPlans.useQuery();
+  const [selectedPlanId, setSelectedPlanId] = useState<string>("");
+  useEffect(() => {
+    if (!selectedPlanId && plans && plans.length > 0) {
+      const popular = plans.find((p) => p.isPopular);
+      setSelectedPlanId((popular || plans[0]).id);
+    }
+  }, [plans, selectedPlanId]);
+  const selectedPlan = plans?.find(p => p.id === selectedPlanId) || plans?.[0];
+  // No ciclo anual só aparecem planos com preço anual definido
+  const visiblePlans = (plans ?? []).filter((p) => planType === "MONTHLY" || Number(p.priceYearly) > 0);
+
+  // Ao trocar para Anual, se o plano selecionado não tiver preço anual,
+  // move a seleção para o primeiro plano válido do ciclo (evita enviar um
+  // plano que sumiu da lista).
+  useEffect(() => {
+    if (planType !== "YEARLY") return;
+    if (!selectedPlan || Number(selectedPlan.priceYearly) > 0) return;
+    if (visiblePlans.length > 0) setSelectedPlanId(visiblePlans[0].id);
+  }, [planType, selectedPlan, visiblePlans]);
 
   // ── Programa Indique & Ganhe: preserva o código vindo do link (?ref=) ──────
   const search = useSearch();
@@ -73,7 +91,7 @@ export default function Cadastro() {
     if (!cpfCnpj.trim() || cpfCnpj.replace(/\D/g, '').length < 11) return setErrorMsg("Por favor, insira um CPF/CNPJ válido com pelo menos 11 dígitos.");
     if (!password) return setErrorMsg("Crie uma senha.");
     if (password.length < 6) return setErrorMsg("A senha deve ter pelo menos 6 caracteres.");
-    if (!mainPlan) return setErrorMsg("Nenhum plano disponível para cadastro no momento.");
+    if (!selectedPlan) return setErrorMsg("Selecione um plano para continuar.");
     
     registerMutation.mutate({ 
       name: name.trim(), 
@@ -82,7 +100,7 @@ export default function Cadastro() {
       cpfCnpj: cpfCnpj.replace(/\D/g, ''),
       password,
       planType,
-      planId: mainPlan.id,
+      planId: selectedPlan.id,
       referralCode: referralCode || undefined,
     });
   };
@@ -238,58 +256,103 @@ export default function Cadastro() {
               </div>
             </div>
 
-            <div className="pt-4 pb-2">
-              <Label className="text-white/70 font-semibold uppercase tracking-wider text-xs ml-1 mb-4 block">Escolha seu plano</Label>
-              <RadioGroup value={planType} onValueChange={(v: any) => setPlanType(v)} className="space-y-3">
-                <Label
-                  htmlFor="plan-monthly"
-                  className={`flex flex-col p-4 rounded-2xl border-2 cursor-pointer transition-all ${
-                    planType === 'MONTHLY' 
-                      ? 'border-primary bg-primary/10' 
-                      : 'border-white/10 bg-black/40 hover:border-white/20'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      <RadioGroupItem value="MONTHLY" id="plan-monthly" className="border-white/50 text-primary" />
-                      <span className="text-white font-bold text-base">{mainPlan ? `${mainPlan.name} Mensal` : 'Plano Mensal'}</span>
-                    </div>
-                    <span className="text-primary font-black text-lg">
-                      R$ {mainPlan ? Number(mainPlan.priceMonthly).toFixed(2).replace('.', ',') : '49,90'}
-                      <span className="text-xs text-white/50 font-normal">/mês</span>
-                    </span>
-                  </div>
-                  <p className="text-white/60 text-xs mt-2 pl-7">Acesso total à plataforma com cobrança mensal.</p>
-                </Label>
+            <div className="pt-4 pb-2 space-y-4">
+              <Label className="text-white/70 font-semibold uppercase tracking-wider text-xs ml-1 block">Escolha seu plano</Label>
 
-                <Label
-                  htmlFor="plan-yearly"
-                  className={`flex flex-col p-4 rounded-2xl border-2 cursor-pointer transition-all ${
-                    planType === 'YEARLY' 
-                      ? 'border-primary bg-primary/10' 
-                      : 'border-white/10 bg-black/40 hover:border-white/20'
-                  }`}
-                >
-                  <div className="flex items-center justify-between relative z-0">
-                    <div className="flex items-center space-x-3">
-                      <RadioGroupItem value="YEARLY" id="plan-yearly" className="border-white/50 text-primary" />
-                      <span className="text-white font-bold text-base">{mainPlan ? `${mainPlan.name} Anual` : 'Plano Anual'}</span>
-                    </div>
-                    <div className="text-right">
-                      {mainPlan && (
-                        <span className="text-white/40 line-through text-xs block">
-                          R$ {(Number(mainPlan.priceMonthly) * 12).toFixed(2).replace('.', ',')}
-                        </span>
-                      )}
-                      <span className="text-emerald-400 font-black text-lg">
-                        R$ {mainPlan ? Number(mainPlan.priceYearly).toFixed(2).replace('.', ',') : '499,00'}
-                        <span className="text-xs text-white/50 font-normal">/ano</span>
-                      </span>
-                    </div>
-                  </div>
-                  <p className="text-white/60 text-xs mt-2 pl-7">Economize com a assinatura anual completa.</p>
-                </Label>
-              </RadioGroup>
+              {/* Ciclo de cobrança */}
+              <div className="grid grid-cols-2 gap-1.5 p-1 rounded-2xl bg-black/40 border border-white/10">
+                {(["MONTHLY", "YEARLY"] as const).map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => setPlanType(t)}
+                    className={`py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all ${
+                      planType === t ? "bg-primary text-primary-foreground shadow" : "text-white/60 hover:text-white"
+                    }`}
+                  >
+                    {t === "MONTHLY" ? "Mensal" : "Anual (economize)"}
+                  </button>
+                ))}
+              </div>
+
+              {/* Todos os planos disponíveis */}
+              {plansError ? (
+                <div className="p-4 rounded-2xl border border-red-500/20 bg-red-500/10 text-center text-sm text-red-200">
+                  Não foi possível carregar os planos. Recarregue a página e tente novamente.
+                </div>
+              ) : !plans ? (
+                <div className="p-4 rounded-2xl border border-white/10 bg-black/40 text-center text-sm text-white/60">
+                  Carregando planos…
+                </div>
+              ) : visiblePlans.length === 0 ? (
+                <div className="p-4 rounded-2xl border border-white/10 bg-black/40 text-center text-sm text-white/60">
+                  Nenhum plano disponível para contratação no momento.
+                </div>
+              ) : (
+                <div className="space-y-3" role="radiogroup" aria-label="Planos disponíveis">
+                  {visiblePlans.map((p) => {
+                    const selected = selectedPlan?.id === p.id;
+                    const monthly = Number(p.priceMonthly);
+                    const yearly = Number(p.priceYearly);
+                    const price = planType === "MONTHLY" ? monthly : yearly;
+                    const features = (() => {
+                      try {
+                        const arr = JSON.parse(p.features || "[]");
+                        return Array.isArray(arr)
+                          ? arr.slice(0, 3).filter((x: unknown) => typeof x === "string" || typeof x === "number").map(String)
+                          : [];
+                      } catch {
+                        return [];
+                      }
+                    })();
+                    const studentsLabel = Number(p.maxStudents) >= 999999
+                      ? "Alunos ilimitados"
+                      : `Até ${p.maxStudents} alunos`;
+                    return (
+                      <button
+                        key={p.id}
+                        type="button"
+                        role="radio"
+                        aria-checked={selected}
+                        aria-pressed={selected}
+                        onClick={() => setSelectedPlanId(p.id)}
+                        className={`w-full text-left flex flex-col p-4 rounded-2xl border-2 transition-all ${
+                          selected ? "border-primary bg-primary/10" : "border-white/10 bg-black/40 hover:border-white/20"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${selected ? "border-primary" : "border-white/40"}`}>
+                              {selected && <span className="w-2.5 h-2.5 rounded-full bg-primary" />}
+                            </span>
+                            <span className="text-white font-bold text-base truncate">{p.name}</span>
+                            {p.isPopular && (
+                              <span className="shrink-0 px-2 py-0.5 rounded-md bg-amber-400/20 text-amber-300 text-[9px] font-black uppercase tracking-widest border border-amber-400/30">
+                                Mais popular
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-right shrink-0">
+                            {planType === "YEARLY" && (
+                              <span className="text-white/55 line-through text-xs block">
+                                R$ {(monthly * 12).toFixed(2).replace(".", ",")}
+                              </span>
+                            )}
+                            <span className={planType === "YEARLY" ? "text-emerald-400 font-black text-lg" : "text-primary font-black text-lg"}>
+                              R$ {price.toFixed(2).replace(".", ",")}
+                              <span className="text-xs text-white/50 font-normal">/{planType === "MONTHLY" ? "mês" : "ano"}</span>
+                            </span>
+                          </div>
+                        </div>
+                        <p className="text-white/60 text-xs mt-2 pl-8">
+                          {studentsLabel}
+                          {features.length > 0 ? ` • ${features.join(" • ")}` : ""}
+                        </p>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
             <Button 
@@ -299,7 +362,7 @@ export default function Cadastro() {
             >
               {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : (
                 <>
-                  Iniciar 7 Dias Grátis
+                  Iniciar teste grátis
                   <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                 </>
               )}

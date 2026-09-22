@@ -1792,6 +1792,9 @@ export const schoolPlans = pgTable("school_plans", {
   valorCheio: decimal("valorCheio", { precision: 10, scale: 2 }), // regra de atraso (futuro)
   taxaInscricao: decimal("taxaInscricao", { precision: 10, scale: 2 }).default("0").notNull(),
   diasLimite: varchar("diasLimite", { length: 20 }).default("10,20").notNull(), // CSV
+  // Posterga o PRAZO DO DESCONTO para o próximo dia útil quando o dia limite cai
+  // em sábado/domingo (não altera o vencimento da fatura nem o status de atraso).
+  postergarDiaUtil: boolean("postergarDiaUtil").default(false).notNull(),
   descricao: text("descricao"),
   ativo: boolean("ativo").default(true).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
@@ -2702,7 +2705,8 @@ export const referrals = pgTable("referrals", {
 // Status: DISPONIVEL | PARCIALMENTE_UTILIZADA | UTILIZADA | EXPIRADA | CANCELADA
 export const referralRewards = pgTable("referral_rewards", {
   id: serial("id").primaryKey(),
-  referralId: integer("referralId").notNull(),
+  // 1 recompensa por indicação (impede duplicidade em webhooks concorrentes)
+  referralId: integer("referralId").notNull().unique(),
   organizationId: integer("organizationId").notNull(), // escola indicadora (recebe)
   type: varchar("type", { length: 20 }).default("PERCENTUAL").notNull(),
   percent: integer("percent").default(0).notNull(),
@@ -2712,13 +2716,16 @@ export const referralRewards = pgTable("referral_rewards", {
   releasedAt: timestamp("releasedAt").defaultNow().notNull(),
   expiresAt: timestamp("expiresAt"),
   usedAt: timestamp("usedAt"),
+  // Fatura em que a recompensa foi reservada/aplicada (auditoria e proteção
+  // contra reaplicação quando o processo morre depois do Asaas confirmar).
+  usedInvoiceId: varchar("usedInvoiceId", { length: 64 }),
   canceledAt: timestamp("canceledAt"),
   cancelReason: text("cancelReason"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
 }, (table) => [
   index("referral_rewards_org_status_idx").on(table.organizationId, table.status),
-  index("referral_rewards_referral_idx").on(table.referralId),
+  // (o índice único de referralId é criado pela constraint .unique() acima)
 ]);
 
 // Tipos: INDICACAO_CRIADA | INDICACAO_CADASTRO_REALIZADO | INDICACAO_TESTE_INICIADO |

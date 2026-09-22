@@ -35,6 +35,7 @@ import { BenefitsCarousel } from '@/components/BenefitsCarousel';
 import { HeroSlider } from '@/components/HeroSlider';
 import ClientsMarquee from '@/components/ClientsMarquee';
 import { trpc } from '@/lib/trpc';
+import { clearReferralCode, readReferralCode } from './indicacao/PublicReferralPage';
 
 // ─── CONSTANTES ───────────────────────────────────────────────────────────────
 export const TRIAL_DAYS = 7;
@@ -73,6 +74,8 @@ const SignupModal = ({ plan, onClose }: { plan: string; onClose: () => void }) =
   });
 
   const registerMutation = trpc.auth.registerWithPlan.useMutation();
+  // Programa Indique & Ganhe: preserva o código de indicação capturado no link
+  const referralCode = readReferralCode();
 
   const steps: ModalStep[] = ['conta', 'endereco'];
   const stepLabels: Record<ModalStep, string> = { conta: 'Sua Conta', endereco: 'Endereço', sucesso: 'Concluído' };
@@ -194,6 +197,7 @@ const SignupModal = ({ plan, onClose }: { plan: string; onClose: () => void }) =
           planType: "MONTHLY",
           planId: plan,
           cpfCnpj: form.cpfCnpj.replace(/\D/g, ''),
+          referralCode: referralCode || undefined,
           address: {
             zipCode: form.cep,
             street: form.rua,
@@ -203,6 +207,7 @@ const SignupModal = ({ plan, onClose }: { plan: string; onClose: () => void }) =
             state: form.estado,
           },
         });
+        clearReferralCode();
 
         if (result.invoiceUrl) {
           // Redirecionar diretamente para o checkout do Asaas
