@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { addDaysISO, firstWeekdayISO } from "./routers/lessonsRouters";
-import { resolveMigrationFee } from "./routers/financeiroRouters";
+import { resolveMigrationFee, resolvePlanFee, computeRemainingMonths } from "./routers/financeiroRouters";
+import { periodicityStep } from "@shared/billing";
 import { computeDaysLeft, isSubscriptionOverdue, shouldShowRenewalNotice } from "@shared/subscriptionAlerts";
 
 /**
@@ -47,6 +48,49 @@ describe("Migração — valor da mensalidade (fallback)", () => {
     expect(resolveMigrationFee(0, 0, 0)).toBe(0);
     expect(resolveMigrationFee(null, undefined, null)).toBe(0);
     expect(resolveMigrationFee(-50, 0, 0)).toBe(0);
+  });
+});
+
+describe("Migração — plano selecionado e saldo de meses", () => {
+  it("resolvePlanFee: valor do plano vence; sem valor no plano usa o informado", () => {
+    expect(resolvePlanFee(180, 100)).toBe(180);
+    expect(resolvePlanFee("180.00", null)).toBe(180);
+    expect(resolvePlanFee(0, 150)).toBe(150);
+    expect(resolvePlanFee(0, 0)).toBe(0);
+    expect(resolvePlanFee(null, null)).toBe(0);
+  });
+
+  it("computeRemainingMonths: duração − lançadas, nunca negativo", () => {
+    expect(computeRemainingMonths(12, 4)).toBe(8);
+    expect(computeRemainingMonths(12, 0)).toBe(12);
+    expect(computeRemainingMonths(12, 12)).toBe(0);
+    expect(computeRemainingMonths(12, 14)).toBe(0);
+    expect(computeRemainingMonths(0, 0)).toBe(0);
+    expect(computeRemainingMonths(null, null)).toBe(0);
+    expect(computeRemainingMonths("12", "3")).toBe(9);
+  });
+
+  it("limita as mensalidades geradas ao restante do plano", () => {
+    const remaining = computeRemainingMonths(12, 4); // 8
+    expect(Math.min(12, remaining)).toBe(8); // pediu 12 → gera 8
+    expect(Math.min(6, remaining)).toBe(6);  // pediu 6 → gera 6
+    expect(Math.min(12, computeRemainingMonths(12, 12))).toBe(0); // plano completo
+  });
+
+  it("considera a periodicidade: cada fatura lançada cobre N meses", () => {
+    expect(periodicityStep("mensal")).toBe(1);
+    expect(periodicityStep("bimestral")).toBe(2);
+    expect(periodicityStep("trimestral")).toBe(3);
+    expect(periodicityStep("semestral")).toBe(6);
+    expect(periodicityStep("anual")).toBe(12);
+    expect(periodicityStep(null)).toBe(1);
+
+    // Plano de 12 meses com 2 faturas bimestrais lançadas (4 meses) → faltam 8
+    expect(computeRemainingMonths(12, 2, periodicityStep("bimestral"))).toBe(8);
+    // 4 faturas trimestrais (12 meses) → plano completo
+    expect(computeRemainingMonths(12, 4, periodicityStep("trimestral"))).toBe(0);
+    // 1 fatura semestral (6 meses) → faltam 6
+    expect(computeRemainingMonths(12, 1, periodicityStep("semestral"))).toBe(6);
   });
 });
 

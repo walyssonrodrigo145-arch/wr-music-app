@@ -6,7 +6,7 @@
 // Toda validação crítica acontece no backend; aqui só montamos a prévia.
 // ═══════════════════════════════════════════════════════════════════════════════
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { parseBRL } from "@/lib/money";
+import { periodicityStep } from "@shared/billing";
 import {
   Upload, CalendarPlus, Wallet, FileSpreadsheet, Download, Loader2,
   CheckCircle2, AlertTriangle, ArrowRight, Users, Sparkles, Copy,
@@ -269,7 +270,57 @@ function DuesTab({ students }: { students: any[] }) {
   const [monthsCount, setMonthsCount] = useState(12);
   const [dueDay, setDueDay] = useState<number | "">("");
   const [amount, setAmount] = useState("");
+  const [planId, setPlanId] = useState<number | "">("");
+  const [monthsTouched, setMonthsTouched] = useState(false);
   const [result, setResult] = useState<any>(null);
+
+  const utils = trpc.useUtils();
+  const { data: plans = [], isError: plansError } = trpc.schoolPlans.list.useQuery({ somenteAtivos: true });
+  const selectedIds = useMemo(() => Array.from(selected), [selected]);
+
+  // Mensalidades já lançadas por aluno (para o saldo de meses do plano)
+  const { data: counts = [], isLoading: countsLoading, isError: countsError } = trpc.paymentDues.countByStudents.useQuery(
+    { studentIds: selectedIds },
+    { enabled: selectedIds.length > 0 }
+  );
+  const countByStudent = useMemo(() => {
+    const map = new Map<number, number>();
+    for (const c of counts as any[]) map.set(Number(c.studentId), Number(c.count));
+    return map;
+  }, [counts]);
+
+  const selectedPlan = useMemo(
+    () => (plans as any[]).find((p) => Number(p.id) === Number(planId)) || null,
+    [plans, planId]
+  );
+
+  const remainingByStudent = useMemo(() => {
+    const map = new Map<number, number>();
+    if (!selectedPlan) return map;
+    const duration = Number(selectedPlan.duracaoMeses) || 0;
+    for (const id of selectedIds) {
+      const student = students.find((s) => Number(s.id) === id);
+      const launched = countByStudent.get(id) ?? 0;
+      // Cada fatura lançada cobre N meses conforme a periodicidade do aluno
+      const step = periodicityStep(student?.billingPeriodicity);
+      map.set(id, Math.max(0, duration - launched * step));
+    }
+    return map;
+  }, [selectedPlan, selectedIds, countByStudent, students]);
+
+  const allPlansComplete = useMemo(() => {
+    if (!selectedPlan || selectedIds.length === 0) return false;
+    return selectedIds.every((id) => (remainingByStudent.get(id) ?? 0) === 0);
+  }, [selectedPlan, selectedIds, remainingByStudent]);
+
+  // Sugere "mensalidades a gerar" pelo maior restante (não sobrescreve ajuste manual)
+  useEffect(() => {
+    if (!selectedPlan || monthsTouched) return;
+    if (remainingByStudent.size === 0) return;
+    let max = 0;
+    remainingByStudent.forEach((v) => { if (v > max) max = v; });
+    setMonthsCount(Math.min(12, Math.max(1, max)));
+  }, [selectedPlan, remainingByStudent, monthsTouched]);
 
   const filtered = useMemo(() => {
     const q = normName(search);
@@ -279,6 +330,8 @@ function DuesTab({ students }: { students: any[] }) {
   const mutation = trpc.paymentDues.migratePaymentDuesBatch.useMutation({
     onSuccess: (data: any) => {
       setResult(data);
+      // Atualiza o saldo de meses exibido (as contagens mudaram)
+      utils.paymentDues.countByStudents.invalidate();
       toast.success(`Migração concluída: ${data.created} mensalidade(s) criada(s).`);
     },
     onError: (e) => toast.error("Erro na migração: " + e.message),
@@ -303,12 +356,52 @@ function DuesTab({ students }: { students: any[] }) {
       monthsCount,
       dueDay: dueDay === "" ? undefined : Number(dueDay),
       amount: amount ? parseBRL(amount) : undefined,
+      planId: planId === "" ? undefined : Number(planId),
+      applyPlanToStudents: true,
     });
   };
 
   return (
     <div className="space-y-5">
       <div className="rounded-3xl border border-border bg-card p-5 space-y-4">
+        {/* Plano do aluno (vincula os selecionados e define valor/duração) */}
+        <div className="space-y-1.5">
+          <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Plano do aluno (opcional)</Label>
+          <select
+            value={planId}
+            onChange={(e) => { setPlanId(e.target.value === "" ? "" : Number(e.target.value)); setMonthsTouched(false); }}
+            className="w-full sm:max-w-md h-10 rounded-xl border border-border bg-background px-3 text-sm font-bold outline-none focus:ring-2 focus:ring-primary/20"
+          >
+            <option value="">Não vincular plano (usar mensalidade/plano atual do aluno)</option>
+            {(plans as any[]).map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.nome} — R$ {Number(p.valorMensal).toFixed(2)} · {p.duracaoMeses} mês(es)
+              </option>
+            ))}
+          </select>
+          {selectedPlan && (
+            <p className="text-[11px] text-violet-600 dark:text-violet-400 font-bold flex items-center gap-1.5">
+              <Sparkles size={12} />
+              Os alunos selecionados serão vinculados a este plano e as mensalidades sairão por R$ {Number(selectedPlan.valorMensal).toFixed(2)}.
+            </p>
+          )}
+          {plansError && (
+            <p className="text-[11px] text-rose-600 dark:text-rose-400 font-bold">
+              Não foi possível carregar os planos. Recarregue a página e tente novamente.
+            </p>
+          )}
+          {!plansError && !selectedPlan && (plans as any[]).length === 0 && (
+            <p className="text-[11px] text-amber-600 dark:text-amber-400 font-bold">
+              Nenhum plano ativo. Cadastre em Configurações → Planos e Bolsas para vincular os alunos.
+            </p>
+          )}
+          {allPlansComplete && (
+            <p className="text-[11px] text-amber-600 dark:text-amber-400 font-bold">
+              Todos os alunos selecionados já completaram a duração deste plano — não há mensalidades a gerar.
+            </p>
+          )}
+        </div>
+
         <div className="grid sm:grid-cols-5 gap-3">
           <div className="space-y-1.5">
             <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Mês inicial</Label>
@@ -319,8 +412,14 @@ function DuesTab({ students }: { students: any[] }) {
             <Input type="number" min={2000} max={2100} value={startYear} onChange={(e) => setStartYear(Number(e.target.value))} className="h-10 rounded-xl font-bold" />
           </div>
           <div className="space-y-1.5">
-            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Meses</Label>
-            <Input type="number" min={1} max={12} value={monthsCount} onChange={(e) => setMonthsCount(Number(e.target.value))} className="h-10 rounded-xl font-bold" />
+            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+              {selectedPlan ? "Mensalidades a gerar" : "Meses"}
+            </Label>
+            <Input
+              type="number" min={1} max={12} value={monthsCount}
+              onChange={(e) => { setMonthsCount(Number(e.target.value)); setMonthsTouched(true); }}
+              className="h-10 rounded-xl font-bold"
+            />
           </div>
           <div className="space-y-1.5">
             <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Vencimento (opcional)</Label>
@@ -328,13 +427,15 @@ function DuesTab({ students }: { students: any[] }) {
           </div>
           <div className="space-y-1.5">
             <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Valor (opcional)</Label>
-            <Input placeholder="do plano/aluno" value={amount} onChange={(e) => setAmount(e.target.value)} className="h-10 rounded-xl font-bold" inputMode="decimal" />
+            <Input placeholder={selectedPlan ? "do plano" : "do plano/aluno"} value={amount} onChange={(e) => setAmount(e.target.value)} className="h-10 rounded-xl font-bold" inputMode="decimal" />
           </div>
         </div>
         <p className="text-[11px] text-muted-foreground flex items-start gap-1.5">
           <Sparkles size={12} className="mt-0.5 shrink-0" />
-          O valor de cada aluno segue: mensalidade cadastrada → valor do plano (Planos & Bolsas) → valor informado aqui.
-          Competências já lançadas são ignoradas. Nenhuma cobrança é emitida automaticamente.
+          {selectedPlan
+            ? `Com plano selecionado: o valor do plano vence, os alunos são vinculados a ele e só são geradas as mensalidades que faltam para completar a duração (${selectedPlan.duracaoMeses} meses).`
+            : "Sem plano: o valor de cada aluno segue mensalidade cadastrada → plano atual → valor informado. Competências já lançadas são ignoradas."}
+          {" "}Nenhuma cobrança é emitida automaticamente.
         </p>
       </div>
 
@@ -342,7 +443,15 @@ function DuesTab({ students }: { students: any[] }) {
         <div className="p-4 border-b border-border/60 flex items-center gap-3 flex-wrap">
           <Wallet size={15} className="text-primary" />
           <Input placeholder="Buscar aluno..." value={search} onChange={(e) => setSearch(e.target.value)} className="h-9 rounded-xl max-w-xs" />
-          <Button type="button" variant="ghost" onClick={() => setSelected(new Set(filtered.map((s) => s.id)))} className="h-9 text-[10px] font-black uppercase tracking-widest">
+          <Button
+            type="button" variant="ghost"
+            onClick={() => {
+              const ids = filtered.slice(0, 200).map((s) => s.id);
+              setSelected(new Set(ids));
+              if (filtered.length > 200) toast.info("Selecionados os primeiros 200 alunos (limite por operação).");
+            }}
+            className="h-9 text-[10px] font-black uppercase tracking-widest"
+          >
             Selecionar todos
           </Button>
           <Button type="button" variant="ghost" onClick={() => setSelected(new Set())} className="h-9 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
@@ -356,6 +465,8 @@ function DuesTab({ students }: { students: any[] }) {
           ) : filtered.map((s) => {
             const isSelected = selected.has(s.id);
             const fee = Number(s.monthlyFee) || 0;
+            const launched = countByStudent.get(s.id) ?? 0;
+            const remaining = remainingByStudent.get(s.id);
             return (
               <label key={s.id} className={cn("flex items-center gap-3 p-3 sm:p-4 cursor-pointer transition-colors", isSelected && "bg-primary/5")}>
                 <Checkbox checked={isSelected} onCheckedChange={() => toggle(s.id)} />
@@ -363,7 +474,15 @@ function DuesTab({ students }: { students: any[] }) {
                   <p className="text-sm font-bold truncate">{s.name}</p>
                   <p className="text-[10px] text-muted-foreground uppercase tracking-widest">
                     {s.status !== "ativo" ? "INATIVO · " : ""}
-                    {fee > 0 ? `Mensalidade: R$ ${fee.toFixed(2)}` : "Sem mensalidade cadastrada (usará o plano)"}
+                    {selectedPlan
+                      ? countsError
+                        ? "Não foi possível carregar as mensalidades"
+                        : countsLoading
+                          ? "Calculando mensalidades…"
+                          : `Lançadas: ${launched} · ${remaining === 0 ? "PLANO COMPLETO" : `faltam ${remaining}`}`
+                      : fee > 0
+                        ? `Mensalidade: R$ ${fee.toFixed(2)}`
+                        : "Sem mensalidade cadastrada (usará o plano)"}
                   </p>
                 </div>
               </label>
@@ -374,7 +493,7 @@ function DuesTab({ students }: { students: any[] }) {
 
       <Button
         onClick={handleGenerate}
-        disabled={mutation.isPending || selected.size === 0}
+        disabled={mutation.isPending || selected.size === 0 || allPlansComplete}
         className="h-12 px-6 rounded-2xl font-black text-[11px] uppercase tracking-widest"
       >
         {mutation.isPending ? <Loader2 size={16} className="mr-2 animate-spin" /> : <Wallet size={16} className="mr-2" />}
@@ -382,7 +501,49 @@ function DuesTab({ students }: { students: any[] }) {
       </Button>
 
       {result && (
-        <ResultPanel title="Mensalidades geradas" created={result.created} skipped={result.skipped || []} totalRequested={result.totalRequested} />
+        <>
+          {result.planApplied && (
+            <div className="rounded-2xl border border-violet-500/20 bg-violet-500/5 p-4 text-sm">
+              <p className="font-black text-violet-700 dark:text-violet-300">
+                Plano aplicado: {result.planApplied.nome}
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Valor R$ {Number(result.planApplied.valorMensal).toFixed(2)} · {result.planApplied.duracaoMeses} mês(es) — alunos vinculados ao plano.
+              </p>
+            </div>
+          )}
+
+          {Array.isArray(result.perStudent) && result.perStudent.length > 0 && (
+            <div className="rounded-3xl border border-border bg-card overflow-hidden">
+              <div className="px-5 py-3 border-b border-border/60">
+                <span className="text-xs font-black uppercase tracking-widest text-muted-foreground">Resumo por aluno</span>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border bg-muted/30">
+                      {["Aluno", "Lançadas antes", "Restantes", "Geradas"].map((h) => (
+                        <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {result.perStudent.map((p: any) => (
+                      <tr key={p.studentId} className="border-b border-border/50">
+                        <td className="px-4 py-2.5 font-medium">{p.studentName}</td>
+                        <td className="px-4 py-2.5 tabular-nums">{p.launchedBefore}</td>
+                        <td className="px-4 py-2.5 tabular-nums">{p.remaining ?? "—"}</td>
+                        <td className="px-4 py-2.5 tabular-nums font-black text-emerald-600 dark:text-emerald-400">{p.generated}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          <ResultPanel title="Mensalidades geradas" created={result.created} skipped={result.skipped || []} totalRequested={result.totalRequested} />
+        </>
       )}
     </div>
   );
