@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
 import { useLocation } from "wouter";
 import { firstAllowedPath, isPageAllowed } from "@shared/permissions";
+import { ReferralPromoModal } from "@/components/indicacao/ReferralPromoModal";
 
 interface MusicLayoutProps {
   children: React.ReactNode;
@@ -178,6 +179,9 @@ export function MusicLayout({ children }: MusicLayoutProps) {
 
       {/* Tab Bar Inferior para Mobile (Admin/Professor) */}
       <MobileTabBar onMenuClick={() => setMobileOpen(true)} />
+
+      {/* Anúncio do Indique & Ganhe — 2x ao dia (manhã e tarde) */}
+      <ReferralPromoModal />
     </div>
   );
 }

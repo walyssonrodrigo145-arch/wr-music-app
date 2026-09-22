@@ -18,6 +18,7 @@ import { EyeToggleButton } from "@/components/dashboard/EyeToggleButton";
 import { FreeSlotsCard } from "@/components/dashboard/FreeSlotsCard";
 import { LiveRoomsCard } from "@/components/dashboard/LiveRoomsCard";
 import { PlanSelectionModal } from "@/components/PlanSelectionModal";
+import { UnreadNoticeBanner } from "@/components/dashboard/UnreadNoticeBanner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -225,7 +226,10 @@ export default function Dashboard() {
     <div className="space-y-8 animate-in fade-in duration-700 pb-12">
       {/* 🚀 Escolha de planos para escolas em trial (ex.: contas criadas via login Google) */}
       <PlanSelectionModal />
-      
+
+      {/* ── Avisos não lidos (ex.: mensalidade pendente) ── */}
+      <UnreadNoticeBanner />
+
       {/* ── Olhinho: ocultar valores financeiros ── */}
       <div className="flex items-center justify-end gap-3 -mb-2">
         <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Valores</span>
