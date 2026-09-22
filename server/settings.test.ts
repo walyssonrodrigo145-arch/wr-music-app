@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { appRouter } from "./routers";
+import { upsertSettings } from "./db";
 import type { TrpcContext } from "./_core/context";
 
 // Mock db helpers
@@ -45,6 +46,7 @@ function createCtx(): TrpcContext {
       email: "professor@teste.com",
       loginMethod: "manus",
       role: "admin",
+      organizationId: 1,
       createdAt: new Date(),
       updatedAt: new Date(),
       lastSignedIn: new Date(),
@@ -109,6 +111,33 @@ describe("settings.updateNotifications", () => {
       notifyWeeklyReport: true,
     });
     expect(result).toEqual({ success: true });
+  });
+});
+
+describe("settings.toggleConversationalMode (Recepcionista Virtual)", () => {
+  beforeEach(() => {
+    vi.mocked(upsertSettings).mockClear();
+  });
+
+  it("DESATIVA persistindo conversationalMode = 0 (não reverte para 1)", async () => {
+    const caller = appRouter.createCaller(createCtx());
+    const result = await caller.settings.toggleConversationalMode({ enabled: false });
+    expect(result).toEqual({ success: true, enabled: false });
+    expect(upsertSettings).toHaveBeenLastCalledWith(1, 1, { conversationalMode: 0 });
+  });
+
+  it("ATIVA persistindo conversationalMode = 1", async () => {
+    const caller = appRouter.createCaller(createCtx());
+    const result = await caller.settings.toggleConversationalMode({ enabled: true });
+    expect(result).toEqual({ success: true, enabled: true });
+    expect(upsertSettings).toHaveBeenLastCalledWith(1, 1, { conversationalMode: 1 });
+  });
+
+  it("rejeita payload inválido", async () => {
+    const caller = appRouter.createCaller(createCtx());
+    await expect(
+      (caller.settings.toggleConversationalMode as any)({ enabled: "sim" })
+    ).rejects.toThrow();
   });
 });
 

@@ -363,6 +363,24 @@ export default function Configuracoes() {
     toggleChatbotMutation.mutate({ enabled: val });
   };
 
+  // Recepcionista Virtual: salva no próprio toggle (persistência imediata)
+  const toggleConversationalModeMutation = trpc.settings.toggleConversationalMode.useMutation({
+    onSuccess: (data) => {
+      toast.success(data.enabled ? "💬 Recepcionista Virtual ATIVADA!" : "Recepcionista Virtual desativada.");
+      utils.settings.get.invalidate();
+    },
+    onError: (e) => {
+      // Reverte o toggle local se o servidor recusar
+      setConversationalMode((prev) => !prev);
+      toast.error("Erro ao alterar a Recepcionista Virtual: " + e.message);
+    },
+  });
+
+  const handleToggleConversationalMode = (val: boolean) => {
+    setConversationalMode(val);
+    toggleConversationalModeMutation.mutate({ enabled: val });
+  };
+
   // PRD_WHATSAPP_INTERACTIVE: botões/menus interativos no WhatsApp (opt-in)
   const [whatsappInteractiveEnabled, setWhatsappInteractiveEnabled] = useState(false);
   const toggleInteractiveMutation = trpc.settings.toggleWhatsappInteractive.useMutation({
@@ -2066,7 +2084,8 @@ export default function Configuracoes() {
                       </div>
                       <Toggle
                         checked={conversationalMode}
-                        onChange={setConversationalMode}
+                        onChange={handleToggleConversationalMode}
+                        disabled={toggleConversationalModeMutation.isPending}
                       />
                     </div>
 

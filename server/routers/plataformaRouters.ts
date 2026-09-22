@@ -450,6 +450,18 @@ export const plataformaRouters = {
       return { success: true, enabled: input.enabled };
     }),
 
+    // Recepcionista Virtual (IA conversacional): persiste no toggle — antes o
+    // desligamento dependia de um botão que desaparecia com o card em OFF e
+    // acabava revertido pelo refetch das settings.
+    toggleConversationalMode: protectedProcedure.input(z.object({
+      enabled: z.boolean(),
+    })).mutation(async ({ ctx, input }) => {
+      await upsertSettings(ctx.user.organizationId!, ctx.user.id, {
+        conversationalMode: input.enabled ? 1 : 0,
+      });
+      return { success: true, enabled: input.enabled };
+    }),
+
     // PRD_WHATSAPP_INTERACTIVE: opt-in por escola p/ botões/menus interativos
     toggleWhatsappInteractive: protectedProcedure.input(z.object({
       enabled: z.boolean(),

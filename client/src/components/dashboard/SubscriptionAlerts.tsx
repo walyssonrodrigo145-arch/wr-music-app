@@ -12,7 +12,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { formatBRL } from "@/lib/money";
-import { computeDaysLeft, isSubscriptionOverdue, shouldShowRenewalNotice } from "@shared/subscriptionAlerts";
+import { computeDaysLeft, isSubscriptionOverdue, shouldShowRenewalNotice, buildRenewalNoticeCopy, buildOverdueBannerCopy } from "@shared/subscriptionAlerts";
 import { claimModalSlot } from "@/lib/modalCoordinator";
 import { CalendarClock, ArrowRight, AlertTriangle, CreditCard } from "lucide-react";
 
@@ -21,6 +21,19 @@ const RENEWAL_STORAGE_KEY = "mp_subscription_renewal_notice";
 function todayKey(): string {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+/** Destaca a data em negrito dentro da copy (fonte única em @shared/subscriptionAlerts). */
+function withStrongDate(body: string, dateLabel: string): React.ReactNode {
+  const idx = body.indexOf(dateLabel);
+  if (idx < 0) return body;
+  return (
+    <>
+      {body.slice(0, idx)}
+      <strong>{dateLabel}</strong>
+      {body.slice(idx + dateLabel.length)}
+    </>
+  );
 }
 
 export interface SubscriptionAlertInfo {
@@ -96,8 +109,15 @@ export function SubscriptionRenewalModal() {
 
   if (!info.isAdmin || !info.dueDate) return null;
 
-  const dayLabel = info.daysLeft === 0 ? "hoje" : info.daysLeft === 1 ? "amanhã" : `em ${info.daysLeft} dias`;
   const dueLabel = info.dueDate.toLocaleDateString("pt-BR");
+  // Trial NUNCA fala de mensalidade/plano/valor (fonte única em @shared)
+  const copy = buildRenewalNoticeCopy({
+    status: info.status,
+    daysLeft: info.daysLeft ?? 0,
+    dueLabel,
+    planName: info.planName,
+  });
+  const isTrial = copy.kind === "trial";
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -112,9 +132,9 @@ export function SubscriptionRenewalModal() {
                 <CalendarClock size={22} className="text-white" />
               </div>
               <div>
-                <p className="text-indigo-200 text-xs font-bold uppercase tracking-wider mb-1">Lembrete amigável</p>
+                <p className="text-indigo-200 text-xs font-bold uppercase tracking-wider mb-1">{copy.eyebrow}</p>
                 <DialogTitle className="text-white font-black text-lg leading-tight">
-                  Sua mensalidade do MusicPro vence {dayLabel}
+                  {copy.title}
                 </DialogTitle>
               </div>
             </div>
@@ -123,19 +143,20 @@ export function SubscriptionRenewalModal() {
 
         <div className="p-6 space-y-4">
           <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
-            Só passando para avisar: sua assinatura do MusicPro vence em <strong>{dueLabel}</strong>
-            {info.planName ? <> (plano <strong>{info.planName}</strong>)</> : null}.
-            {info.planPrice > 0 ? <> Valor: <strong>{formatBRL(info.planPrice)}</strong>.</> : null}
+            {withStrongDate(copy.body, dueLabel)}
+            {copy.showPlanDetails && info.planPrice > 0 ? <> Valor: <strong>{formatBRL(info.planPrice)}</strong>.</> : null}
           </p>
-          <p className="text-xs text-muted-foreground">
-            Nada muda no seu acesso agora — é apenas um lembrete para você não perder nenhum dia de uso.
-          </p>
+          {!isTrial && (
+            <p className="text-xs text-muted-foreground">
+              Nada muda no seu acesso agora — é apenas um lembrete para você não perder nenhum dia de uso.
+            </p>
+          )}
           <div className="flex flex-col gap-2 pt-1">
             <Button
               onClick={() => { setOpen(false); navigate("/assinatura"); }}
               className="w-full h-12 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-[11px] uppercase tracking-widest"
             >
-              Ver minha assinatura <ArrowRight size={15} className="ml-2" />
+              {isTrial ? "Realizar pagamento" : "Ver minha assinatura"} <ArrowRight size={15} className="ml-2" />
             </Button>
             <Button
               onClick={() => setOpen(false)}
@@ -159,6 +180,9 @@ export function SubscriptionOverdueBanner() {
   if (!info.isAdmin || !info.isOverdue) return null;
 
   const dueLabel = info.dueDate ? info.dueDate.toLocaleDateString("pt-BR") : "—";
+  // Trial encerrado NUNCA fala de mensalidade/valor (fonte única em @shared)
+  const copy = buildOverdueBannerCopy({ status: info.status, dueLabel });
+  const isTrial = copy.kind === "trial";
 
   return (
     <div className="relative flex items-start gap-3 rounded-2xl border border-rose-500/30 bg-rose-500/10 p-4">
@@ -167,17 +191,17 @@ export function SubscriptionOverdueBanner() {
       </div>
       <div className="min-w-0 flex-1">
         <p className="text-xs font-black uppercase tracking-wider text-rose-700 dark:text-rose-300">
-          Mensalidade do MusicPro pendente
+          {copy.title}
         </p>
         <p className="text-xs text-muted-foreground mt-0.5">
-          Sua assinatura venceu em <strong>{dueLabel}</strong>. Regularize para evitar a interrupção do sistema.
-          {info.planPrice > 0 ? <> Valor mensal: <strong>{formatBRL(info.planPrice)}</strong>.</> : null}
+          {withStrongDate(copy.body, dueLabel)}
+          {copy.showPlanDetails && info.planPrice > 0 ? <> Valor mensal: <strong>{formatBRL(info.planPrice)}</strong>.</> : null}
         </p>
         <button
           onClick={() => navigate("/assinatura")}
           className="mt-2 inline-flex items-center gap-1.5 h-8 px-3 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-[10px] font-black uppercase tracking-widest transition-colors"
         >
-          <CreditCard size={12} /> Pagar agora
+          <CreditCard size={12} /> {isTrial ? "Realizar pagamento" : "Pagar agora"}
         </button>
       </div>
     </div>

@@ -26,6 +26,17 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: "2026.09.22.1",
+    date: "2026-09-22",
+    title: "Avisos corretos para escolas no teste grátis",
+    summary: "Quem está no período de teste grátis não recebe mais aviso de “mensalidade vencendo” — agora o aviso fala do fim do teste grátis e do pagamento para continuar.",
+    items: [
+      { type: "correcao", title: "Teste grátis com aviso certo", description: "Durante o período de teste grátis, o lembrete e o banner mostram “Seu período de teste grátis termina em X dias” e que é preciso realizar o pagamento para continuar usando o sistema — sem falar de mensalidade, plano ou valor." },
+      { type: "correcao", title: "Assinante continua igual", description: "Para escolas já assinantes, os avisos de renovação e de mensalidade pendente seguem exatamente como eram." },
+      { type: "correcao", title: "Recepcionista Virtual desliga de verdade", description: "O botão de ligar/desligar a Recepcionista Virtual (IA) agora salva na hora. Antes, ao desativar e salvar, ela voltava a ficar ativa sozinha." },
+    ],
+  },
+  {
     version: "2026.09.22",
     date: "2026-09-22",
     title: "Migração com plano individual por aluno",

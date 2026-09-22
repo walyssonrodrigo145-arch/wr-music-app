@@ -77,3 +77,80 @@ export function shouldShowRenewalNotice(params: {
   if (daysLeft < 0 || daysLeft > 3) return false;
   return params.status === "active" || params.status === "trialing";
 }
+
+// ─── Copy dos avisos (fonte única) ───────────────────────────────────────────
+// REGRA: em TESTE GRÁTIS (trialing) nunca falamos de "mensalidade", plano ou
+// valor — o cliente ainda não é assinante. Falamos do fim do teste grátis e da
+// necessidade de pagar para continuar usando o sistema.
+
+export type SubscriptionAlertKind = "trial" | "subscription";
+
+export interface SubscriptionAlertCopy {
+  kind: SubscriptionAlertKind;
+  eyebrow: string;
+  title: string;
+  body: string;
+  /** Plano/valor só aparecem para assinante — nunca em teste grátis. */
+  showPlanDetails: boolean;
+}
+
+/** "hoje" / "amanhã" / "em X dias" — usado no título do modal. */
+export function relativeDayLabel(daysLeft: number): string {
+  if (daysLeft <= 0) return "hoje";
+  if (daysLeft === 1) return "amanhã";
+  return `em ${daysLeft} dias`;
+}
+
+/** Trial × assinante: a decisão é pelo STATUS, nunca pela data de vencimento. */
+export function resolveSubscriptionAlertKind(status: string | null | undefined): SubscriptionAlertKind {
+  return String(status || "").toLowerCase() === "trialing" ? "trial" : "subscription";
+}
+
+/** Copy do modal de renovação (0–3 dias). */
+export function buildRenewalNoticeCopy(params: {
+  status: string | null | undefined;
+  daysLeft: number;
+  dueLabel: string;
+  planName?: string | null;
+}): SubscriptionAlertCopy {
+  if (resolveSubscriptionAlertKind(params.status) === "trial") {
+    return {
+      kind: "trial",
+      eyebrow: "Teste grátis",
+      title: `Seu período de teste grátis termina ${relativeDayLabel(params.daysLeft)}`,
+      body: `Seu período de teste grátis do MusicPro termina em ${params.dueLabel}. Para continuar usando o sistema, realize o pagamento.`,
+      showPlanDetails: false,
+    };
+  }
+  const plan = params.planName ? ` (plano ${params.planName})` : "";
+  return {
+    kind: "subscription",
+    eyebrow: "Lembrete amigável",
+    title: `Sua mensalidade do MusicPro vence ${relativeDayLabel(params.daysLeft)}`,
+    body: `Só passando para avisar: sua assinatura do MusicPro vence em ${params.dueLabel}${plan}.`,
+    showPlanDetails: true,
+  };
+}
+
+/** Copy do banner fixo de pendência (data já passada). */
+export function buildOverdueBannerCopy(params: {
+  status: string | null | undefined;
+  dueLabel: string;
+}): SubscriptionAlertCopy {
+  if (resolveSubscriptionAlertKind(params.status) === "trial") {
+    return {
+      kind: "trial",
+      eyebrow: "Teste grátis",
+      title: "Período de teste grátis encerrado",
+      body: `Seu período de teste grátis do MusicPro terminou em ${params.dueLabel}. Para continuar usando o sistema, realize o pagamento.`,
+      showPlanDetails: false,
+    };
+  }
+  return {
+    kind: "subscription",
+    eyebrow: "Assinatura",
+    title: "Mensalidade do MusicPro pendente",
+    body: `Sua assinatura venceu em ${params.dueLabel}. Regularize para evitar a interrupção do sistema.`,
+    showPlanDetails: true,
+  };
+}

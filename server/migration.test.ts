@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { addDaysISO, firstWeekdayISO, sumRequestedWeeks } from "./routers/lessonsRouters";
 import { resolveMigrationFee, resolvePlanFee, computeRemainingMonths, resolveEffectivePlanId, groupActiveStudentsByPlan } from "./routers/financeiroRouters";
 import { periodicityStep } from "@shared/billing";
-import { computeDaysLeft, isSubscriptionOverdue, shouldShowRenewalNotice } from "@shared/subscriptionAlerts";
+import { computeDaysLeft, isSubscriptionOverdue, shouldShowRenewalNotice, buildRenewalNoticeCopy, buildOverdueBannerCopy, resolveSubscriptionAlertKind, relativeDayLabel } from "@shared/subscriptionAlerts";
 
 /**
  * Migração assistida — séries de aulas (datas em UTC, sem fuso) e valor da
@@ -189,5 +189,54 @@ describe("Avisos da assinatura MusicPro", () => {
     expect(shouldShowRenewalNotice({ dueDate: "2026-09-20", status: "active", alreadyShownToday: false, today })).toBe(false);
     expect(shouldShowRenewalNotice({ dueDate: "2026-09-24", status: "canceled", alreadyShownToday: false, today })).toBe(false);
     expect(shouldShowRenewalNotice({ dueDate: null, status: "active", alreadyShownToday: false, today })).toBe(false);
+  });
+});
+
+describe("Avisos — copy do teste grátis × assinante", () => {
+  it("em teste grátis o modal fala de teste grátis e pagamento, nunca de mensalidade", () => {
+    const copy = buildRenewalNoticeCopy({ status: "trialing", daysLeft: 3, dueLabel: "24/09/2026", planName: "Escola Pro" });
+    expect(copy.kind).toBe("trial");
+    expect(copy.title).toContain("período de teste grátis termina em 3 dias");
+    expect(copy.body).toContain("Para continuar usando o sistema, realize o pagamento.");
+    expect(copy.body).not.toMatch(/mensalidade/i);
+    expect(copy.showPlanDetails).toBe(false);
+  });
+
+  it("trial: hoje e amanhã no título", () => {
+    expect(relativeDayLabel(0)).toBe("hoje");
+    expect(relativeDayLabel(1)).toBe("amanhã");
+    expect(relativeDayLabel(3)).toBe("em 3 dias");
+    expect(buildRenewalNoticeCopy({ status: "trialing", daysLeft: 0, dueLabel: "21/09/2026" }).title).toContain("hoje");
+    expect(buildRenewalNoticeCopy({ status: "trialing", daysLeft: 1, dueLabel: "22/09/2026" }).title).toContain("amanhã");
+  });
+
+  it("assinante mantém a copy de mensalidade com plano e valor", () => {
+    const copy = buildRenewalNoticeCopy({ status: "active", daysLeft: 2, dueLabel: "23/09/2026", planName: "Escola Pro" });
+    expect(copy.kind).toBe("subscription");
+    expect(copy.title).toBe("Sua mensalidade do MusicPro vence em 2 dias");
+    expect(copy.body).toContain("(plano Escola Pro)");
+    expect(copy.showPlanDetails).toBe(true);
+  });
+
+  it("banner: trial encerrado fala de teste grátis; assinante fala de mensalidade", () => {
+    const trial = buildOverdueBannerCopy({ status: "trialing", dueLabel: "20/09/2026" });
+    expect(trial.kind).toBe("trial");
+    expect(trial.title).toBe("Período de teste grátis encerrado");
+    expect(trial.body).toContain("Para continuar usando o sistema, realize o pagamento.");
+    expect(trial.body).not.toMatch(/mensalidade/i);
+    expect(trial.showPlanDetails).toBe(false);
+
+    const sub = buildOverdueBannerCopy({ status: "past_due", dueLabel: "20/09/2026" });
+    expect(sub.kind).toBe("subscription");
+    expect(sub.title).toBe("Mensalidade do MusicPro pendente");
+    expect(sub.showPlanDetails).toBe(true);
+  });
+
+  it("resolveSubscriptionAlertKind decide pelo status, não pela data", () => {
+    expect(resolveSubscriptionAlertKind("trialing")).toBe("trial");
+    expect(resolveSubscriptionAlertKind("TRIALING")).toBe("trial");
+    expect(resolveSubscriptionAlertKind("active")).toBe("subscription");
+    expect(resolveSubscriptionAlertKind("pending")).toBe("subscription");
+    expect(resolveSubscriptionAlertKind(null)).toBe("subscription");
   });
 });
