@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { addDaysISO, firstWeekdayISO, sumRequestedWeeks } from "./routers/lessonsRouters";
-import { resolveMigrationFee, resolvePlanFee, computeRemainingMonths } from "./routers/financeiroRouters";
+import { resolveMigrationFee, resolvePlanFee, computeRemainingMonths, resolveEffectivePlanId, groupActiveStudentsByPlan } from "./routers/financeiroRouters";
 import { periodicityStep } from "@shared/billing";
 import { computeDaysLeft, isSubscriptionOverdue, shouldShowRenewalNotice } from "@shared/subscriptionAlerts";
 
@@ -103,6 +103,51 @@ describe("Migração — plano selecionado e saldo de meses", () => {
     expect(computeRemainingMonths(12, 4, periodicityStep("trimestral"))).toBe(0);
     // 1 fatura semestral (6 meses) → faltam 6
     expect(computeRemainingMonths(12, 1, periodicityStep("semestral"))).toBe(6);
+  });
+});
+
+describe("Migração — plano INDIVIDUAL por aluno", () => {
+  it("resolveEffectivePlanId: individual vence o padrão (inclusive 'sem plano')", () => {
+    // Individual escolhido → vence
+    expect(resolveEffectivePlanId(true, 7, 3)).toBe(7);
+    // Individual "sem plano" (null) → vence o padrão
+    expect(resolveEffectivePlanId(true, null, 3)).toBeNull();
+    expect(resolveEffectivePlanId(true, undefined, 3)).toBeNull();
+    // Sem escolha individual → usa o padrão
+    expect(resolveEffectivePlanId(false, null, 3)).toBe(3);
+    expect(resolveEffectivePlanId(false, 7, 3)).toBe(3);
+    // Sem individual e sem padrão → sem plano
+    expect(resolveEffectivePlanId(false, null, null)).toBeNull();
+    expect(resolveEffectivePlanId(false, null, undefined)).toBeNull();
+    // Números em string são normalizados
+    expect(resolveEffectivePlanId(true, Number("7"), 3)).toBe(7);
+  });
+
+  it("groupActiveStudentsByPlan: agrupa ativos por plano e ignora inativos/sem plano", () => {
+    const students = [
+      { id: 1, status: "ativo" },
+      { id: 2, status: "ativo" },
+      { id: 3, status: "ativo" },
+      { id: 4, status: "inativo" },
+    ];
+    const planIdByStudent = new Map<number, number | null | undefined>([
+      [1, 10],
+      [2, 20],
+      [3, null],
+      [4, 10], // inativo — ignorado
+    ]);
+    const groups = groupActiveStudentsByPlan(students, planIdByStudent);
+    expect(groups.get(10)).toEqual([1]);
+    expect(groups.get(20)).toEqual([2]);
+    expect(groups.has(3)).toBe(false);
+    expect(groups.size).toBe(2);
+  });
+
+  it("groupActiveStudentsByPlan: alunos sem plano efetivo mantêm o plano atual", () => {
+    const students = [{ id: 1, status: "ativo" }, { id: 2, status: "ativo" }];
+    const groups = groupActiveStudentsByPlan(students, new Map([[1, 5], [2, 5]]));
+    expect(groups.get(5)).toEqual([1, 2]);
+    expect(groupActiveStudentsByPlan(students, new Map()).size).toBe(0);
   });
 });
 

@@ -26,6 +26,18 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: "2026.09.22",
+    date: "2026-09-22",
+    title: "Migração com plano individual por aluno",
+    summary: "Na migração de mensalidades, cada aluno pode ter o seu próprio plano — com valor, duração e vínculo corretos — e a tela ficou mais clara e rápida de usar.",
+    items: [
+      { type: "novo", title: "Plano individual por aluno", description: "Na Migração → Mensalidades (lote), escolha o plano de cada aluno na própria linha da lista. O plano padrão da operação continua valendo para quem não tiver um plano individual." },
+      { type: "melhoria", title: "Valor e duração por plano escolhido", description: "As mensalidades saem pelo valor do plano do aluno e param ao completar a duração (saldo de meses), respeitando a periodicidade (mensal, bimestral, trimestral, semestral ou anual)." },
+      { type: "melhoria", title: "Resumo com o plano aplicado", description: "Ao final, o relatório mostra o plano de cada aluno, quantas mensalidades já existiam, quantas faltavam e quantas foram geradas — e um painel com todos os planos aplicados no lote." },
+      { type: "melhoria", title: "Tela de migração redesenhada", description: "Cabeçalho e abas mais claros, cartões com visual premium, atalhos “Aplicar a todos” e ajustes de celular para trabalhar confortavelmente em qualquer tela." },
+    ],
+  },
+  {
     version: "2026.09.21.2",
     date: "2026-09-21",
     title: "Aulas de 40 minutos e Tempo Real alinhado",

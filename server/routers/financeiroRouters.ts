@@ -54,7 +54,7 @@ import { schoolAiRouter } from "../schoolAiRouter";
 import { fiscalRouter } from "../fiscalRouter";
 import { FiscalService } from "../services/fiscal/FiscalService";
 import { loginAttempts, safeEqualStr, isReservedSuperAdminEmail, getOrgPlanLimits, syncOrgAsaasSubscription, reconcileOrgAsaasCharges, runCreateAssinafyContract, getTodayBR, markOverdueRows, buildDueDateSeries } from "./helpers";
-import { computeRemainingMonths, periodicityStep } from "@shared/billing";
+import { computeRemainingMonths, periodicityStep, resolveEffectivePlanId } from "@shared/billing";
 /**
  * Valor da mensalidade na migração: mensalidade do aluno → valor do plano →
  * valor informado. Nunca lança R$ 0,00 (retorna 0 e o chamador pula/reporta).
@@ -83,8 +83,28 @@ export function resolvePlanFee(planMonthlyValue: unknown, fallbackAmount: unknow
   return fromFallback > 0 ? fromFallback : 0;
 }
 
-// Regras de saldo do plano (fonte única em @shared/billing)
-export { computeRemainingMonths, periodicityStep };
+/**
+ * Agrupa alunos ATIVOS por plano efetivo (para vincular em lote, sem N+1).
+ * Alunos sem plano (null) NÃO entram — mantêm o plano atual do cadastro.
+ */
+export function groupActiveStudentsByPlan(
+  studentsList: Array<{ id: number; status: string }>,
+  planIdByStudent: Map<number, number | null | undefined>
+): Map<number, number[]> {
+  const groups = new Map<number, number[]>();
+  for (const s of studentsList) {
+    if (s.status !== "ativo") continue;
+    const planId = planIdByStudent.get(Number(s.id));
+    if (planId == null) continue;
+    const list = groups.get(Number(planId)) ?? [];
+    list.push(Number(s.id));
+    groups.set(Number(planId), list);
+  }
+  return groups;
+}
+
+// Regras de saldo/plano (fonte única em @shared/billing)
+export { computeRemainingMonths, periodicityStep, resolveEffectivePlanId };
 
 /**
  * Insere mensalidades de forma idempotente pelo índice único (org, aluno, mês,
@@ -1213,14 +1233,19 @@ export const financeiroRouters = {
       dueDay: z.number().min(1).max(31).optional(),
       amount: z.number().min(0).max(100000).optional(),
       notes: z.string().max(500).optional(),
-      // Plano a aplicar nos alunos selecionados (opcional)
+      // Plano PADRÃO da operação (opcional) — fallback para quem não tem individual
       planId: z.number().int().positive().optional(),
-      // Vincular os alunos ao plano no cadastro (default: true quando planId informado)
+      // Vincular os alunos ao plano no cadastro (default: true quando há plano)
       applyPlanToStudents: z.boolean().optional(),
       // Quantidade INDIVIDUAL por aluno (fallback: `monthsCount` global)
       studentMonths: z.array(z.object({
         studentId: z.number(),
         monthsCount: z.number().int().min(1).max(12),
+      })).max(200).optional(),
+      // Plano INDIVIDUAL por aluno: número → vincula; null → sem plano (vence o padrão)
+      studentPlans: z.array(z.object({
+        studentId: z.number(),
+        planId: z.number().int().positive().nullable(),
       })).max(200).optional(),
     })).mutation(async ({ ctx, input }) => {
       const db = await getDb();
@@ -1228,23 +1253,10 @@ export const financeiroRouters = {
       const orgId = ctx.user.organizationId!;
       const isUserAdmin = ctx.user.role === "admin" || ctx.user.openId === ENV.ownerOpenId;
 
-      // Plano selecionado (validado: da escola e ativo)
-      let selectedPlan: any = null;
-      if (input.planId != null) {
-        const [plan] = await db
-          .select({
-            id: schoolPlans.id,
-            nome: schoolPlans.nome,
-            valorMensal: schoolPlans.valorMensal,
-            duracaoMeses: schoolPlans.duracaoMeses,
-          })
-          .from(schoolPlans)
-          .where(and(eq(schoolPlans.id, input.planId), eq(schoolPlans.organizationId, orgId), eq(schoolPlans.ativo, true)))
-          .limit(1);
-        if (!plan) {
-          throw new TRPCError({ code: "BAD_REQUEST", message: "Plano indisponível para esta escola (inexistente ou inativo)." });
-        }
-        selectedPlan = plan;
+      // Escolha INDIVIDUAL de plano por aluno (planId null = "sem plano")
+      const studentPlanEntries = new Map<number, number | null>();
+      for (const entry of input.studentPlans || []) {
+        studentPlanEntries.set(Number(entry.studentId), entry.planId != null ? Number(entry.planId) : null);
       }
 
       const owned = await db
@@ -1264,13 +1276,30 @@ export const financeiroRouters = {
           isUserAdmin ? undefined : eq(students.professorId, ctx.user.id)
         ));
 
-      // Planos atuais dos alunos (fallback de valor)
-      const planIds = Array.from(new Set(owned.map((s: any) => s.schoolPlanId).filter(Boolean)));
-      const plans = planIds.length > 0
-        ? await db.select({ id: schoolPlans.id, valorMensal: schoolPlans.valorMensal, nome: schoolPlans.nome })
-            .from(schoolPlans).where(and(eq(schoolPlans.organizationId, orgId), eq(schoolPlans.ativo, true), inArray(schoolPlans.id, planIds)))
+      // Planos envolvidos: padrão + individuais + planos atuais (fallback de valor).
+      // Consulta ÚNICA — sempre da escola e ATIVOS (nunca confiar no cliente).
+      const requestedPlanIds = Array.from(new Set<number>([
+        ...(input.planId != null ? [Number(input.planId)] : []),
+        ...Array.from(studentPlanEntries.values()).filter((v): v is number => v != null),
+        ...owned.map((s: any) => Number(s.schoolPlanId)).filter((v: number) => Number.isFinite(v) && v > 0),
+      ]));
+      const plans = requestedPlanIds.length > 0
+        ? await db.select({
+            id: schoolPlans.id,
+            valorMensal: schoolPlans.valorMensal,
+            duracaoMeses: schoolPlans.duracaoMeses,
+            nome: schoolPlans.nome,
+          })
+            .from(schoolPlans)
+            .where(and(eq(schoolPlans.organizationId, orgId), eq(schoolPlans.ativo, true), inArray(schoolPlans.id, requestedPlanIds)))
         : [];
       const planById = new Map<number, any>(plans.map((p: any) => [Number(p.id), p]));
+
+      // Plano PADRÃO da operação (precisa existir, ser da escola e estar ativo)
+      const selectedPlan: any = input.planId != null ? planById.get(Number(input.planId)) : null;
+      if (input.planId != null && !selectedPlan) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Plano indisponível para esta escola (inexistente ou inativo)." });
+      }
 
       // Mensalidades já lançadas por aluno (para o saldo de meses do plano)
       const launchedRows = owned.length > 0
@@ -1296,12 +1325,12 @@ export const financeiroRouters = {
 
       const rows: any[] = [];
       const skipped: Array<{ studentId: number | null; studentName: string | null; month: number | null; year: number | null; reason: string }> = [];
-      const perStudent: Array<{ studentId: number; studentName: string; launchedBefore: number; remaining: number | null; requested: number; generated: number }> = [];
+      const perStudent: Array<{ studentId: number; studentName: string; planId: number | null; planNome: string | null; launchedBefore: number; remaining: number | null; requested: number; generated: number }> = [];
 
       for (const student of owned) {
         if (student.status !== "ativo") {
           skipped.push({ studentId: student.id, studentName: student.name, month: null, year: null, reason: "Aluno não está ativo." });
-          perStudent.push({ studentId: student.id, studentName: student.name, launchedBefore: 0, remaining: null, requested: 0, generated: 0 });
+          perStudent.push({ studentId: student.id, studentName: student.name, planId: null, planNome: null, launchedBefore: 0, remaining: null, requested: 0, generated: 0 });
           continue;
         }
 
@@ -1309,16 +1338,39 @@ export const financeiroRouters = {
         const periodicity = student.billingPeriodicity || "mensal";
         // Quantidade individual do aluno (fallback: global)
         const requested = monthsByStudent.get(Number(student.id)) ?? input.monthsCount;
+
+        // Plano EFETIVO: escolha individual (inclusive "sem plano") vence o padrão
+        const studentId = Number(student.id);
+        const hasIndividualPlan = studentPlanEntries.has(studentId);
+        const effectivePlanId = resolveEffectivePlanId(
+          hasIndividualPlan,
+          hasIndividualPlan ? studentPlanEntries.get(studentId) ?? null : null,
+          input.planId != null ? Number(input.planId) : null
+        );
+        // Plano individual informado precisa existir/estar ativo; senão pula o aluno
+        if (hasIndividualPlan && effectivePlanId != null && !planById.has(effectivePlanId)) {
+          skipped.push({
+            studentId: student.id,
+            studentName: student.name,
+            month: null,
+            year: null,
+            reason: "Plano individual indisponível (inexistente ou inativo nesta escola).",
+          });
+          perStudent.push({ studentId: student.id, studentName: student.name, planId: null, planNome: null, launchedBefore, remaining: null, requested, generated: 0 });
+          continue;
+        }
+        const effectivePlan = effectivePlanId != null ? planById.get(effectivePlanId) : undefined;
+
         let monthsToGenerate = requested;
         let fee = 0;
         let remaining: number | null = null;
 
-        if (selectedPlan) {
-          // Plano selecionado: valor do plano vence; limita à duração restante.
+        if (effectivePlan) {
+          // Plano (individual ou padrão): valor do plano vence; limita à duração restante.
           // O restante considera quantos MESES cada fatura lançada cobre
           // (ex.: 2 faturas bimestrais = 4 meses do plano).
-          fee = resolvePlanFee(selectedPlan.valorMensal, input.amount);
-          remaining = computeRemainingMonths(selectedPlan.duracaoMeses, launchedBefore, periodicityStep(periodicity));
+          fee = resolvePlanFee(effectivePlan.valorMensal, input.amount);
+          remaining = computeRemainingMonths(effectivePlan.duracaoMeses, launchedBefore, periodicityStep(periodicity));
           monthsToGenerate = Math.min(requested, remaining);
           if (remaining <= 0) {
             skipped.push({
@@ -1326,9 +1378,9 @@ export const financeiroRouters = {
               studentName: student.name,
               month: null,
               year: null,
-              reason: `Plano já completo (${launchedBefore}/${selectedPlan.duracaoMeses} mensalidades).`,
+              reason: `Plano "${effectivePlan.nome}" já completo (${launchedBefore}/${effectivePlan.duracaoMeses} mensalidades).`,
             });
-            perStudent.push({ studentId: student.id, studentName: student.name, launchedBefore, remaining, requested, generated: 0 });
+            perStudent.push({ studentId: student.id, studentName: student.name, planId: effectivePlanId, planNome: effectivePlan.nome, launchedBefore, remaining, requested, generated: 0 });
             continue;
           }
         } else {
@@ -1338,7 +1390,7 @@ export const financeiroRouters = {
 
         if (fee <= 0) {
           skipped.push({ studentId: student.id, studentName: student.name, month: null, year: null, reason: "Sem valor de mensalidade (aluno sem mensalidade e sem plano com valor)." });
-          perStudent.push({ studentId: student.id, studentName: student.name, launchedBefore, remaining, requested, generated: 0 });
+          perStudent.push({ studentId: student.id, studentName: student.name, planId: effectivePlanId, planNome: effectivePlan?.nome ?? null, launchedBefore, remaining, requested, generated: 0 });
           continue;
         }
 
@@ -1369,30 +1421,59 @@ export const financeiroRouters = {
           generated++;
         }
 
-        perStudent.push({ studentId: student.id, studentName: student.name, launchedBefore, remaining, requested, generated });
+        perStudent.push({ studentId: student.id, studentName: student.name, planId: effectivePlanId, planNome: effectivePlan?.nome ?? null, launchedBefore, remaining, requested, generated });
       }
 
-      // ── Vínculo em lote ao plano (antes de gerar: vale mesmo sem novas faturas) ──
-      // Somente alunos ATIVOS: inativos são pulados e não mudam de plano.
-      let planApplied: { id: number; nome: string; valorMensal: number; duracaoMeses: number } | null = null;
-      const shouldApplyPlan = Boolean(selectedPlan) && input.applyPlanToStudents !== false;
-      const activeOwnedIds: number[] = owned.filter((s: any) => s.status === "ativo").map((s: any) => Number(s.id));
-      if (shouldApplyPlan && selectedPlan && activeOwnedIds.length > 0) {
+      // ── Vínculo em lote ao(s) plano(s) (vale mesmo sem novas faturas) ──────
+      // Cada aluno ATIVO vai para o SEU plano efetivo (individual > padrão).
+      // Alunos sem plano efetivo mantêm o plano atual. Inativos não mudam.
+      const shouldApplyPlan = input.applyPlanToStudents !== false;
+      const planIdByStudent = new Map<number, number | null>(
+        owned.map((s: any) => {
+          const id = Number(s.id);
+          const hasIndividual = studentPlanEntries.has(id);
+          return [
+            id,
+            resolveEffectivePlanId(
+              hasIndividual,
+              hasIndividual ? studentPlanEntries.get(id) ?? null : null,
+              input.planId != null ? Number(input.planId) : null
+            ),
+          ];
+        })
+      );
+      const linksByPlan = shouldApplyPlan
+        ? groupActiveStudentsByPlan(owned, planIdByStudent)
+        : new Map<number, number[]>();
+      const plansApplied: Array<{ id: number; nome: string; valorMensal: number; duracaoMeses: number; students: number }> = [];
+      for (const [planId, studentIds] of Array.from(linksByPlan.entries())) {
+        const plan = planById.get(Number(planId));
+        if (!plan || studentIds.length === 0) continue;
         await db
           .update(students)
-          .set({ schoolPlanId: selectedPlan.id, updatedAt: new Date() })
+          .set({ schoolPlanId: Number(planId), updatedAt: new Date() })
           .where(and(
-            inArray(students.id, activeOwnedIds),
+            inArray(students.id, studentIds),
             eq(students.organizationId, orgId),
             isUserAdmin ? undefined : eq(students.professorId, ctx.user.id)
           ));
-        planApplied = {
-          id: Number(selectedPlan.id),
-          nome: selectedPlan.nome,
-          valorMensal: Number(selectedPlan.valorMensal) || 0,
-          duracaoMeses: Number(selectedPlan.duracaoMeses) || 0,
-        };
+        plansApplied.push({
+          id: Number(planId),
+          nome: plan.nome,
+          valorMensal: Number(plan.valorMensal) || 0,
+          duracaoMeses: Number(plan.duracaoMeses) || 0,
+          students: studentIds.length,
+        });
       }
+      // Compat: plano padrão da operação (quando houver)
+      const planApplied = selectedPlan
+        ? {
+            id: Number(selectedPlan.id),
+            nome: selectedPlan.nome,
+            valorMensal: Number(selectedPlan.valorMensal) || 0,
+            duracaoMeses: Number(selectedPlan.duracaoMeses) || 0,
+          }
+        : null;
 
       const created = await insertPaymentDuesIdempotent(db, rows);
 
@@ -1406,12 +1487,13 @@ export const financeiroRouters = {
           students: owned.length,
           months: input.monthsCount,
           plan: planApplied,
+          plansApplied,
           perStudent: perStudent.slice(0, 200),
           skipped: skipped.slice(0, 200),
         }),
       }).catch(() => {});
 
-      return { success: true, created, skipped, totalRequested: rows.length, planApplied, perStudent };
+      return { success: true, created, skipped, totalRequested: rows.length, planApplied, plansApplied, perStudent };
     }),
 
     // ─ MIGRAÇÃO: importar mensalidades de planilha (inclusive pagas/histórico) ──

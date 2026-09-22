@@ -1710,6 +1710,7 @@ export async function getStudentsWithInstrument(organizationId: number, userId?:
     status: students.status,
     monthlyFee: students.monthlyFee,
     billingPeriodicity: students.billingPeriodicity,
+    schoolPlanId: students.schoolPlanId,
     startDate: students.startDate,
     dueDay: students.dueDay,
     avatar: students.avatar,

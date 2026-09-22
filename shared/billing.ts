@@ -22,3 +22,16 @@ export function computeRemainingMonths(
   const s = Math.max(1, Math.floor(Number(step) || 1));
   return Math.max(0, duration - launched * s);
 }
+
+/**
+ * Plano EFETIVO do aluno na migração: a escolha INDIVIDUAL vence o plano padrão
+ * da operação — inclusive "sem plano" (individual null vence o padrão).
+ */
+export function resolveEffectivePlanId(
+  hasIndividualChoice: boolean,
+  individualPlanId: number | null | undefined,
+  globalPlanId: number | null | undefined
+): number | null {
+  if (hasIndividualChoice) return individualPlanId != null ? Number(individualPlanId) : null;
+  return globalPlanId != null ? Number(globalPlanId) : null;
+}
