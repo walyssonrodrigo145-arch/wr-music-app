@@ -19,6 +19,7 @@ import { FreeSlotsCard } from "@/components/dashboard/FreeSlotsCard";
 import { LiveRoomsCard } from "@/components/dashboard/LiveRoomsCard";
 import { PlanSelectionModal } from "@/components/PlanSelectionModal";
 import { UnreadNoticeBanner } from "@/components/dashboard/UnreadNoticeBanner";
+import { SubscriptionOverdueBanner } from "@/components/dashboard/SubscriptionAlerts";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -226,6 +227,9 @@ export default function Dashboard() {
     <div className="space-y-8 animate-in fade-in duration-700 pb-12">
       {/* 🚀 Escolha de planos para escolas em trial (ex.: contas criadas via login Google) */}
       <PlanSelectionModal />
+
+      {/* ── Mensalidade do MusicPro vencida (aviso fixo, sem bloquear) ── */}
+      <SubscriptionOverdueBanner />
 
       {/* ── Avisos não lidos (ex.: mensalidade pendente) ── */}
       <UnreadNoticeBanner />

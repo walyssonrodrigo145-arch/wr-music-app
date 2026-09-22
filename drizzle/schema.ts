@@ -2747,6 +2747,28 @@ export const referralEvents = pgTable("referral_events", {
   index("referral_events_org_idx").on(table.organizationId, table.createdAt),
 ]);
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// MIGRAÇÃO ASSISTIDA — auditoria das operações em lote (aulas e mensalidades)
+// de escolas que vêm de outro sistema. Não guarda dados dos alunos: apenas o
+// resumo da operação (quem, quando, tipo, quantos criados/pulados).
+// ═══════════════════════════════════════════════════════════════════════════════
+export const migrationRuns = pgTable("migration_runs", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organizationId").notNull(),
+  userId: integer("userId").notNull(),
+  // LESSONS_BATCH | DUES_BATCH | LESSONS_CSV | DUES_CSV
+  type: varchar("type", { length: 30 }).notNull(),
+  created: integer("created").default(0).notNull(),
+  skipped: integer("skipped").default(0).notNull(),
+  summary: text("summary"), // JSON com os detalhes/pendências
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (table) => [
+  index("migration_runs_org_created_idx").on(table.organizationId, table.createdAt),
+]);
+
+export type MigrationRunRow = typeof migrationRuns.$inferSelect;
+export type InsertMigrationRun = typeof migrationRuns.$inferInsert;
+
 export type ReferralConfigRow = typeof referralConfig.$inferSelect;
 export type InsertReferralConfig = typeof referralConfig.$inferInsert;
 export type ReferralCodeRow = typeof referralCodes.$inferSelect;

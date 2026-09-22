@@ -39,6 +39,7 @@ export const PAGE_PERMISSIONS: PagePermissionDef[] = [
   { id: "/solicitacoes", label: "Solicitações", icon: "📋", group: "OUTROS" },
   { id: "/progresso", label: "Progresso", icon: "🎯", group: "OUTROS" },
   { id: "/indicacoes", label: "Indique & Ganhe", icon: "🎁", group: "OUTROS" },
+  { id: "/migracao", label: "Migração de Sistema", icon: "📥", group: "OUTROS" },
   { id: "/recepcao-qr", label: "Recepção QR", icon: "📷", group: "OUTROS" },
   { id: "/tutoriais", label: "Tutoriais", icon: "🎓", group: "OUTROS" },
   { id: "/configuracoes", label: "Configurações", icon: "⚙️", group: "CONTA" },

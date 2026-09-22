@@ -865,6 +865,8 @@ export const plataformaRouters = {
         features: (() => { try { return JSON.parse(plan?.features as string); } catch { return []; } })(),
         subscriptionStatus: org.subscriptionStatus,
         trialEndsAt: org.trialEndsAt,
+        // Vencimento da assinatura (avisos de renovação/vencimento no dashboard)
+        currentPeriodEnd: org.currentPeriodEnd,
       };
     }),
     changePlan: protectedProcedure.input(z.object({ planId: z.string(), planType: z.enum(["MONTHLY", "YEARLY"]) })).mutation(async ({ ctx, input }) => {

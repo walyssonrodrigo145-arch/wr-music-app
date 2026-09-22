@@ -9,6 +9,7 @@ import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { isPageAllowed } from "@shared/permissions";
+import { claimModalSlot } from "@/lib/modalCoordinator";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Gift, Copy, ArrowRight, MessageCircle, Sparkles, CheckCircle2 } from "lucide-react";
@@ -70,6 +71,8 @@ export function ReferralPromoModal() {
     if (!canSee || !user) return;
     const period = currentPeriod();
     if (readShown()[period] === todayKey()) return;
+    // Não abre se outro aviso (ex.: renovação da assinatura) já estiver na tela
+    if (!claimModalSlot()) return;
 
     const timer = setTimeout(() => {
       markShown(period);

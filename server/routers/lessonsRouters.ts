@@ -18,7 +18,7 @@ import {
   updateUserProfile,
   getExperimentalStats,
 } from "../db";
-import { organizations, users, students, lessons, instruments, reminders, reminderTemplates, paymentDues, asaasCustomers, settings, studentGoals, studentTimeline, studentFiles, announcements, chatMessages, rescheduleRequests, extraLessonRequests, studentEvolution, aiConversations, aiMessages, aiDocuments, expenses, dailyStudyPlans, notifications, professores, professorPayments, attendanceTokens, attendanceLogs, contracts, fileComments, studioRooms, schoolIntegrations, contractTemplates, contractEvents, crmLeads, crmGoals, crmActivities, fiscalCompanies, fiscalInvoices, fiscalServices, fiscalJobs, fiscalLogs, lessonRepositions, repositionEvents } from "../../drizzle/schema";
+import { organizations, users, students, lessons, instruments, reminders, reminderTemplates, paymentDues, asaasCustomers, settings, studentGoals, studentTimeline, studentFiles, announcements, chatMessages, rescheduleRequests, extraLessonRequests, studentEvolution, aiConversations, aiMessages, aiDocuments, expenses, dailyStudyPlans, notifications, professores, professorPayments, attendanceTokens, attendanceLogs, contracts, fileComments, studioRooms, schoolIntegrations, contractTemplates, contractEvents, crmLeads, crmGoals, crmActivities, fiscalCompanies, fiscalInvoices, fiscalServices, fiscalJobs, fiscalLogs, lessonRepositions, repositionEvents, migrationRuns } from "../../drizzle/schema";
 import { eq, desc, sql, and, gte, lt, lte, asc, ne, or, inArray, aliasedTable, ilike, isNull } from "drizzle-orm";
 import { notifyOwner, notifyUser } from "../_core/notification";
 import { handleDbError } from "../utils/error_handler";
@@ -51,6 +51,207 @@ import { schoolAiRouter } from "../schoolAiRouter";
 import { fiscalRouter } from "../fiscalRouter";
 import { FiscalService } from "../services/fiscal/FiscalService";
 import { loginAttempts, safeEqualStr, isReservedSuperAdminEmail, getOrgPlanLimits, syncOrgAsaasSubscription, reconcileOrgAsaasCharges, runCreateAssinafyContract } from "./helpers";
+// ═══════════════════════════════════════════════════════════════════════════════
+// MIGRAÇÃO ASSISTIDA (aulas) — cria aulas validadas em lote para escolas que
+// vêm de outro sistema. Regras: aluno da organização (e do professor, quando
+// não-admin); sem duplicar aluno+horário exato; sem conflito de professor
+// efetivo/sala (a aula conflitante é pulada e reportada); nunca quebra o lote.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+interface MigrationLessonRow {
+  studentId: number;
+  scheduledAt: Date;
+  duration: number;
+  title: string;
+  instrumentId?: number | null;
+  studioRoomId?: number | null;
+  teacherUserId?: number | null;
+  recurringGroupId?: string | null;
+  recurrence?: string | null;
+}
+
+interface MigrationSkip {
+  studentId: number | null;
+  studentName: string | null;
+  scheduledAt: string;
+  reason: string;
+}
+
+async function insertLessonsValidated(
+  db: any,
+  ctx: { user: { id: number; role: string; openId?: string; organizationId?: number | null } },
+  rows: MigrationLessonRow[]
+): Promise<{ created: number; skipped: MigrationSkip[] }> {
+  const orgId = ctx.user.organizationId!;
+  const isUserAdmin = ctx.user.role === "admin" || ctx.user.openId === ENV.ownerOpenId;
+  const skipped: MigrationSkip[] = [];
+  if (rows.length === 0) return { created: 0, skipped };
+
+  // 1. Alunos envolvidos (valida organização/professor)
+  const studentIds = Array.from(new Set(rows.map((r) => r.studentId)));
+  const ownedStudents = await db
+    .select({ id: students.id, name: students.name, professorId: students.professorId, studioRoomId: students.studioRoomId })
+    .from(students)
+    .where(
+      and(
+        inArray(students.id, studentIds),
+        eq(students.organizationId, orgId),
+        isUserAdmin ? undefined : eq(students.professorId, ctx.user.id)
+      )
+    );
+  const studentById = new Map<number, any>(ownedStudents.map((s: any) => [s.id, s]));
+
+  // 1b. Instrumentos/salas válidos da organização (anti cross-tenant)
+  const instrumentIds: number[] = Array.from(new Set<number>(rows.map((r) => Number(r.instrumentId)).filter((n) => Number.isFinite(n) && n > 0)));
+  const roomIds: number[] = Array.from(new Set<number>(rows.map((r) => Number(r.studioRoomId)).filter((n) => Number.isFinite(n) && n > 0)));
+  const validInstruments = instrumentIds.length > 0
+    ? await db.select({ id: instruments.id }).from(instruments).where(and(eq(instruments.organizationId, orgId), inArray(instruments.id, instrumentIds)))
+    : [];
+  const validRooms = roomIds.length > 0
+    ? await db.select({ id: studioRooms.id }).from(studioRooms).where(and(eq(studioRooms.organizationId, orgId), inArray(studioRooms.id, roomIds)))
+    : [];
+  const validInstrumentSet = new Set<number>(validInstruments.map((i: any) => Number(i.id)));
+  const validRoomSet = new Set<number>(validRooms.map((r: any) => Number(r.id)));
+
+  // 2. Aulas existentes no intervalo (uma consulta) para duplicidade/conflito
+  const times = rows.map((r) => r.scheduledAt.getTime());
+  const minStart = new Date(Math.min(...times) - 6 * 60 * 60 * 1000);
+  const maxEnd = new Date(Math.max(...times) + 12 * 60 * 60 * 1000);
+  const existing = await db
+    .select({
+      id: lessons.id,
+      studentId: lessons.studentId,
+      scheduledAt: lessons.scheduledAt,
+      duration: lessons.duration,
+      userId: lessons.userId,
+      studioRoomId: lessons.studioRoomId,
+      studentProfessorId: students.professorId,
+    })
+    .from(lessons)
+    .leftJoin(students, eq(lessons.studentId, students.id))
+    .where(
+      and(
+        eq(lessons.organizationId, orgId),
+        eq(lessons.status, "agendada"),
+        gte(lessons.scheduledAt, minStart),
+        lte(lessons.scheduledAt, maxEnd)
+      )
+    );
+
+  const overlaps = (aStart: number, aEnd: number, bStart: number, bEnd: number) => aStart < bEnd && bStart < aEnd;
+
+  // Índice de aulas por aluno (duplicidade exata) e lista para conflito
+  const exactKey = (studentId: number | null, ts: number) => `${studentId}_${ts}`;
+  const existingExact = new Set<string>(
+    existing.map((e: any) => exactKey(e.studentId, new Date(e.scheduledAt).getTime()))
+  );
+  const busy: Array<{ start: number; end: number; teacherIds: Set<number>; roomId: number | null }> = existing.map((e: any) => {
+    const start = new Date(e.scheduledAt).getTime();
+    return {
+      start,
+      end: start + (Number(e.duration) || 60) * 60000,
+      teacherIds: new Set<number>([e.userId, e.studentProfessorId].filter(Boolean).map(Number)),
+      roomId: e.studioRoomId != null ? Number(e.studioRoomId) : null,
+    };
+  });
+
+  const accepted: MigrationLessonRow[] = [];
+  const acceptedExact = new Set<string>();
+
+  for (const row of rows) {
+    const student = studentById.get(row.studentId);
+    if (!student) {
+      skipped.push({
+        studentId: row.studentId,
+        studentName: null,
+        scheduledAt: row.scheduledAt.toISOString(),
+        reason: "Aluno não encontrado nesta escola (ou sem permissão).",
+      });
+      continue;
+    }
+
+    if (row.instrumentId != null && !validInstrumentSet.has(Number(row.instrumentId))) {
+      skipped.push({ studentId: row.studentId, studentName: student.name, scheduledAt: row.scheduledAt.toISOString(), reason: "Instrumento não pertence a esta escola." });
+      continue;
+    }
+    if (row.studioRoomId != null && !validRoomSet.has(Number(row.studioRoomId))) {
+      skipped.push({ studentId: row.studentId, studentName: student.name, scheduledAt: row.scheduledAt.toISOString(), reason: "Sala não pertence a esta escola." });
+      continue;
+    }
+
+    const start = row.scheduledAt.getTime();
+    const end = start + row.duration * 60000;
+    const key = exactKey(row.studentId, start);
+    if (existingExact.has(key) || acceptedExact.has(key)) {
+      skipped.push({ studentId: row.studentId, studentName: student.name, scheduledAt: row.scheduledAt.toISOString(), reason: "Aula já existente neste horário." });
+      continue;
+    }
+
+    const teacherIds = new Set<number>([ctx.user.id, row.teacherUserId ?? student.professorId].filter(Boolean).map(Number));
+    const conflict = busy.find((b) => {
+      if (!overlaps(start, end, b.start, b.end)) return false;
+      const sharesTeacher = Array.from(teacherIds).some((t) => b.teacherIds.has(t));
+      const sameRoom = row.studioRoomId != null && b.roomId != null && Number(row.studioRoomId) === b.roomId;
+      return sharesTeacher || sameRoom;
+    });
+    if (conflict) {
+      skipped.push({ studentId: row.studentId, studentName: student.name, scheduledAt: row.scheduledAt.toISOString(), reason: "Conflito de horário (professor ou sala)." });
+      continue;
+    }
+
+    accepted.push(row);
+    acceptedExact.add(key);
+    busy.push({ start, end, teacherIds, roomId: row.studioRoomId != null ? Number(row.studioRoomId) : null });
+  }
+
+  if (accepted.length > 0) {
+    await db.insert(lessons).values(
+      accepted.map((r) => ({
+        organizationId: orgId,
+        userId: ctx.user.id,
+        studentId: r.studentId,
+        title: r.title,
+        scheduledAt: r.scheduledAt,
+        duration: r.duration,
+        instrumentId: r.instrumentId ?? null,
+        studioRoomId: r.studioRoomId ?? null,
+        recurringGroupId: r.recurringGroupId ?? null,
+        recurrence: r.recurrence ?? null,
+        status: "agendada" as const,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }))
+    );
+
+    // Sincroniza a sala com o aluno (último item informado por aluno)
+    const withRoom = accepted.filter((r) => r.studioRoomId != null);
+    for (const r of withRoom) {
+      await db
+        .update(students)
+        .set({ studioRoomId: r.studioRoomId, updatedAt: new Date() })
+        .where(and(eq(students.id, r.studentId), eq(students.organizationId, orgId)));
+    }
+  }
+
+  return { created: accepted.length, skipped };
+}
+
+/** Soma dias a uma data YYYY-MM-DD (aritmética em UTC, sem fuso). */
+export function addDaysISO(dateISO: string, days: number): string {
+  const [y, m, d] = dateISO.split("-").map(Number);
+  const date = new Date(Date.UTC(y, m - 1, d));
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+/** Primeira data (a partir de startISO) que cai no dia da semana pedido. */
+export function firstWeekdayISO(startISO: string, weekday: number): string {
+  const [y, m, d] = startISO.split("-").map(Number);
+  const date = new Date(Date.UTC(y, m - 1, d));
+  const diff = (weekday - date.getUTCDay() + 7) % 7;
+  return addDaysISO(startISO, diff);
+}
+
 export const lessonsRouters = {
   lessons: router({
     getById: protectedProcedure.input(z.object({ id: z.number() })).query(async ({ ctx, input }) => {
@@ -1351,6 +1552,120 @@ export const lessonsRouters = {
       } catch (error) {
         return handleDbError(error, "realizar agendamentos em lote");
       }
+    }),
+
+    // ─ MIGRAÇÃO: gerar séries semanais em lote (vários alunos de uma vez) ──
+    migrateLessonsBatch: professorProcedure.input(z.object({
+      items: z.array(z.object({
+        studentId: z.number(),
+        weekday: z.number().min(0).max(6), // 0=domingo ... 6=sábado
+        time: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Horário inválido (HH:MM)"),
+        duration: z.number().min(15).max(240).default(60),
+        title: z.string().max(255).optional(),
+        instrumentId: z.number().nullable().optional(),
+        studioRoomId: z.number().nullable().optional(),
+      })).min(1, "Selecione pelo menos um aluno").max(100, "Limite de 100 alunos por operação"),
+      startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Data inicial inválida (AAAA-MM-DD)"),
+      weeks: z.number().min(1).max(104, "Limite de 104 semanas por operação"),
+    })).mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Banco de dados não disponível" });
+      const orgId = ctx.user.organizationId!;
+
+      const totalLessons = input.items.length * input.weeks;
+      if (totalLessons > 500) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: `Esta operação geraria ${totalLessons} aulas (limite: 500). Reduza os alunos ou as semanas.` });
+      }
+
+      const rows: MigrationLessonRow[] = [];
+      for (const item of input.items) {
+        const firstISO = firstWeekdayISO(input.startDate, item.weekday);
+        const groupId = nanoid();
+        for (let w = 0; w < input.weeks; w++) {
+          const dateISO = addDaysISO(firstISO, w * 7);
+          rows.push({
+            studentId: item.studentId,
+            scheduledAt: new Date(`${dateISO}T${item.time}:00-03:00`),
+            duration: item.duration,
+            title: item.title || "Aula de Música",
+            instrumentId: item.instrumentId ?? null,
+            studioRoomId: item.studioRoomId ?? null,
+            recurringGroupId: groupId,
+            recurrence: "semanal",
+          });
+        }
+      }
+
+      const result = await insertLessonsValidated(db, ctx, rows);
+
+      await db.insert(migrationRuns).values({
+        organizationId: orgId,
+        userId: ctx.user.id,
+        type: "LESSONS_BATCH",
+        created: result.created,
+        skipped: result.skipped.length,
+        summary: JSON.stringify({
+          students: input.items.length,
+          weeks: input.weeks,
+          startDate: input.startDate,
+          skipped: result.skipped.slice(0, 100),
+        }),
+      }).catch(() => {});
+
+      return {
+        success: true,
+        created: result.created,
+        skipped: result.skipped,
+        totalRequested: rows.length,
+      };
+    }),
+
+    // ─ MIGRAÇÃO: importar aulas avulsas (linhas de planilha já validadas) ──
+    importLessonsRows: professorProcedure.input(z.object({
+      rows: z.array(z.object({
+        studentId: z.number(),
+        scheduledAt: z.string(),
+        duration: z.number().min(15).max(240).default(60),
+        title: z.string().max(255).optional(),
+        instrumentId: z.number().nullable().optional(),
+        studioRoomId: z.number().nullable().optional(),
+      })).min(1, "Nenhuma linha para importar").max(2000, "Limite de 2000 linhas por importação"),
+    })).mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Banco de dados não disponível" });
+      const orgId = ctx.user.organizationId!;
+
+      const rows: MigrationLessonRow[] = [];
+      const invalid: MigrationSkip[] = [];
+      for (const row of input.rows) {
+        const date = new Date(row.scheduledAt);
+        if (Number.isNaN(date.getTime())) {
+          invalid.push({ studentId: row.studentId, studentName: null, scheduledAt: String(row.scheduledAt), reason: "Data/hora inválida." });
+          continue;
+        }
+        rows.push({
+          studentId: row.studentId,
+          scheduledAt: date,
+          duration: row.duration,
+          title: row.title || "Aula de Música",
+          instrumentId: row.instrumentId ?? null,
+          studioRoomId: row.studioRoomId ?? null,
+        });
+      }
+
+      const result = await insertLessonsValidated(db, ctx, rows);
+      const skipped = [...invalid, ...result.skipped];
+
+      await db.insert(migrationRuns).values({
+        organizationId: orgId,
+        userId: ctx.user.id,
+        type: "LESSONS_CSV",
+        created: result.created,
+        skipped: skipped.length,
+        summary: JSON.stringify({ total: input.rows.length, skipped: skipped.slice(0, 100) }),
+      }).catch(() => {});
+
+      return { success: true, created: result.created, skipped, totalRequested: input.rows.length };
     }),
 
     // ─ Criar aulas em turma (mesmo horário, vários alunos) ───────────────

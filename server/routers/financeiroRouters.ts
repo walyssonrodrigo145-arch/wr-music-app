@@ -20,7 +20,7 @@ import {
   updateUserProfile,
   getExperimentalStats,
 } from "../db";
-import { organizations, users, students, lessons, instruments, reminders, reminderTemplates, paymentDues, asaasCustomers, settings, studentGoals, studentTimeline, studentFiles, announcements, chatMessages, rescheduleRequests, studentEvolution, aiConversations, aiMessages, aiDocuments, expenses, dailyStudyPlans, notifications, professores, professorPayments, attendanceTokens, attendanceLogs, contracts, fileComments, studioRooms, schoolIntegrations, contractTemplates, contractEvents, crmLeads, crmGoals, crmActivities, fiscalCompanies, fiscalInvoices, fiscalServices, fiscalJobs, fiscalLogs } from "../../drizzle/schema";
+import { organizations, users, students, lessons, instruments, reminders, reminderTemplates, paymentDues, asaasCustomers, settings, studentGoals, studentTimeline, studentFiles, announcements, chatMessages, rescheduleRequests, studentEvolution, aiConversations, aiMessages, aiDocuments, expenses, dailyStudyPlans, notifications, professores, professorPayments, attendanceTokens, attendanceLogs, contracts, fileComments, studioRooms, schoolIntegrations, contractTemplates, contractEvents, crmLeads, crmGoals, crmActivities, fiscalCompanies, fiscalInvoices, fiscalServices, fiscalJobs, fiscalLogs, schoolPlans, migrationRuns } from "../../drizzle/schema";
 import { eq, desc, sql, and, gte, lt, lte, asc, ne, or, inArray, aliasedTable, ilike, isNull } from "drizzle-orm";
 import { notifyOwner, notifyUser } from "../_core/notification";
 import { handleDbError } from "../utils/error_handler";
@@ -54,6 +54,53 @@ import { schoolAiRouter } from "../schoolAiRouter";
 import { fiscalRouter } from "../fiscalRouter";
 import { FiscalService } from "../services/fiscal/FiscalService";
 import { loginAttempts, safeEqualStr, isReservedSuperAdminEmail, getOrgPlanLimits, syncOrgAsaasSubscription, reconcileOrgAsaasCharges, runCreateAssinafyContract, getTodayBR, markOverdueRows, buildDueDateSeries } from "./helpers";
+/**
+ * Valor da mensalidade na migração: mensalidade do aluno → valor do plano →
+ * valor informado. Nunca lança R$ 0,00 (retorna 0 e o chamador pula/reporta).
+ */
+export function resolveMigrationFee(
+  studentMonthlyFee: unknown,
+  planMonthlyValue: unknown,
+  fallbackAmount: unknown
+): number {
+  const fromStudent = Number(studentMonthlyFee) || 0;
+  if (fromStudent > 0) return fromStudent;
+  const fromPlan = Number(planMonthlyValue) || 0;
+  if (fromPlan > 0) return fromPlan;
+  const fromFallback = Number(fallbackAmount) || 0;
+  return fromFallback > 0 ? fromFallback : 0;
+}
+
+/**
+ * Insere mensalidades de forma idempotente pelo índice único (org, aluno, mês,
+ * ano). Se o índice não existir no banco (42P10), cai para checagem manual —
+ * a migração nunca falha por causa disso.
+ */
+async function insertPaymentDuesIdempotent(db: any, rows: any[]): Promise<number> {
+  if (rows.length === 0) return 0;
+  try {
+    const inserted = await db
+      .insert(paymentDues)
+      .values(rows)
+      .onConflictDoNothing({ target: [paymentDues.organizationId, paymentDues.studentId, paymentDues.month, paymentDues.year] })
+      .returning({ id: paymentDues.id });
+    return inserted.length;
+  } catch (err: any) {
+    const msg = String(err?.message || "");
+    if (!msg.includes("42P10") && !msg.includes("no unique or exclusion constraint")) throw err;
+    const studentIds = Array.from(new Set<number>(rows.map((r) => Number(r.studentId))));
+    const existing = await db
+      .select({ studentId: paymentDues.studentId, month: paymentDues.month, year: paymentDues.year })
+      .from(paymentDues)
+      .where(and(eq(paymentDues.organizationId, rows[0].organizationId), inArray(paymentDues.studentId, studentIds)));
+    const existingSet = new Set(existing.map((e: any) => `${e.studentId}_${e.month}_${e.year}`));
+    const toInsert = rows.filter((r) => !existingSet.has(`${r.studentId}_${r.month}_${r.year}`));
+    if (toInsert.length === 0) return 0;
+    const inserted2 = await db.insert(paymentDues).values(toInsert).returning({ id: paymentDues.id });
+    return inserted2.length;
+  }
+}
+
 export const financeiroRouters = {
   billingEngine: router({
     calculateInvoice: protectedProcedure
@@ -1108,6 +1155,190 @@ export const financeiroRouters = {
         
         return { success: true, count: rows.length };
       }),
+
+    // ─ MIGRAÇÃO: gerar mensalidades em lote (pendências passadas + futuras) ──
+    // Valor por aluno: monthlyFee > 0 → usa; senão valorMensal do plano; senão
+    // o valor informado. Nunca lança R$ 0,00 (pula e reporta). Idempotente pelo
+    // índice único (org, aluno, mês, ano). Não emite cobrança no gateway.
+    migratePaymentDuesBatch: professorProcedure.input(z.object({
+      studentIds: z.array(z.number()).min(1, "Selecione pelo menos um aluno").max(200, "Limite de 200 alunos por operação"),
+      startMonth: z.number().min(1).max(12),
+      startYear: z.number().min(2000).max(2100),
+      monthsCount: z.number().min(1).max(12, "Limite de 12 meses por operação"),
+      dueDay: z.number().min(1).max(31).optional(),
+      amount: z.number().min(0).max(100000).optional(),
+      notes: z.string().max(500).optional(),
+    })).mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Banco de dados não disponível" });
+      const orgId = ctx.user.organizationId!;
+      const isUserAdmin = ctx.user.role === "admin" || ctx.user.openId === ENV.ownerOpenId;
+
+      const owned = await db
+        .select({
+          id: students.id,
+          name: students.name,
+          monthlyFee: students.monthlyFee,
+          dueDay: students.dueDay,
+          billingPeriodicity: students.billingPeriodicity,
+          schoolPlanId: students.schoolPlanId,
+          status: students.status,
+        })
+        .from(students)
+        .where(and(
+          inArray(students.id, input.studentIds),
+          eq(students.organizationId, orgId),
+          isUserAdmin ? undefined : eq(students.professorId, ctx.user.id)
+        ));
+
+      const planIds = Array.from(new Set(owned.map((s: any) => s.schoolPlanId).filter(Boolean)));
+      const plans = planIds.length > 0
+        ? await db.select({ id: schoolPlans.id, valorMensal: schoolPlans.valorMensal, nome: schoolPlans.nome })
+            .from(schoolPlans).where(and(eq(schoolPlans.organizationId, orgId), eq(schoolPlans.ativo, true), inArray(schoolPlans.id, planIds)))
+        : [];
+      const planById = new Map<number, any>(plans.map((p: any) => [Number(p.id), p]));
+
+      // Existentes (uma consulta) para pular competências já lançadas
+      const existing = owned.length > 0
+        ? await db.select({ studentId: paymentDues.studentId, month: paymentDues.month, year: paymentDues.year })
+            .from(paymentDues)
+            .where(and(eq(paymentDues.organizationId, orgId), inArray(paymentDues.studentId, owned.map((s: any) => s.id))))
+        : [];
+      const existingSet = new Set(existing.map((e: any) => `${e.studentId}_${e.month}_${e.year}`));
+
+      const rows: any[] = [];
+      const skipped: Array<{ studentId: number | null; studentName: string | null; month: number | null; year: number | null; reason: string }> = [];
+
+      for (const student of owned) {
+        if (student.status !== "ativo") {
+          skipped.push({ studentId: student.id, studentName: student.name, month: null, year: null, reason: "Aluno não está ativo." });
+          continue;
+        }
+
+        const plan = student.schoolPlanId ? planById.get(Number(student.schoolPlanId)) : undefined;
+        const fee = resolveMigrationFee(student.monthlyFee, plan?.valorMensal, input.amount);
+
+        if (fee <= 0) {
+          skipped.push({ studentId: student.id, studentName: student.name, month: null, year: null, reason: "Sem valor de mensalidade (aluno sem mensalidade e sem plano com valor)." });
+          continue;
+        }
+
+        const dueDay = Math.min(31, Math.max(1, Number(input.dueDay ?? student.dueDay ?? 10) || 10));
+        const periodicity = student.billingPeriodicity || "mensal";
+
+        for (const d of buildDueDateSeries(input.startMonth, input.startYear, input.monthsCount, dueDay, periodicity)) {
+          const key = `${student.id}_${d.month}_${d.year}`;
+          if (existingSet.has(key)) {
+            skipped.push({ studentId: student.id, studentName: student.name, month: d.month, year: d.year, reason: "Competência já lançada." });
+            continue;
+          }
+          existingSet.add(key); // evita duplicar dentro da própria operação
+          rows.push({
+            organizationId: orgId,
+            userId: ctx.user.id,
+            studentId: student.id,
+            amount: fee.toFixed(2),
+            dueDate: d.dueDateISO,
+            month: d.month,
+            year: d.year,
+            status: "pendente" as const,
+            notes: input.notes ?? null,
+            billingPeriodicity: periodicity,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          });
+        }
+      }
+
+      const created = await insertPaymentDuesIdempotent(db, rows);
+
+      await db.insert(migrationRuns).values({
+        organizationId: orgId,
+        userId: ctx.user.id,
+        type: "DUES_BATCH",
+        created,
+        skipped: skipped.length,
+        summary: JSON.stringify({ students: owned.length, months: input.monthsCount, skipped: skipped.slice(0, 200) }),
+      }).catch(() => {});
+
+      return { success: true, created, skipped, totalRequested: rows.length };
+    }),
+
+    // ─ MIGRAÇÃO: importar mensalidades de planilha (inclusive pagas/histórico) ──
+    importPaymentDuesRows: professorProcedure.input(z.object({
+      rows: z.array(z.object({
+        studentId: z.number(),
+        month: z.number().min(1).max(12),
+        year: z.number().min(2000).max(2100),
+        amount: z.number().min(0).max(100000),
+        dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Vencimento inválido (AAAA-MM-DD)"),
+        status: z.enum(["pendente", "pago"]).default("pendente"),
+        paidAt: z.string().optional(),
+      })).min(1, "Nenhuma linha para importar").max(2000, "Limite de 2000 linhas por importação"),
+    })).mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Banco de dados não disponível" });
+      const orgId = ctx.user.organizationId!;
+      const isUserAdmin = ctx.user.role === "admin" || ctx.user.openId === ENV.ownerOpenId;
+
+      const studentIds = Array.from(new Set(input.rows.map((r) => r.studentId)));
+      const owned = await db
+        .select({ id: students.id, name: students.name, billingPeriodicity: students.billingPeriodicity })
+        .from(students)
+        .where(and(
+          inArray(students.id, studentIds),
+          eq(students.organizationId, orgId),
+          isUserAdmin ? undefined : eq(students.professorId, ctx.user.id)
+        ));
+      const studentById = new Map<number, any>(owned.map((s: any) => [Number(s.id), s]));
+
+      const rows: any[] = [];
+      const skipped: Array<{ studentId: number | null; studentName: string | null; month: number | null; year: number | null; reason: string }> = [];
+
+      for (const row of input.rows) {
+        const student = studentById.get(Number(row.studentId));
+        if (!student) {
+          skipped.push({ studentId: row.studentId, studentName: null, month: row.month, year: row.year, reason: "Aluno não encontrado nesta escola." });
+          continue;
+        }
+        if (row.amount <= 0) {
+          skipped.push({ studentId: row.studentId, studentName: student.name, month: row.month, year: row.year, reason: "Valor inválido (R$ 0,00)." });
+          continue;
+        }
+        rows.push({
+          organizationId: orgId,
+          userId: ctx.user.id,
+          studentId: row.studentId,
+          amount: row.amount.toFixed(2),
+          dueDate: row.dueDate,
+          month: row.month,
+          year: row.year,
+          status: row.status,
+          paidAt: row.status === "pago" ? new Date(row.paidAt || row.dueDate) : null,
+          billingPeriodicity: student.billingPeriodicity || "mensal",
+          notes: "Importado de planilha (migração)",
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+      }
+
+      const created = await insertPaymentDuesIdempotent(db, rows);
+      const duplicated = rows.length - created;
+      if (duplicated > 0) {
+        skipped.push({ studentId: null, studentName: null, month: null, year: null, reason: `${duplicated} competência(s) já existente(s) foram ignoradas.` });
+      }
+
+      await db.insert(migrationRuns).values({
+        organizationId: orgId,
+        userId: ctx.user.id,
+        type: "DUES_CSV",
+        created,
+        skipped: skipped.length,
+        summary: JSON.stringify({ total: input.rows.length, skipped: skipped.slice(0, 200) }),
+      }).catch(() => {});
+
+      return { success: true, created, skipped, totalRequested: input.rows.length };
+    }),
 
     // ─ Mensalidades vencidas (não pagas, data já passou) ────────────
     overdue: protectedProcedure.query(async ({ ctx }) => {

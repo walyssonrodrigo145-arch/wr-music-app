@@ -27,6 +27,7 @@ const LandingPage = lazy(() => import("./pages/LandingPage"));
 const Checkout = lazy(() => import("./pages/Checkout"));
 const Cadastro = lazy(() => import("./pages/Cadastro"));
 const PublicReferralPage = lazy(() => import("./pages/indicacao/PublicReferralPage"));
+const Migracao = lazy(() => import("./pages/Migracao"));
 const ReferralProgram = lazy(() => import("./pages/indicacao/ReferralProgram"));
 const ReferralAdmin = lazy(() => import("./pages/indicacao/ReferralAdmin"));
 const NotFound = lazy(() => import("./pages/NotFound"));
@@ -260,6 +261,7 @@ function Router() {
           <Route path="/master-panel" component={SuperAdmin} />
           <Route path="/programa-indicacao" component={ReferralAdmin} />
           <Route path="/indicacoes" component={ReferralProgram} />
+          <Route path="/migracao" component={Migracao} />
           <Route path="/analytics" component={AnalyticsDashboard} />
           <Route path="/comercial" component={LeadsApp} />
           <Route path="/leads" component={LeadsApp} />

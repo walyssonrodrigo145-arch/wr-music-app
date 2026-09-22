@@ -738,6 +738,18 @@ export async function runAutoMigrations() {
       { table: 'referral_events', sql: `CREATE INDEX IF NOT EXISTS "referral_events_org_idx" ON "referral_events" ("organizationId", "createdAt")` },
       // ── PLANOS & BOLSAS: postergar o prazo do desconto para o próximo dia útil ──
       { table: 'school_plans', sql: `ALTER TABLE "school_plans" ADD COLUMN IF NOT EXISTS "postergarDiaUtil" boolean DEFAULT false NOT NULL` },
+      // ── MIGRAÇÃO ASSISTIDA: auditoria das operações em lote ─────────────────
+      { table: 'migration_runs', sql: `CREATE TABLE IF NOT EXISTS "migration_runs" (
+        "id" serial PRIMARY KEY NOT NULL,
+        "organizationId" integer NOT NULL,
+        "userId" integer NOT NULL,
+        "type" varchar(30) NOT NULL,
+        "created" integer DEFAULT 0 NOT NULL,
+        "skipped" integer DEFAULT 0 NOT NULL,
+        "summary" text,
+        "createdAt" timestamp DEFAULT now() NOT NULL
+      );` },
+      { table: 'migration_runs', sql: `CREATE INDEX IF NOT EXISTS "migration_runs_org_created_idx" ON "migration_runs" ("organizationId", "createdAt")` },
     ];
 
     for (const m of migrations) {

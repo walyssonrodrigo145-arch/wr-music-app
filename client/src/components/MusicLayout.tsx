@@ -10,6 +10,7 @@ import { useBreakpoint } from "@/hooks/useBreakpoint";
 import { useLocation } from "wouter";
 import { firstAllowedPath, isPageAllowed } from "@shared/permissions";
 import { ReferralPromoModal } from "@/components/indicacao/ReferralPromoModal";
+import { SubscriptionRenewalModal } from "@/components/dashboard/SubscriptionAlerts";
 
 interface MusicLayoutProps {
   children: React.ReactNode;
@@ -182,6 +183,9 @@ export function MusicLayout({ children }: MusicLayoutProps) {
 
       {/* Anúncio do Indique & Ganhe — 2x ao dia (manhã e tarde) */}
       <ReferralPromoModal />
+
+      {/* Lembrete amigável da mensalidade do MusicPro (≤ 3 dias, 1x/dia) */}
+      <SubscriptionRenewalModal />
     </div>
   );
 }
