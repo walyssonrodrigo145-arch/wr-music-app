@@ -265,6 +265,14 @@ export function firstWeekdayISO(startISO: string, weekday: number): string {
   return addDaysISO(startISO, diff);
 }
 
+/**
+ * Só é possível adicionar/remover alunos de uma turma enquanto a sessão está
+ * agendada — aulas concluídas/faltas/canceladas preservam o histórico.
+ */
+export function canManageTurmaStudents(status: string | null | undefined): boolean {
+  return (status || "agendada") === "agendada";
+}
+
 export const lessonsRouters = {
   lessons: router({
     getById: protectedProcedure.input(z.object({ id: z.number() })).query(async ({ ctx, input }) => {
@@ -1930,6 +1938,240 @@ export const lessonsRouters = {
         return { success: true };
       } catch (error) {
         return handleDbError(error, "dar baixa na frequência da turma");
+      }
+    }),
+
+    // ─ Adicionar alunos a uma turma (sessão atual e, opcionalmente, futuras) ─
+    addTurmaStudents: protectedProcedure.input(z.object({
+      groupId: z.string().optional(),
+      scheduledAt: z.string(),
+      title: z.string().min(2),
+      studentIds: z.array(z.number()).min(1).max(50, "Limite de 50 alunos por operação"),
+      applyToFuture: z.boolean().optional(),
+    })).mutation(async ({ ctx, input }) => {
+      try {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Banco de dados não disponível" });
+        const orgId = ctx.user.organizationId!;
+        const isUserAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
+
+        const dateObj = new Date(input.scheduledAt);
+        const startWindow = new Date(dateObj.getTime() - 60_000);
+        const endWindow = new Date(dateObj.getTime() + 60_000);
+
+        const sessionWhere = input.groupId
+          ? and(
+              eq(lessons.organizationId, orgId),
+              eq(lessons.recurringGroupId, input.groupId),
+              gte(lessons.scheduledAt, startWindow),
+              lte(lessons.scheduledAt, endWindow)
+            )
+          : and(
+              eq(lessons.organizationId, orgId),
+              eq(lessons.title, input.title),
+              eq(lessons.lessonType, 'turma'),
+              gte(lessons.scheduledAt, startWindow),
+              lte(lessons.scheduledAt, endWindow)
+            );
+
+        const sessionRows = await db.select({
+          id: lessons.id,
+          studentId: lessons.studentId,
+          title: lessons.title,
+          scheduledAt: lessons.scheduledAt,
+          duration: lessons.duration,
+          notes: lessons.notes,
+          instrumentId: lessons.instrumentId,
+          studioRoomId: lessons.studioRoomId,
+          recurringGroupId: lessons.recurringGroupId,
+          status: lessons.status,
+          userId: lessons.userId,
+        }).from(lessons).where(sessionWhere);
+
+        if (sessionRows.length === 0) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada nesta data." });
+        }
+        const template: any = sessionRows[0];
+        if (!isUserAdmin && template.userId !== ctx.user.id) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Você não tem permissão para alterar esta turma." });
+        }
+        if (!canManageTurmaStudents(template.status)) {
+          throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Só é possível adicionar alunos em turmas com status agendada." });
+        }
+
+        const uniqueIds = Array.from(new Set(input.studentIds.map(Number)));
+        const ownedStudents = await db.select({ id: students.id, name: students.name }).from(students)
+          .where(and(
+            inArray(students.id, uniqueIds),
+            eq(students.organizationId, orgId),
+            isUserAdmin ? undefined : eq(students.professorId, ctx.user.id)
+          ));
+        if (ownedStudents.length !== uniqueIds.length) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Um ou mais alunos selecionados não existem ou não pertencem ao seu perfil." });
+        }
+
+        const existingStudentIds = new Set(sessionRows.map((r: any) => Number(r.studentId)));
+        const toAdd = uniqueIds.filter((id) => !existingStudentIds.has(id));
+        if (toAdd.length === 0) {
+          return { success: true, added: 0, students: 0, sessions: 0, message: "Alunos já estão na turma." };
+        }
+
+        // Datas-alvo: sessão atual + futuras agendadas (mesma turma)
+        const baseDate = new Date(template.scheduledAt);
+        let targetDates: Date[] = [baseDate];
+        // Chaves aluno+data já presentes na turma (evita duplicar quem já está
+        // em sessões futuras quando o aluno é adicionado só agora na atual).
+        const existingKeys = new Set<string>(
+          sessionRows.map((r: any) => `${Number(r.studentId)}_${new Date(r.scheduledAt).toISOString().slice(0, 16)}`)
+        );
+        if (input.applyToFuture) {
+          const futureWhere = template.recurringGroupId
+            ? and(
+                eq(lessons.organizationId, orgId),
+                eq(lessons.recurringGroupId, template.recurringGroupId),
+                gte(lessons.scheduledAt, startWindow),
+                eq(lessons.status, 'agendada')
+              )
+            : and(
+                eq(lessons.organizationId, orgId),
+                eq(lessons.title, template.title ?? input.title),
+                eq(lessons.lessonType, 'turma'),
+                gte(lessons.scheduledAt, startWindow),
+                eq(lessons.status, 'agendada')
+              );
+          const futureRows = await db.select({ studentId: lessons.studentId, scheduledAt: lessons.scheduledAt }).from(lessons).where(futureWhere);
+          const byTime = new Map<number, Date>();
+          futureRows.forEach((r: any) => {
+            const d = new Date(r.scheduledAt);
+            byTime.set(d.getTime(), d);
+            existingKeys.add(`${Number(r.studentId)}_${d.toISOString().slice(0, 16)}`);
+          });
+          const sorted = Array.from(byTime.values()).sort((a, b) => a.getTime() - b.getTime());
+          if (sorted.length > 0) targetDates = sorted;
+        }
+
+        // Conflito de horário por aluno/data (checagem em lote por data).
+        // Exclui as próprias aulas da turma (mesmo grupo/título) para não dar
+        // falso conflito com as sessões futuras da mesma turma.
+        const notSameTurma = template.recurringGroupId
+          ? ne(lessons.recurringGroupId, template.recurringGroupId)
+          : or(ne(lessons.title, template.title ?? input.title), ne(lessons.lessonType, 'turma'));
+        for (const d of targetDates) {
+          const endsAt = new Date(d.getTime() + (template.duration || 60) * 60_000);
+          const conflicts = await db.select({ studentId: lessons.studentId }).from(lessons)
+            .where(and(
+              eq(lessons.organizationId, orgId),
+              inArray(lessons.studentId, toAdd),
+              eq(lessons.status, 'agendada'),
+              notSameTurma,
+              sql`(${lessons.scheduledAt}, (${lessons.scheduledAt} + (${lessons.duration} || ' minutes')::interval)) OVERLAPS (${d.toISOString()}::timestamp, ${endsAt.toISOString()}::timestamp)`
+            ));
+          if (conflicts.length > 0) {
+            const conflictId = Number(conflicts[0].studentId);
+            const studentName = ownedStudents.find((s: any) => Number(s.id) === conflictId)?.name || 'Aluno';
+            const when = d.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
+            throw new TRPCError({ code: "BAD_REQUEST", message: `Conflito: ${studentName} já possui aula agendada neste horário (${when}).` });
+          }
+        }
+
+        // Insere somente os pares aluno+data que ainda não existem
+        const rowsToInsert: any[] = [];
+        for (const d of targetDates) {
+          const key = d.toISOString().slice(0, 16);
+          for (const studentId of toAdd) {
+            if (existingKeys.has(`${studentId}_${key}`)) continue;
+            rowsToInsert.push({
+              organizationId: orgId,
+              userId: template.userId ?? ctx.user.id,
+              studentId,
+              title: template.title ?? input.title,
+              scheduledAt: d,
+              duration: template.duration || 60,
+              notes: template.notes ?? null,
+              instrumentId: template.instrumentId ?? null,
+              studioRoomId: template.studioRoomId ?? null,
+              rating: null,
+              recurringGroupId: template.recurringGroupId ?? null,
+              status: 'agendada' as const,
+              lessonType: 'turma' as const,
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            });
+          }
+        }
+
+        if (rowsToInsert.length === 0) {
+          return { success: true, added: 0, students: 0, sessions: 0, message: "Alunos já estão na turma." };
+        }
+
+        await db.insert(lessons).values(rowsToInsert);
+        const addedStudents = new Set(rowsToInsert.map((r) => Number(r.studentId))).size;
+        return { success: true, added: rowsToInsert.length, students: addedStudents, sessions: targetDates.length };
+      } catch (error) {
+        return handleDbError(error, "adicionar alunos à turma");
+      }
+    }),
+
+    // ─ Remover aluno de uma turma (sessão atual e, opcionalmente, futuras) ─
+    removeTurmaStudent: protectedProcedure.input(z.object({
+      lessonId: z.number(),
+      applyToFuture: z.boolean().optional(),
+    })).mutation(async ({ ctx, input }) => {
+      try {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Banco de dados não disponível" });
+        const orgId = ctx.user.organizationId!;
+        const isUserAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
+
+        const [target] = await db.select({
+          id: lessons.id,
+          studentId: lessons.studentId,
+          scheduledAt: lessons.scheduledAt,
+          recurringGroupId: lessons.recurringGroupId,
+          lessonType: lessons.lessonType,
+          status: lessons.status,
+          userId: lessons.userId,
+        }).from(lessons)
+          .where(and(eq(lessons.id, input.lessonId), eq(lessons.organizationId, orgId)))
+          .limit(1);
+
+        if (!target) throw new TRPCError({ code: "NOT_FOUND", message: "Aula da turma não encontrada." });
+        if (target.lessonType !== 'turma') throw new TRPCError({ code: "BAD_REQUEST", message: "Esta aula não é de turma." });
+        if (!isUserAdmin && target.userId !== ctx.user.id) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Você não tem permissão para alterar esta turma." });
+        }
+        if (!canManageTurmaStudents(target.status)) {
+          throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Só é possível remover alunos de turmas com status agendada." });
+        }
+
+        const idsToDelete: number[] = [Number(target.id)];
+        if (input.applyToFuture && target.recurringGroupId && target.studentId != null) {
+          const futureRows = await db.select({ id: lessons.id }).from(lessons)
+            .where(and(
+              eq(lessons.organizationId, orgId),
+              eq(lessons.recurringGroupId, target.recurringGroupId),
+              eq(lessons.studentId, target.studentId),
+              eq(lessons.lessonType, 'turma'),
+              eq(lessons.status, 'agendada'),
+              gte(lessons.scheduledAt, new Date(target.scheduledAt))
+            ));
+          futureRows.forEach((r: any) => {
+            const id = Number(r.id);
+            if (!idsToDelete.includes(id)) idsToDelete.push(id);
+          });
+        }
+
+        // Cancela lembretes pendentes das aulas removidas
+        await db.update(reminders)
+          .set({ status: 'cancelado', cancelledAt: new Date(), updatedAt: new Date() })
+          .where(and(eq(reminders.organizationId, orgId), inArray(reminders.lessonId, idsToDelete)));
+
+        await db.delete(lessons)
+          .where(and(eq(lessons.organizationId, orgId), inArray(lessons.id, idsToDelete)));
+
+        return { success: true, removed: idsToDelete.length };
+      } catch (error) {
+        return handleDbError(error, "remover aluno da turma");
       }
     }),
   }),

@@ -17,7 +17,9 @@ import {
   Users,
   Loader2,
   Check,
-  LayoutList
+  LayoutList,
+  UserPlus,
+  Plus
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { format } from "date-fns";
@@ -54,6 +56,15 @@ export default function LessonDetailModal({
   const isTurma = lesson?.lessonType === 'turma';
   const utils = trpc.useUtils();
   const [localStatuses, setLocalStatuses] = useState<Record<number, string>>({});
+  // Gestão de alunos da turma (adicionar/remover)
+  const canManageTurma = isTurma && lesson?.status === 'agendada';
+  const [showAddStudents, setShowAddStudents] = useState(false);
+  const [applyToFuture, setApplyToFuture] = useState(false);
+  const [selectedToAdd, setSelectedToAdd] = useState<Set<number>>(new Set());
+
+  const { data: allStudents = [] } = trpc.students.list.useQuery(undefined, {
+    enabled: open && canManageTurma && showAddStudents,
+  });
 
   const { data: turmaDetails = [], isLoading: isLoadingTurma } = trpc.lessons.getTurmaDetails.useQuery({
     groupId: lesson?.recurringGroupId || undefined,
@@ -83,6 +94,32 @@ export default function LessonDetailModal({
       toast.error("Erro ao atualizar chamada: " + e.message);
       utils.lessons.getTurmaDetails.invalidate();
     }
+  });
+
+  const addTurmaStudentsMutation = trpc.lessons.addTurmaStudents.useMutation({
+    onSuccess: (data: any) => {
+      toast.success(
+        data?.added > 0
+          ? `${data.students} aluno(s) adicionado(s)${data.sessions > 1 ? ` em ${data.sessions} aulas` : ""}.`
+          : (data?.message || "Alunos já estão na turma.")
+      );
+      setSelectedToAdd(new Set());
+      setShowAddStudents(false);
+      utils.lessons.list.invalidate();
+      utils.lessons.getTurmaDetails.invalidate();
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const removeTurmaStudentMutation = trpc.lessons.removeTurmaStudent.useMutation({
+    onSuccess: (_data: any, variables: any) => {
+      toast.success("Aluno removido da turma.");
+      utils.lessons.list.invalidate();
+      utils.lessons.getTurmaDetails.invalidate();
+      // Removeu a própria aula aberta no modal → fecha para não ficar órfão
+      if (variables?.lessonId === lesson?.id) onOpenChange(false);
+    },
+    onError: (e) => toast.error(e.message),
   });
 
   useEffect(() => {
@@ -121,6 +158,38 @@ export default function LessonDetailModal({
     });
     setLocalStatuses(newStatuses);
     updateTurmaAttendanceMutation.mutate({ attendances });
+  };
+
+  // ── Gestão de alunos da turma ──
+  const eligibleStudents = canManageTurma
+    ? (allStudents as any[]).filter(
+        (s) => s.lessonType === "turma" && !turmaDetails.some((t: any) => Number(t.studentId) === Number(s.id))
+      )
+    : [];
+
+  const toggleAddStudent = (id: number) =>
+    setSelectedToAdd((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
+  const handleAddStudents = () => {
+    if (selectedToAdd.size === 0) return toast.error("Selecione pelo menos um aluno.");
+    addTurmaStudentsMutation.mutate({
+      groupId: lesson.recurringGroupId || undefined,
+      scheduledAt: new Date(lesson.scheduledAt).toISOString(),
+      title: lesson.title || "",
+      studentIds: Array.from(selectedToAdd),
+      applyToFuture,
+    });
+  };
+
+  const handleRemoveStudent = (item: any) => {
+    const scope = applyToFuture ? " desta e das próximas aulas da turma" : " desta aula";
+    if (!window.confirm(`Remover ${item.studentName || "este aluno"}${scope}?`)) return;
+    removeTurmaStudentMutation.mutate({ lessonId: item.id, applyToFuture });
   };
   return (
     <ResponsiveDialog
@@ -236,6 +305,20 @@ export default function LessonDetailModal({
                 Chamada ({turmaDetails.length})
               </span>
               <div className="flex items-center gap-1.5">
+                {canManageTurma && (
+                  <button
+                    type="button"
+                    onClick={() => setShowAddStudents((v) => !v)}
+                    className={cn(
+                      "px-2 py-0.5 text-[9px] font-black uppercase rounded-md transition-all active:scale-95 cursor-pointer inline-flex items-center gap-1",
+                      showAddStudents
+                        ? "bg-purple-600 text-white"
+                        : "bg-purple-500/10 hover:bg-purple-500/20 text-purple-600"
+                    )}
+                  >
+                    <UserPlus size={10} /> Adicionar
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => handleAllAttendance('concluida')}
@@ -252,6 +335,77 @@ export default function LessonDetailModal({
                 </button>
               </div>
             </div>
+
+            {/* Gestão: escopo (só esta aula × próximas) + adicionar alunos */}
+            {canManageTurma && (
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 px-1 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={applyToFuture}
+                    onChange={(e) => setApplyToFuture(e.target.checked)}
+                    className="h-3.5 w-3.5 rounded border-border accent-purple-600"
+                  />
+                  <span className="text-[10px] font-bold text-muted-foreground">
+                    Aplicar às próximas aulas desta turma
+                  </span>
+                </label>
+
+                {showAddStudents && (
+                  <div className="rounded-2xl border border-purple-500/30 bg-purple-500/5 p-3 space-y-2.5 animate-in fade-in duration-200">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-purple-600 dark:text-purple-400">
+                      Alunos marcados como turma
+                    </p>
+                    {eligibleStudents.length === 0 ? (
+                      <p className="text-xs text-muted-foreground py-2 text-center">
+                        Todos os alunos de turma já estão nesta aula.
+                      </p>
+                    ) : (
+                      <div className="max-h-44 overflow-y-auto subtle-scrollbar space-y-1">
+                        {eligibleStudents.map((s: any) => {
+                          const checked = selectedToAdd.has(Number(s.id));
+                          return (
+                            <button
+                              key={s.id}
+                              type="button"
+                              onClick={() => toggleAddStudent(Number(s.id))}
+                              className={cn(
+                                "w-full flex items-center gap-2.5 p-2 rounded-xl border text-left transition-colors",
+                                checked
+                                  ? "border-purple-500 bg-purple-500/10"
+                                  : "border-border/60 bg-card hover:bg-muted/40"
+                              )}
+                            >
+                              <span className={cn(
+                                "w-4 h-4 rounded border flex items-center justify-center shrink-0",
+                                checked ? "bg-purple-600 border-purple-600 text-white" : "border-border"
+                              )}>
+                                {checked && <Check size={11} strokeWidth={4} />}
+                              </span>
+                              <span className="text-xs font-bold text-foreground truncate">{s.name}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[10px] text-muted-foreground font-bold">
+                        {selectedToAdd.size} selecionado(s){applyToFuture ? " · próximas aulas" : " · só esta aula"}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={handleAddStudents}
+                        disabled={selectedToAdd.size === 0 || addTurmaStudentsMutation.isPending}
+                        className="h-8 px-3 rounded-xl bg-purple-600 hover:bg-purple-700 disabled:opacity-40 text-white text-[10px] font-black uppercase tracking-widest inline-flex items-center gap-1.5 transition-colors"
+                      >
+                        {addTurmaStudentsMutation.isPending ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />}
+                        Adicionar
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className="bg-card rounded-2xl border border-border/60 divide-y divide-border/40 max-h-48 overflow-y-auto subtle-scrollbar">
               {isLoadingTurma ? (
@@ -309,6 +463,17 @@ export default function LessonDetailModal({
                         >
                           <X size={10} /> Falta
                         </button>
+                        {canManageTurma && (
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveStudent(item)}
+                            disabled={removeTurmaStudentMutation.isPending}
+                            title="Remover aluno da turma"
+                            className="h-7 w-7 rounded-lg text-rose-500 bg-rose-500/10 hover:bg-rose-500/20 flex items-center justify-center transition-all active:scale-95 disabled:opacity-40 cursor-pointer"
+                          >
+                            <Trash2 size={11} />
+                          </button>
+                        )}
                       </div>
                     </div>
                   );

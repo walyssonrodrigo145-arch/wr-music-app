@@ -26,6 +26,18 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: "2026.09.22.4",
+    date: "2026-09-22",
+    title: "Aulas em turma: adicionar e remover alunos",
+    summary: "Agora dá para ajustar a turma sem excluir e recriar: inclua alunos novos ou tire um aluno da chamada — só desta aula ou das próximas também.",
+    items: [
+      { type: "novo", title: "Adicionar aluno à turma", description: "No detalhe da aula em turma, o botão “Adicionar” lista os alunos marcados como turma que ainda não estão na aula, com seleção múltipla." },
+      { type: "novo", title: "Remover aluno da turma", description: "Cada aluno da chamada tem um botão de remover, com confirmação. Os lembretes pendentes da aula removida são cancelados." },
+      { type: "melhoria", title: "Só esta aula ou as próximas", description: "A opção “Aplicar às próximas aulas desta turma” decide se a mudança vale apenas para a sessão aberta ou para todas as aulas futuras agendadas." },
+      { type: "correcao", title: "Sem duplicar e sem conflito", description: "O sistema ignora alunos que já estão na turma e bloqueia quem já tem outra aula no mesmo horário, mostrando o nome do aluno." },
+    ],
+  },
+  {
     version: "2026.09.22.3",
     date: "2026-09-22",
     title: "Modelos de contrato com editor visual (na aba Contratos)",
