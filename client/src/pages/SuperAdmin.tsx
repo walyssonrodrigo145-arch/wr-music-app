@@ -6,9 +6,10 @@ import {
   ShieldAlert, Save, Trash2, AlertTriangle, RefreshCw, BarChart2,
   Upload, Image as ImageIcon, Link as LinkIcon, LogIn, UserCheck, Search,
   CheckCircle2, Eye, GraduationCap, ChevronUp, ChevronDown,
-  Copy, MessageCircle, LifeBuoy, DollarSign, Clock, XCircle, Gift,
+  Copy, MessageCircle, LifeBuoy, DollarSign, Clock, XCircle, Gift, ImagePlus,
 } from "lucide-react";
 import { SupportTicketsAdmin } from "@/components/support/SupportTicketsAdmin";
+import { SeoMediaManager } from "@/components/superadmin/SeoMediaManager";
 import { cn } from "@/lib/utils";
 import { formatBRL } from "@/lib/money";
 import { SLIDE_THEMES, getSlideTheme } from "@/lib/slideThemes";
@@ -59,7 +60,7 @@ export default function SuperAdmin() {
 // ─── Painel principal (renderizado apenas para o Super Admin autenticado) ─────
 function SuperAdminPanel() {
   const utils = trpc.useUtils();
-  const [activeTab, setActiveTab] = useState<"dashboard" | "receita" | "escolas" | "usuarios" | "plans" | "coupons" | "clientes" | "slides" | "tutoriais" | "chamados">("dashboard");
+  const [activeTab, setActiveTab] = useState<"dashboard" | "receita" | "escolas" | "usuarios" | "plans" | "coupons" | "clientes" | "slides" | "imagens" | "tutoriais" | "chamados">("dashboard");
 
   // ── PRD_RELATORIO_CLIENTES_ATIVOS: janela de evolução + filtros ─────────────
   const nowDate = new Date();
@@ -319,6 +320,7 @@ function SuperAdminPanel() {
           { id: "coupons", label: "Cupons", icon: <Tag size={16} /> },
           { id: "clientes", label: "Clientes (Landing)", icon: <Users size={16} /> },
           { id: "slides", label: "Slides do Sistema", icon: <ImageIcon size={16} /> },
+          { id: "imagens", label: "Imagens (SEO)", icon: <ImagePlus size={16} /> },
           { id: "tutoriais", label: "Tutoriais", icon: <GraduationCap size={16} /> },
           { id: "chamados", label: "Chamados", icon: <LifeBuoy size={16} /> },
         ].map(tab => (
@@ -1343,6 +1345,11 @@ function SuperAdminPanel() {
       {/* ── TAB: Slides de Funcionalidades (Hero Slider) ───────────────────── */}
       {activeTab === "slides" && (
         <HeroSlidesManager />
+      )}
+
+      {/* ── TAB: Imagens das Funcionalidades (site/SEO) ────────────────────── */}
+      {activeTab === "imagens" && (
+        <SeoMediaManager />
       )}
 
       {/* ── TAB: Tutoriais do Sistema ──────────────────────────────────────── */}

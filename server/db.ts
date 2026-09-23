@@ -1087,6 +1087,22 @@ async function ensureSchemaConsistency(db: any) {
     // Vínculo da vitrine com a escola cadastrada (importação das logos no Super Admin)
     await safeExecute(sql`ALTER TABLE "landing_clients" ADD COLUMN IF NOT EXISTS "organizationId" integer`, "landing_clients.organizationId");
 
+    // ─── IMAGENS DAS PÁGINAS PÚBLICAS (SEO) ────────────────────────────────────
+    await safeExecute(sql`
+      CREATE TABLE IF NOT EXISTS "seo_media" (
+        "id" serial PRIMARY KEY NOT NULL,
+        "pagePath" varchar(200) NOT NULL,
+        "kind" varchar(20) NOT NULL,
+        "url" text NOT NULL,
+        "alt" varchar(255),
+        "order" integer DEFAULT 0 NOT NULL,
+        "isActive" boolean DEFAULT true NOT NULL,
+        "createdAt" timestamp DEFAULT now() NOT NULL,
+        "updatedAt" timestamp DEFAULT now() NOT NULL
+      )
+    `, "create seo_media table");
+    await safeExecute(sql`CREATE INDEX IF NOT EXISTS "seo_media_page_idx" ON "seo_media" ("pagePath")`, "seo_media page idx");
+
     // ─── OFERTAS DE ANTECIPAÇÃO DE HORÁRIOS POR FALTA (slot_offers) ─────────────
     await safeExecute(sql`
       CREATE TABLE IF NOT EXISTS "slot_offers" (

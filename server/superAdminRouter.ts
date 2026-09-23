@@ -53,8 +53,10 @@ import {
   enrollmentLinks,
   landingClients,
   landingHeroSlides,
+  seoMedia,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
+import { SEO_PAGES } from "@shared/seo";
 
 // ─── Middleware de autorização ────────────────────────────────────────────────
 // REGRA: Somente usuários configurados em SUPER_ADMIN_EMAIL / SUPER_ADMIN_EMAILS
@@ -923,6 +925,70 @@ export const superAdminRouter = router({
         totalSelected: validIds.length,
         invalid: selected.length - validIds.length,
       };
+    }),
+
+  // ─── IMAGENS DAS PÁGINAS PÚBLICAS (SEO) ────────────────────────────────────
+  // Capa, galeria e prints de celular por funcionalidade (páginas do site).
+  listSeoMedia: isSuperAdmin.query(async () => {
+    const db = await getDb();
+    if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+    return await db
+      .select()
+      .from(seoMedia)
+      .orderBy(asc(seoMedia.pagePath), asc(seoMedia.kind), asc(seoMedia.order), asc(seoMedia.id));
+  }),
+
+  createSeoMedia: isSuperAdmin
+    .input(z.object({
+      pagePath: z.string().refine((v) => SEO_PAGES.some((p) => p.path === v), "Página pública inválida"),
+      kind: z.enum(["cover", "gallery", "mobile", "desktop"]),
+      url: z.string().min(1, "Imagem ou URL é obrigatória").max(7_000_000, "Imagem muito grande (máx. 5MB)"),
+      alt: z.string().max(255).optional().nullable(),
+      order: z.number().int().default(0),
+      isActive: z.boolean().default(true),
+    }))
+    .mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      const [created] = await db.insert(seoMedia).values({
+        pagePath: input.pagePath,
+        kind: input.kind,
+        url: input.url,
+        alt: input.alt || null,
+        order: input.order,
+        isActive: input.isActive,
+      }).returning();
+      return created;
+    }),
+
+  updateSeoMedia: isSuperAdmin
+    .input(z.object({
+      id: z.number().int().positive(),
+      url: z.string().min(1).max(7_000_000).optional(),
+      alt: z.string().max(255).optional().nullable(),
+      order: z.number().int().optional(),
+      isActive: z.boolean().optional(),
+    }))
+    .mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      const { id, ...data } = input;
+      const [updated] = await db
+        .update(seoMedia)
+        .set({ ...data, updatedAt: new Date() })
+        .where(eq(seoMedia.id, id))
+        .returning();
+      if (!updated) throw new TRPCError({ code: "NOT_FOUND", message: "Imagem não encontrada" });
+      return updated;
+    }),
+
+  deleteSeoMedia: isSuperAdmin
+    .input(z.object({ id: z.number().int().positive() }))
+    .mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      await db.delete(seoMedia).where(eq(seoMedia.id, input.id));
+      return { success: true };
     }),
 
   // ─── GESTÃO DE SLIDES DE FUNCIONALIDADES (HERO SLIDER) ──────────────────────

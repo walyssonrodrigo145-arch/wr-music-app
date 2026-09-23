@@ -5,7 +5,9 @@ import {
   buildSitemapXml,
   childrenOf,
   getSeoPage,
+  groupSeoMedia,
   isSeoContentPath,
+  isSeoMediaKind,
   renderSeoContentHtml,
   resolveSeoPage,
   type SeoPage,
@@ -122,5 +124,51 @@ describe("SEO — páginas públicas", () => {
   it("noindex apenas em login", () => {
     const noindex = SEO_PAGES.filter((p: SeoPage) => p.noindex).map((p) => p.path);
     expect(noindex).toEqual(["/login"]);
+  });
+});
+
+describe("SEO — mídias das páginas (Super Admin)", () => {
+  it("isSeoMediaKind aceita capa/galeria/celular/notebook e rejeita o resto", () => {
+    expect(isSeoMediaKind("cover")).toBe(true);
+    expect(isSeoMediaKind("gallery")).toBe(true);
+    expect(isSeoMediaKind("mobile")).toBe(true);
+    expect(isSeoMediaKind("desktop")).toBe(true);
+    expect(isSeoMediaKind("video")).toBe(false);
+    expect(isSeoMediaKind(null)).toBe(false);
+  });
+
+  it("agrupa por página e tipo respeitando a ordem", () => {
+    const groups = groupSeoMedia([
+      { id: 1, pagePath: "/funcionalidades/financeiro", kind: "cover", url: "c1", order: 1 },
+      { id: 3, pagePath: "/funcionalidades/financeiro", kind: "gallery", url: "g2", order: 2 },
+      { id: 2, pagePath: "/funcionalidades/financeiro", kind: "gallery", url: "g1", order: 1 },
+      { id: 4, pagePath: "/funcionalidades/financeiro", kind: "mobile", url: "m1", order: 1 },
+      { id: 6, pagePath: "/funcionalidades/financeiro", kind: "desktop", url: "d1", order: 2 },
+      { id: 7, pagePath: "/funcionalidades/financeiro", kind: "desktop", url: "d0", order: 1 },
+      { id: 5, pagePath: "/blog", kind: "cover", url: "b1", order: 1 },
+    ]);
+    expect(groups["/funcionalidades/financeiro"].cover.map((i) => i.url)).toEqual(["c1"]);
+    expect(groups["/funcionalidades/financeiro"].gallery.map((i) => i.url)).toEqual(["g1", "g2"]);
+    expect(groups["/funcionalidades/financeiro"].mobile.map((i) => i.url)).toEqual(["m1"]);
+    expect(groups["/funcionalidades/financeiro"].desktop.map((i) => i.url)).toEqual(["d0", "d1"]);
+    expect(groups["/blog"].cover.map((i) => i.url)).toEqual(["b1"]);
+  });
+
+  it("ignora imagens inativas, tipos inválidos e páginas vazias", () => {
+    const groups = groupSeoMedia([
+      { id: 1, pagePath: "/funcionalidades/financeiro", kind: "cover", url: "off", isActive: false },
+      { id: 2, pagePath: "/funcionalidades/financeiro", kind: "video", url: "x" },
+      { id: 3, pagePath: "", kind: "cover", url: "y" },
+      { id: 4, pagePath: "/funcionalidades/financeiro", kind: "mobile", url: "on", isActive: true },
+    ]);
+    expect(groups["/funcionalidades/financeiro"].cover).toHaveLength(0);
+    expect(groups["/funcionalidades/financeiro"].mobile.map((i) => i.url)).toEqual(["on"]);
+    expect(Object.keys(groups)).toEqual(["/funcionalidades/financeiro"]);
+  });
+
+  it("lista vazia/nula devolve objeto vazio", () => {
+    expect(groupSeoMedia([])).toEqual({});
+    expect(groupSeoMedia(null)).toEqual({});
+    expect(groupSeoMedia(undefined)).toEqual({});
   });
 });

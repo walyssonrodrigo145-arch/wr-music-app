@@ -96,6 +96,22 @@ export const authRouters = {
         lessons: Number(lessonsRow?.value) || 0,
       };
     }),
+    /**
+     * Mídias das páginas públicas (capa/galeria/prints de celular), configuradas
+     * no Super Admin. Retorna agrupado por rota e tipo.
+     */
+    getSeoMedia: publicProcedure.query(async () => {
+      const db = await getDb();
+      if (!db) return {};
+      const { seoMedia } = await import("../../drizzle/schema");
+      const { asc } = await import("drizzle-orm");
+      const { groupSeoMedia } = await import("@shared/seo");
+      const rows = await db
+        .select()
+        .from(seoMedia)
+        .orderBy(asc(seoMedia.pagePath), asc(seoMedia.kind), asc(seoMedia.order), asc(seoMedia.id));
+      return groupSeoMedia(rows as any);
+    }),
     getPlans: publicProcedure.query(async () => {
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });

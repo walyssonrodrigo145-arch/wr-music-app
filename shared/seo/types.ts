@@ -55,6 +55,61 @@ export interface SeoPage {
 
 export const SEO_BASE_URL = "https://wrmusicpro.com.br";
 
+// ─── Mídias das páginas (gerenciadas no Super Admin) ─────────────────────────
+export type SeoMediaKind = "cover" | "gallery" | "mobile" | "desktop";
+
+export const SEO_MEDIA_KINDS: SeoMediaKind[] = ["cover", "gallery", "mobile", "desktop"];
+
+export const SEO_MEDIA_KIND_LABELS: Record<SeoMediaKind, string> = {
+  cover: "Capa",
+  gallery: "Galeria",
+  mobile: "Print de celular (moldura)",
+  desktop: "Print de notebook (moldura)",
+};
+
+export interface SeoMediaRow {
+  id: number;
+  pagePath: string;
+  kind: string;
+  url: string;
+  alt?: string | null;
+  order?: number | null;
+  isActive?: boolean | null;
+}
+
+export interface SeoMediaGroup {
+  cover: SeoMediaRow[];
+  gallery: SeoMediaRow[];
+  mobile: SeoMediaRow[];
+  desktop: SeoMediaRow[];
+}
+
+export function isSeoMediaKind(value: unknown): value is SeoMediaKind {
+  return SEO_MEDIA_KINDS.includes(String(value) as SeoMediaKind);
+}
+
+/**
+ * Agrupa as mídias ativas por página e tipo (capa/galeria/celular), mantendo a
+ * ordenação. Usado pelo client, pelo server e pelos testes.
+ */
+export function groupSeoMedia(rows: SeoMediaRow[] | null | undefined): Record<string, SeoMediaGroup> {
+  const grouped: Record<string, SeoMediaGroup> = {};
+  for (const row of rows || []) {
+    if (!row || row.isActive === false) continue;
+    if (!isSeoMediaKind(row.kind)) continue;
+    const path = String(row.pagePath || "");
+    if (!path) continue;
+    if (!grouped[path]) grouped[path] = { cover: [], gallery: [], mobile: [], desktop: [] };
+    grouped[path][row.kind].push(row);
+  }
+  for (const page of Object.values(grouped)) {
+    for (const kind of SEO_MEDIA_KINDS) {
+      page[kind].sort((a, b) => (Number(a.order) || 0) - (Number(b.order) || 0) || a.id - b.id);
+    }
+  }
+  return grouped;
+}
+
 /** Página pelo caminho (aceita com/sem barra final). */
 export function getSeoPage(path: string, pages: SeoPage[]): SeoPage | undefined {
   const normalized = "/" + String(path || "").replace(/^\/+|\/+$/g, "");

@@ -1935,6 +1935,27 @@ export const landingClients = pgTable("landing_clients", {
 export type LandingClient = typeof landingClients.$inferSelect;
 export type InsertLandingClient = typeof landingClients.$inferInsert;
 
+// ── Imagens das páginas públicas (SEO): capa, galeria e prints de celular ───
+// Gerenciadas pelo Super Admin e consumidas por publicData.getSeoMedia.
+export const seoMedia = pgTable("seo_media", {
+  id: serial("id").primaryKey(),
+  /** Rota da página pública (ex.: /funcionalidades/financeiro) */
+  pagePath: varchar("pagePath", { length: 200 }).notNull(),
+  /** 'cover' (capa), 'gallery' (galeria) ou 'mobile' (print na moldura de celular) */
+  kind: varchar("kind", { length: 20 }).notNull(),
+  url: text("url").notNull(),
+  alt: varchar("alt", { length: 255 }),
+  order: integer("order").default(0).notNull(),
+  isActive: boolean("isActive").default(true).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
+}, (table) => [
+  index("seo_media_page_idx").on(table.pagePath),
+]);
+
+export type SeoMedia = typeof seoMedia.$inferSelect;
+export type InsertSeoMedia = typeof seoMedia.$inferInsert;
+
 // ── Ofertas de Antecipação de Horários por Falta ───────────────────────────
 export const slotOffers = pgTable("slot_offers", {
   id: serial("id").primaryKey(),
