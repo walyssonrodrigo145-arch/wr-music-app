@@ -69,6 +69,33 @@ export const authRouters = {
       const { asc, eq } = await import("drizzle-orm");
       return await db.select().from(landingClients).where(eq(landingClients.isActive, true)).orderBy(asc(landingClients.order), asc(landingClients.createdAt));
     }),
+    /**
+     * Números reais da plataforma para a faixa de credibilidade da landing.
+     * Apenas contagens agregadas — nunca dados de escolas/alunos.
+     */
+    getPublicStats: publicProcedure.query(async () => {
+      const db = await getDb();
+      if (!db) return { schools: 0, students: 0, lessons: 0 };
+      const { organizations, students, lessons } = await import("../../drizzle/schema");
+      const { eq, sql } = await import("drizzle-orm");
+
+      const [schoolsRow] = await db
+        .select({ value: sql<number>`COUNT(*)::int` })
+        .from(organizations);
+      const [studentsRow] = await db
+        .select({ value: sql<number>`COUNT(*)::int` })
+        .from(students)
+        .where(eq(students.status, "ativo"));
+      const [lessonsRow] = await db
+        .select({ value: sql<number>`COUNT(*)::int` })
+        .from(lessons);
+
+      return {
+        schools: Number(schoolsRow?.value) || 0,
+        students: Number(studentsRow?.value) || 0,
+        lessons: Number(lessonsRow?.value) || 0,
+      };
+    }),
     getPlans: publicProcedure.query(async () => {
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });

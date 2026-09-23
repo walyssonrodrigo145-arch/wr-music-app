@@ -28,12 +28,15 @@ import {
   Sparkles,
   Eye,
   EyeOff,
+  Rocket,
+  Headphones,
 } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import { useAuth } from '@/hooks/useAuth';
 import { BenefitsCarousel } from '@/components/BenefitsCarousel';
 import { HeroSlider } from '@/components/HeroSlider';
 import ClientsMarquee from '@/components/ClientsMarquee';
+import { AsaasLogoMark, MercadoPagoLogoMark, InfinitePayLogoMark } from '@/components/logos/PaymentBrandLogos';
 import { trpc } from '@/lib/trpc';
 import { clearReferralCode, readReferralCode } from './indicacao/PublicReferralPage';
 
@@ -686,6 +689,9 @@ const LandingPage = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [signupPlan, setSignupPlan] = useState<string | null>(null);
   const [showAllPlans, setShowAllPlans] = useState(false);
+  // Progresso de leitura + seção ativa no menu (scrollspy)
+  const [scrollProgress, setScrollProgress] = useState(0);
+  const [activeSection, setActiveSection] = useState("");
   const [, setLocation] = useLocation();
   const { isAuthenticated, loading, user } = useAuth();
 
@@ -707,6 +713,43 @@ const LandingPage = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  // Barra de progresso de leitura da página
+  useEffect(() => {
+    const updateProgress = () => {
+      const el = document.documentElement;
+      const total = el.scrollHeight - el.clientHeight;
+      setScrollProgress(total > 0 ? Math.min(100, Math.max(0, (el.scrollTop / total) * 100)) : 0);
+    };
+    updateProgress();
+    window.addEventListener('scroll', updateProgress, { passive: true });
+    window.addEventListener('resize', updateProgress);
+    return () => {
+      window.removeEventListener('scroll', updateProgress);
+      window.removeEventListener('resize', updateProgress);
+    };
+  }, []);
+
+  // Scrollspy: destaca no menu a seção visível (Recursos, Clientes, Depoimentos, Preços)
+  useEffect(() => {
+    const ids = ["features", "clients", "testimonials", "pricing"];
+    const sections = ids
+      .map((id) => document.getElementById(id))
+      .filter((el): el is HTMLElement => Boolean(el));
+    if (sections.length === 0) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries
+          .filter((e) => e.isIntersecting)
+          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+        if (visible) setActiveSection(`#${visible.target.id}`);
+      },
+      { rootMargin: "-25% 0px -60% 0px", threshold: [0, 0.2, 0.5, 0.8, 1] }
+    );
+    sections.forEach((s) => observer.observe(s));
+    return () => observer.disconnect();
+  }, []);
+
   // Bloquear scroll quando modal aberto
   useEffect(() => {
     if (signupPlan || showAllPlans) {
@@ -718,6 +761,7 @@ const LandingPage = () => {
   }, [signupPlan, showAllPlans]);
 
   const { data: dbPlans, isLoading: loadingPlans } = trpc.publicData.getPlans.useQuery();
+  const { data: publicStats } = trpc.publicData.getPublicStats.useQuery(undefined, { staleTime: 10 * 60 * 1000 });
 
   const parseFeatures = (fStr: any) => {
     if (Array.isArray(fStr)) return fStr;
@@ -809,16 +853,27 @@ const LandingPage = () => {
 
           {/* Desktop Menu */}
           <div className="hidden md:flex items-center gap-8">
-            {navLinks.map((link) => (
-              <a 
-                key={link.name} 
-                href={link.href}
-                target={link.target || "_self"}
-                className="text-sm font-semibold text-muted-foreground hover:text-primary transition-colors"
-              >
-                {link.name}
-              </a>
-            ))}
+            {navLinks.map((link) => {
+              const isActive = activeSection === link.href;
+              return (
+                <a
+                  key={link.name}
+                  href={link.href}
+                  target={link.target || "_self"}
+                  aria-current={isActive ? "true" : undefined}
+                  className={`relative text-sm font-semibold transition-colors ${
+                    isActive ? "text-primary" : "text-muted-foreground hover:text-primary"
+                  }`}
+                >
+                  {link.name}
+                  <span
+                    className={`absolute -bottom-1.5 left-0 right-0 h-[2px] rounded-full bg-primary transition-all duration-300 ${
+                      isActive ? "opacity-100 scale-x-100" : "opacity-0 scale-x-0"
+                    }`}
+                  />
+                </a>
+              );
+            })}
           </div>
 
           <div className="hidden md:flex items-center gap-4">
@@ -889,6 +944,19 @@ const LandingPage = () => {
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* Barra de progresso de leitura (indica o quanto falta da página) */}
+        <div className="absolute left-0 right-0 bottom-0 h-[2px] bg-border/40">
+          <div
+            className="h-full bg-gradient-to-r from-blue-500 via-indigo-500 to-violet-500 transition-[width] duration-150 ease-out"
+            style={{ width: `${scrollProgress}%` }}
+            role="progressbar"
+            aria-label="Progresso de leitura da página"
+            aria-valuenow={Math.round(scrollProgress)}
+            aria-valuemin={0}
+            aria-valuemax={100}
+          />
+        </div>
       </nav>
 
       {/* HERO SECTION */}
@@ -993,6 +1061,87 @@ const LandingPage = () => {
         </div>
       </section>
 
+      {/* FAIXA DE CREDIBILIDADE — números reais + compromissos */}
+      <section className="relative border-y border-border/50 bg-card/40 backdrop-blur-sm">
+        <div className="container py-10 sm:py-12">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-5 sm:gap-6">
+            {[
+              { value: publicStats?.schools || 0, label: "escolas usando o MusicPro" },
+              { value: publicStats?.students || 0, label: "alunos ativos geridos" },
+              { value: publicStats?.lessons || 0, label: "aulas organizadas na plataforma" },
+            ].filter((s) => s.value > 0).map((stat) => (
+              <div key={stat.label} className="text-center sm:text-left">
+                <p className="font-outfit text-3xl sm:text-4xl font-black text-foreground tracking-tight">
+                  +{new Intl.NumberFormat("pt-BR").format(stat.value)}
+                </p>
+                <p className="text-[11px] sm:text-xs font-bold uppercase tracking-widest text-muted-foreground mt-1">{stat.label}</p>
+              </div>
+            ))}
+            <div className="text-center sm:text-left">
+              <p className="font-outfit text-3xl sm:text-4xl font-black text-emerald-500 tracking-tight">7 dias</p>
+              <p className="text-[11px] sm:text-xs font-bold uppercase tracking-widest text-muted-foreground mt-1">grátis para testar, sem cartão</p>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 mt-8 pt-6 border-t border-border/50">
+            {[
+              "Migração assistida do seu sistema atual",
+              "Suporte humano pelo WhatsApp",
+              "Sem fidelidade — cancele quando quiser",
+            ].map((item) => (
+              <span key={item} className="inline-flex items-center gap-2 text-xs font-semibold text-muted-foreground">
+                <Check size={13} className="text-emerald-500" strokeWidth={3} /> {item}
+              </span>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* O DESAFIO — dores reais de quem administra escola de música */}
+      <section className="relative py-24 bg-background overflow-hidden">
+        <div className="container relative z-10">
+          <div className="text-center max-w-3xl mx-auto mb-16">
+            <h2 className="text-primary font-black tracking-widest uppercase text-sm mb-4">O desafio</h2>
+            <h3 className="text-4xl md:text-5xl font-outfit font-extrabold text-foreground mb-6 leading-[1.15]">
+              Administrar uma escola de música não é fácil
+            </h3>
+            <p className="text-lg text-muted-foreground font-medium">
+              Agenda, financeiro, professores, matrículas e comunicação. Sem um bom sistema, tudo isso vira planilha — e crescer fica quase impossível.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {[
+              { icon: Users, title: "Muito trabalho manual", desc: "Planilhas, cobranças, reposições de aula e pagamento de professores consumindo o seu dia." },
+              { icon: DollarSign, title: "Pouca clareza financeira", desc: "Dinheiro entra, dinheiro sai, e no fim do mês você não sabe ao certo para onde ele foi." },
+              { icon: BarChart3, title: "Sem processo comercial", desc: "Interessados aparecem, mas boa parte não vira matrícula — e fica difícil saber onde está o problema." },
+              { icon: Bell, title: "Alunos esfriando", desc: "Faltas e cancelamentos percebidos tarde demais, quando o aluno já decidiu sair." },
+            ].map((pain, i) => (
+              <motion.div
+                key={pain.title}
+                {...fadeIn}
+                transition={{ delay: i * 0.08 }}
+                className="p-6 rounded-[28px] border border-border/60 bg-card/40 backdrop-blur-xl shadow-xl shadow-primary/5"
+              >
+                <div className="w-11 h-11 rounded-2xl bg-rose-500/10 text-rose-500 flex items-center justify-center mb-5">
+                  <pain.icon size={20} />
+                </div>
+                <h4 className="text-base font-extrabold text-foreground mb-2">{pain.title}</h4>
+                <p className="text-sm text-muted-foreground font-medium leading-relaxed">{pain.desc}</p>
+              </motion.div>
+            ))}
+          </div>
+
+          <div className="text-center mt-12">
+            <a
+              href="/funcionalidades"
+              className="inline-flex items-center gap-2 text-sm font-black uppercase tracking-widest text-primary hover:underline"
+            >
+              O MusicPro organiza tudo isso em um só lugar <ArrowRight size={15} />
+            </a>
+          </div>
+        </div>
+      </section>
+
       {/* FEATURES */}
       <section id="features" className="relative py-24 bg-muted/30 border-b border-border/50 overflow-hidden">
         {/* Instrument Decorations */}
@@ -1011,24 +1160,30 @@ const LandingPage = () => {
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[
-              { icon: Users, title: 'Gestão de Alunos', desc: 'Cadastro completo, histórico de evolução, presença e notas em um só lugar.' },
-              { icon: Calendar, title: 'Agendamento Inteligente', desc: 'Organize horários, aulas e eventos com um calendário visual e intuitivo.' },
-              { icon: DollarSign, title: 'Controle Financeiro', desc: 'Mensalidades, comprovantes e relatórios financeiros automáticos.' },
-              { icon: Bell, title: 'Lembretes Automáticos', desc: 'Notificações por WhatsApp para alunos sobre aulas e pagamentos pendentes.' },
-              { icon: BarChart3, title: 'Relatórios Avançados', desc: 'Dashboards detalhados para tomar decisões baseadas em dados reais.' },
-              { icon: Guitar, title: 'IA para Professores', desc: 'Gere planos de aula, análises de progresso e sugestões com inteligência artificial.' },
+              { icon: Users, title: 'Gestão de Alunos', desc: 'Cadastro completo, histórico de evolução, presença e notas em um só lugar.', href: '/para/escola-de-musica' },
+              { icon: Calendar, title: 'Agendamento Inteligente', desc: 'Organize horários, aulas e eventos com um calendário visual e intuitivo.', href: '/funcionalidades/agenda-aulas' },
+              { icon: DollarSign, title: 'Controle Financeiro', desc: 'Mensalidades, comprovantes e relatórios financeiros automáticos.', href: '/funcionalidades/financeiro' },
+              { icon: Bell, title: 'Lembretes Automáticos', desc: 'Notificações por WhatsApp para alunos sobre aulas e pagamentos pendentes.', href: '/funcionalidades/whatsapp-automatico' },
+              { icon: BarChart3, title: 'Relatórios Avançados', desc: 'Dashboards detalhados para tomar decisões baseadas em dados reais.', href: '/funcionalidades' },
+              { icon: Guitar, title: 'IA para Professores', desc: 'Gere planos de aula, análises de progresso e sugestões com inteligência artificial.', href: '/funcionalidades/portal-do-aluno' },
             ].map((feature, i) => (
               <motion.div
                 key={feature.title}
                 {...fadeIn}
                 transition={{ delay: i * 0.1 }}
-                className="group p-8 bg-card/40 backdrop-blur-xl border border-border/50 rounded-[32px] hover:border-primary/30 shadow-2xl shadow-primary/5 hover:shadow-primary/20 transition-all duration-300"
+                className="group p-8 bg-card/40 backdrop-blur-xl border border-border/50 rounded-[32px] hover:border-primary/30 shadow-2xl shadow-primary/5 hover:shadow-primary/20 transition-all duration-300 flex flex-col"
               >
                 <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center text-primary mb-6 group-hover:bg-primary group-hover:text-primary-foreground transition-all duration-300">
                   <feature.icon size={22} />
                 </div>
                 <h4 className="text-lg font-extrabold text-foreground mb-3">{feature.title}</h4>
-                <p className="text-muted-foreground font-medium leading-relaxed">{feature.desc}</p>
+                <p className="text-muted-foreground font-medium leading-relaxed flex-1">{feature.desc}</p>
+                <a
+                  href={feature.href}
+                  className="mt-5 inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-primary hover:underline"
+                >
+                  Ver como funciona <ArrowRight size={12} />
+                </a>
               </motion.div>
             ))}
           </div>
@@ -1106,10 +1261,7 @@ const LandingPage = () => {
               <div className="relative z-10">
                 <div className="flex items-center gap-4 mb-6">
                   <div className="w-16 h-16 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-600 font-black text-xl shadow-lg">
-                    <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-9 h-9">
-                      <rect width="40" height="40" rx="10" fill="#005AE2"/>
-                      <path d="M10 25l5-10 5 10 5-10 5 10" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
+                    <AsaasLogoMark className="w-9 h-9" />
                   </div>
                   <div>
                     <h4 className="text-xl font-extrabold text-foreground">Asaas</h4>
@@ -1141,12 +1293,8 @@ const LandingPage = () => {
               <div className="absolute inset-0 bg-gradient-to-br from-yellow-500/5 via-transparent to-transparent rounded-[32px] pointer-events-none" />
               <div className="relative z-10">
                 <div className="flex items-center gap-4 mb-6">
-                  <div className="w-16 h-16 rounded-2xl bg-yellow-500/10 border border-yellow-500/20 flex items-center justify-center text-yellow-600 font-black text-xl shadow-lg">
-                    <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-9 h-9">
-                      <rect width="40" height="40" rx="10" fill="#FFF159"/>
-                      <path d="M20 10c-5.52 0-10 4.48-10 10s4.48 10 10 10 10-4.48 10-10S25.52 10 20 10zm0 16a6 6 0 110-12 6 6 0 010 12z" fill="#009EE3"/>
-                      <circle cx="20" cy="20" r="3" fill="#009EE3"/>
-                    </svg>
+                  <div className="w-16 h-16 rounded-2xl bg-yellow-500/10 border border-yellow-500/20 flex items-center justify-center shadow-lg">
+                    <MercadoPagoLogoMark className="w-10 h-10" />
                   </div>
                   <div>
                     <h4 className="text-xl font-extrabold text-foreground">Mercado Pago</h4>
@@ -1180,11 +1328,7 @@ const LandingPage = () => {
                 <div className="md:flex-1">
                   <div className="flex items-center gap-4 mb-6">
                     <div className="w-16 h-16 rounded-2xl bg-lime-500/10 border border-lime-500/20 flex items-center justify-center shadow-lg">
-                      <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-9 h-9">
-                        <rect width="40" height="40" rx="10" fill="#0E0E10"/>
-                        <circle cx="15" cy="20" r="6" stroke="#C8F169" strokeWidth="2.5"/>
-                        <circle cx="25" cy="20" r="6" stroke="#C8F169" strokeWidth="2.5"/>
-                      </svg>
+                      <InfinitePayLogoMark className="w-9 h-9" />
                     </div>
                     <div>
                       <h4 className="text-xl font-extrabold text-foreground">InfinitePay</h4>
@@ -1310,6 +1454,57 @@ const LandingPage = () => {
               </span>
             </div>
           </motion.div>
+        </div>
+      </section>
+
+      {/* VOCÊ NÃO MIGRA SOZINHO — implantação, suporte e evolução */}
+      <section className="relative py-24 bg-background overflow-hidden">
+        <div className="container relative z-10">
+          <div className="text-center max-w-3xl mx-auto mb-16">
+            <h2 className="text-primary font-black tracking-widest uppercase text-sm mb-4">Você não migra sozinho</h2>
+            <h3 className="text-4xl md:text-5xl font-outfit font-extrabold text-foreground mb-6 leading-[1.15]">
+              Plataforma completa, com gente do outro lado
+            </h3>
+          </div>
+          <div className="grid md:grid-cols-3 gap-6">
+            {[
+              {
+                icon: Rocket,
+                title: "Migração assistida",
+                desc: "Importe alunos, aulas já agendadas e mensalidades do sistema antigo em lote ou por planilha — sem digitar tudo de novo.",
+                href: "/comparativos/como-migrar-de-sistema",
+              },
+              {
+                icon: Headphones,
+                title: "Suporte que responde",
+                desc: "Atendimento humano pelo WhatsApp para tirar dúvidas da equipe, com treinamento e acompanhamento na implantação.",
+                href: "https://wa.me/5533984055949?text=ola%20gostaria%20de%20mais%20informa%C3%A7%C3%B5es%20sobre%20o%20sistema%20musicpro",
+                external: true,
+              },
+              {
+                icon: Sparkles,
+                title: "Produto que evolui",
+                desc: "Atualizações constantes guiadas pelo feedback das escolas — novas funções e correções todo mês, sem custo extra.",
+                href: "/blog",
+              },
+            ].map((item, i) => (
+              <motion.a
+                key={item.title}
+                {...fadeIn}
+                transition={{ delay: i * 0.1 }}
+                href={item.href}
+                target={item.external ? "_blank" : undefined}
+                rel={item.external ? "noopener noreferrer" : undefined}
+                className="p-8 rounded-[32px] border border-border/60 bg-card/40 backdrop-blur-xl shadow-2xl shadow-primary/5 hover:border-primary/30 hover:-translate-y-0.5 transition-all duration-300 group"
+              >
+                <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 text-indigo-500 flex items-center justify-center mb-6 group-hover:bg-indigo-500 group-hover:text-white transition-all duration-300">
+                  <item.icon size={22} />
+                </div>
+                <h4 className="text-lg font-extrabold text-foreground mb-3">{item.title}</h4>
+                <p className="text-sm text-muted-foreground font-medium leading-relaxed">{item.desc}</p>
+              </motion.a>
+            ))}
+          </div>
         </div>
       </section>
 
