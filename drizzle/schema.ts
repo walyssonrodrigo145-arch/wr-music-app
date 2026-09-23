@@ -291,6 +291,8 @@ export const settings = pgTable("settings", {
   conversationalMode: integer("conversationalMode").default(1).notNull(),
   attendancePersonaName: varchar("attendancePersonaName", { length: 60 }),
   attendanceTone: varchar("attendanceTone", { length: 20 }), // 'amigavel' | 'formal' | 'direto'
+  // Modo de envio da cobrança ao aluno: 'link' (checkout) | 'boleto' (PDF + linha digitável)
+  chargeSendMode: varchar("chargeSendMode", { length: 20 }).default("link").notNull(),
   // Asaas Integration
   asaasApiKey: text("asaasApiKey"),
   asaasEnabled: integer("asaasEnabled").default(0).notNull(),
@@ -402,6 +404,9 @@ export const paymentDues = pgTable("payment_dues", {
   asaasId: text("asaasId"),
   asaasPaymentLink: text("asaasPaymentLink"),
   asaasBillingType: varchar("asaasBillingType", { length: 30 }), // PIX, CREDIT_CARD
+  // Boleto (Asaas): PDF + linha digitável salvos na geração (envio no WhatsApp)
+  asaasBankSlipUrl: text("asaasBankSlipUrl"),
+  asaasIdentificationField: text("asaasIdentificationField"),
   // Mercado Pago integration
   mpPaymentId: text("mpPaymentId"),
   mpPaymentLink: text("mpPaymentLink"),
@@ -895,6 +900,9 @@ export const contractTemplates = pgTable("contract_templates", {
   name: varchar("name", { length: 255 }).notNull(),
   description: text("description"),
   content: text("content").notNull(),
+  // Editor em blocos (estilo Emusys): JSON de [{ type, title, text }].
+  // `content` continua sendo o texto renderizado usado na assinatura.
+  blocks: text("blocks"),
   active: boolean("active").default(true).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),

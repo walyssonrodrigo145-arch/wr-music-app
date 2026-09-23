@@ -893,6 +893,8 @@ export const contratosRouters = {
         name: z.string().min(1, "O nome do modelo é obrigatório"),
         description: z.string().optional(),
         content: z.string().min(10, "O conteúdo do modelo deve ser preenchido"),
+        // Editor em blocos (JSON serializado) — `content` segue como texto final
+        blocks: z.string().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
         const db = await getDb();
@@ -904,6 +906,7 @@ export const contratosRouters = {
           name: input.name,
           description: input.description || null,
           content: input.content,
+          blocks: input.blocks ?? null,
           active: true,
           createdAt: new Date(),
           updatedAt: new Date(),
@@ -918,6 +921,8 @@ export const contratosRouters = {
         name: z.string().min(1, "O nome do modelo é obrigatório"),
         description: z.string().optional(),
         content: z.string().min(10, "O conteúdo do modelo deve ser preenchido"),
+        // Editor em blocos (JSON serializado) — `content` segue como texto final
+        blocks: z.string().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
         const db = await getDb();
@@ -929,6 +934,7 @@ export const contratosRouters = {
             name: input.name,
             description: input.description || null,
             content: input.content,
+            ...(input.blocks !== undefined ? { blocks: input.blocks } : {}),
             updatedAt: new Date(),
           })
           .where(and(eq(contractTemplates.id, input.id), eq(contractTemplates.organizationId, orgId)))

@@ -20,7 +20,7 @@ import {
   Sun, Moon, Phone, Mail,
   CheckCircle2, Loader2, Smartphone, Wallet, Sparkles, HelpCircle,
   FileText, DollarSign, Percent, Receipt, Calculator, Calendar, Clock, Upload, Trash2, Image,
-  FileSignature, AlertTriangle, FlaskConical, GraduationCap, Repeat, FileCode2, MessageCircle
+  FileSignature, AlertTriangle, FlaskConical, GraduationCap, Repeat, FileCode2, MessageCircle, Link2
 } from "lucide-react";
 import { SUPPORT_WHATSAPP_URL, SUPPORT_WHATSAPP_DISPLAY } from "@/lib/support";
 import { RepositionsSettings } from "@/components/settings/RepositionsSettings";
@@ -36,20 +36,18 @@ import { WhatsAppSessionManager } from "@/components/settings/WhatsAppSessionMan
 import { Toggle, Field, DebouncedInput, DebouncedTextarea } from "@/components/settings/Misc";
 import { DueDaysSelector } from "@/components/financeiro/DueDaysSelector";
 import { AssinafyIntegrationCard } from "@/components/integrations/AssinafyIntegrationCard";
-import { ModelosContratoTab } from "@/components/integrations/ModelosContratoTab";
 import { ConfigFiscalTab } from "@/components/fiscal/ConfigFiscalTab";
 import { PlanosBolsas } from "@/components/settings/PlanosBolsas";
 import { MyTicketsList } from "@/components/support/MyTicketsList";
 
 // ─── Tab types ───────────────────────────────────────────────────────────────
-type Tab = "perfil" | "escola" | "fiscal" | "salas" | "financeiro" | "planos" | "modelos_contrato" | "notificacoes" | "aparencia" | "whatsapp" | "integracoes" | "ia" | "prompts" | "reposicoes" | "seguranca" | "ajuda";
+type Tab = "perfil" | "escola" | "fiscal" | "salas" | "financeiro" | "planos" | "notificacoes" | "aparencia" | "whatsapp" | "integracoes" | "ia" | "prompts" | "reposicoes" | "seguranca" | "ajuda";
 
 const TABS: { id: Tab; label: string; icon: React.ElementType; href?: string }[] = [
   { id: "perfil", label: "Perfil", icon: User },
   { id: "escola", label: "Escola", icon: Building2 },
   { id: "financeiro", label: "Financeiro", icon: DollarSign },
   { id: "planos", label: "Planos & Bolsas", icon: GraduationCap },
-  { id: "modelos_contrato", label: "Modelos de Contrato", icon: FileSignature },
   { id: "reposicoes", label: "Reposições", icon: Repeat },
   { id: "prompts", label: "Prompts IA", icon: FileCode2 },
   { id: "notificacoes", label: "Notificações", icon: Bell },
@@ -150,6 +148,8 @@ export default function Configuracoes() {
   const [asaasApiKey, setAsaasApiKey] = useState("");
   const [asaasEnabled, setAsaasEnabled] = useState(false);
   const [paymentGateway, setPaymentGateway] = useState<"asaas" | "mercadopago" | "infinitepay">("asaas");
+  // Modo de envio da cobrança ao aluno: link do checkout ou boleto (PDF + linha digitável)
+  const [chargeSendMode, setChargeSendMode] = useState<"link" | "boleto">("link");
   const [mpAccessToken, setMpAccessToken] = useState("");
   const [infinitepayHandle, setInfinitepayHandle] = useState("");
   const [infinitepayApiKey, setInfinitepayApiKey] = useState("");
@@ -257,6 +257,7 @@ export default function Configuracoes() {
       setAutoAdvanceSlotsEnabled((settings as any).autoAdvanceSlotsEnabled === 1);
       setAsaasApiKey(settings.asaasApiKey ?? "");
       setAsaasEnabled(settings.asaasEnabled === 1);
+      setChargeSendMode(((settings as any).chargeSendMode === "boleto" ? "boleto" : "link"));
       setPaymentGateway((settings.paymentGateway as "asaas" | "mercadopago" | "infinitepay") || "asaas");
       setMpAccessToken(settings.mpAccessToken ?? "");
       setInfinitepayHandle((settings as any).infinitepayHandle ?? "");
@@ -539,6 +540,7 @@ export default function Configuracoes() {
       infinitepayHandle,
       infinitepayApiKey,
       infinitepayEnabled,
+      chargeSendMode,
     });
   };
 
@@ -2211,6 +2213,43 @@ export default function Configuracoes() {
                     </select>
                   </Field>
 
+                  <Field
+                    label="Modo de envio da cobrança"
+                    hint="Como o aluno recebe a cobrança no WhatsApp: link do checkout ou boleto em PDF com linha digitável."
+                  >
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {([
+                        { key: "link", label: "Link do checkout", desc: "Envia o link de pagamento (PIX, cartão ou boleto escolhido no checkout).", icon: Link2 },
+                        { key: "boleto", label: "Boleto", desc: "Gera o boleto e envia o PDF anexado + linha digitável na mensagem.", icon: FileText },
+                      ] as const).map(({ key, label, desc, icon: Icon }) => (
+                        <button
+                          key={key}
+                          type="button"
+                          onClick={() => setChargeSendMode(key)}
+                          className={cn(
+                            "flex flex-col items-start gap-1.5 p-4 rounded-2xl border-2 text-left transition-all",
+                            chargeSendMode === key
+                              ? "border-violet-500 bg-violet-500/10"
+                              : "border-border bg-muted/30 hover:border-muted-foreground/40"
+                          )}
+                        >
+                          <span className={cn(
+                            "inline-flex items-center gap-2 text-xs font-black uppercase tracking-widest",
+                            chargeSendMode === key ? "text-violet-600 dark:text-violet-400" : "text-muted-foreground"
+                          )}>
+                            <Icon size={14} /> {label}
+                          </span>
+                          <span className="text-[11px] text-muted-foreground font-medium leading-relaxed">{desc}</span>
+                        </button>
+                      ))}
+                    </div>
+                    {chargeSendMode === "boleto" && paymentGateway !== "asaas" && (
+                      <p className="text-[11px] text-amber-600 dark:text-amber-400 font-bold mt-1.5">
+                        O boleto está disponível apenas no Asaas — com o gateway atual as cobranças continuam indo por link.
+                      </p>
+                    )}
+                  </Field>
+
                   {paymentGateway === "asaas" ? (
                     <div className="space-y-6 animate-in fade-in duration-300">
                       <div className="flex items-center justify-between p-4 rounded-2xl border border-border bg-muted/30">
@@ -2619,11 +2658,6 @@ export default function Configuracoes() {
             {/* ── ABA: SALAS DE ESTÚDIO ── */}
             {activeTab === "salas" && (
               <SalasEstudioTab />
-            )}
-
-            {/* ── ABA: MODELOS DE CONTRATO ── */}
-            {activeTab === "modelos_contrato" && (
-              <ModelosContratoTab />
             )}
 
             {/* ── ABA: REPOSIÇÕES (PRD 01 — Políticas + Motivos) ── */}

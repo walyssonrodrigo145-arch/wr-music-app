@@ -13,6 +13,7 @@ import { sendWhatsAppMessage, getWhatsAppSessionStatus, reconnectWhatsAppSession
 import { sendSmartWhatsAppNotification } from "./utils/whatsappRouting";
 import { decryptSecret } from "./utils/integrationCrypto";
 import { BillingEngine } from "./services/BillingEngine";
+import { resolveChargeSendMode, buildBoletoMessageBlock } from "@shared/billing";
 import { computeDaysRemaining, computeMonthsRemaining, computeTotalLessons, computeLessonsRemaining, isContractExpiryTriggered } from "./services/ContractExpiryEngine";
 
 // Guard de concorrência: impede que duas execuções do robô rodem ao mesmo tempo
@@ -806,6 +807,8 @@ async function runAutomation() {
           infinitepayApiKey: settings.infinitepayApiKey,
           infinitepayEnabled: settings.infinitepayEnabled,
           notifyWeeklyReport: settings.notifyWeeklyReport,
+          // Modo de envio da cobrança: 'link' (checkout) | 'boleto' (PDF + linha digitável)
+          chargeSendMode: settings.chargeSendMode,
         })
         .from(settings)
         .where(eq(settings.automationEnabled, 1));
@@ -861,6 +864,9 @@ async function runAutomation() {
                   allowAutoReminders: students.allowAutoReminders,
                   instrumentName: instruments.name,
                   asaasPaymentLink: paymentDues.asaasPaymentLink,
+                  asaasBillingType: paymentDues.asaasBillingType,
+                  asaasBankSlipUrl: paymentDues.asaasBankSlipUrl,
+                  asaasIdentificationField: paymentDues.asaasIdentificationField,
                   mpPaymentLink: paymentDues.mpPaymentLink,
                   infinitepayPaymentLink: paymentDues.infinitepayPaymentLink,
                 })
@@ -926,6 +932,17 @@ async function runAutomation() {
                     ? (due.infinitepayPaymentLink ?? null)
                     : (due.asaasPaymentLink ?? null);
 
+                // Modo BOLETO (só Asaas): mensagem com linha digitável + PDF anexado.
+                // Cobrança existente de OUTRO tipo é preservada (não duplica cobrança).
+                const wantsBoleto = resolveChargeSendMode(userSet.chargeSendMode) === "boleto" && pGateway === "asaas";
+                let boletoBlock = wantsBoleto && String(due.asaasBillingType || "").toUpperCase() === "BOLETO"
+                  ? buildBoletoMessageBlock(due.asaasIdentificationField)
+                  : null;
+                let boletoMedia: { url: string; type: "document"; fileName: string } | null = null;
+                if (wantsBoleto && due.asaasBankSlipUrl && String(due.asaasBillingType || "").toUpperCase() === "BOLETO") {
+                  boletoMedia = { url: due.asaasBankSlipUrl, type: "document", fileName: `boleto-${due.month}-${due.year}.pdf` };
+                }
+
                 if (!paymentLink) {
                   if (pGateway === "infinitepay" && userSet.infinitepayHandle && (userSet.infinitepayEnabled === 1 || userSet.infinitepayEnabled === undefined || userSet.infinitepayEnabled === null)) {
                     // ── INFINITEPAY: gera link de pagamento on-the-fly ──────────
@@ -990,18 +1007,39 @@ async function runAutomation() {
                       if (asaasCustomerId) {
                         const charge = await createAsaasCharge({
                           asaasCustomerId,
-                          billingType: "UNDEFINED",
+                          billingType: wantsBoleto ? "BOLETO" : "UNDEFINED",
                           value: Number(due.amount),
                           dueDate: String(due.dueDate).slice(0, 10),
                           description: `Mensalidade ${due.month}/${due.year} - ${due.studentName}`,
                         }, decryptSecret(userSet.asaasApiKey));
 
+                        // Boleto: guarda PDF + linha digitável para o envio no WhatsApp
+                        let bankSlipUrl: string | null = null;
+                        let identificationField: string | null = null;
+                        if (wantsBoleto) {
+                          bankSlipUrl = charge.bankSlipUrl ?? null;
+                          try {
+                            const { getAsaasIdentificationField } = await import("./utils/asaas");
+                            const info = await getAsaasIdentificationField(charge.id, decryptSecret(userSet.asaasApiKey));
+                            identificationField = info.identificationField;
+                          } catch (e) {
+                            console.error("[AutomationJob] Erro ao buscar linha digitável do boleto:", e);
+                          }
+                        }
+
                         await db.update(paymentDues).set({
                           asaasId: charge.id,
-                          asaasPaymentLink: charge.invoiceUrl,
-                          asaasBillingType: charge.billingType
+                          asaasPaymentLink: wantsBoleto ? (bankSlipUrl ?? charge.invoiceUrl) : charge.invoiceUrl,
+                          asaasBillingType: charge.billingType,
+                          ...(wantsBoleto ? { asaasBankSlipUrl: bankSlipUrl, asaasIdentificationField: identificationField } : {}),
                         }).where(eq(paymentDues.id, due.id));
-                        paymentLink = charge.invoiceUrl;
+                        paymentLink = wantsBoleto ? (bankSlipUrl ?? charge.invoiceUrl) : charge.invoiceUrl;
+                        if (wantsBoleto) {
+                          boletoBlock = buildBoletoMessageBlock(identificationField);
+                          if (bankSlipUrl) {
+                            boletoMedia = { url: bankSlipUrl, type: "document", fileName: `boleto-${due.month}-${due.year}.pdf` };
+                          }
+                        }
                       }
                     } catch (err) {
                       console.error("[AutomationJob] Erro ao gerar cobrança Asaas on-the-fly:", err);
@@ -1042,7 +1080,7 @@ async function runAutomation() {
                 const multaFmt = `R$ ${calcResult.lateFeeAmount.toFixed(2).replace('.', ',')}`;
                 const jurosFmt = `R$ ${calcResult.interestAmount.toFixed(2).replace('.', ',')}`;
                 const valorAtualizadoFmt = `R$ ${calcResult.updatedAmount.toFixed(2).replace('.', ',')}`;
-                const pixReplacement = paymentLink ?? (userSet.pixKey ? `PIX: ${userSet.pixKey}` : "");
+                const linkReplacement = boletoBlock ?? paymentLink ?? (userSet.pixKey ? `PIX: ${userSet.pixKey}` : "");
 
                 let message = (rule.messageTemplate ?? "")
                   .replace(/\{nome_aluno\}/g, due.studentName ?? "Aluno")
@@ -1058,15 +1096,17 @@ async function runAutomation() {
                   .replace(/\{valor_mensalidade\}/g, valorAtualizadoFmt)
                   .replace(/\{valor\}/g, valorAtualizadoFmt)
                   .replace(/\{data_vencimento\}/g, vencimento)
-                  .replace(/\{pix\}/g, pixReplacement);
+                  .replace(/\{pix\}/g, linkReplacement);
 
                 const hasLinkTag = /\{link_pagamento\}|\{link_cobranca\}|\{link\}|\{payment_link\}|\{pix\}/.test(rule.messageTemplate ?? "");
                 if (hasLinkTag) {
                   message = message
-                    .replace(/\{link_pagamento\}/g, pixReplacement)
-                    .replace(/\{link_cobranca\}/g, pixReplacement)
-                    .replace(/\{link\}/g, pixReplacement)
-                    .replace(/\{payment_link\}/g, pixReplacement);
+                    .replace(/\{link_pagamento\}/g, linkReplacement)
+                    .replace(/\{link_cobranca\}/g, linkReplacement)
+                    .replace(/\{link\}/g, linkReplacement)
+                    .replace(/\{payment_link\}/g, linkReplacement);
+                } else if (boletoBlock) {
+                  message += `\n\n${boletoBlock}`;
                 } else if (paymentLink) {
                   const gatewayName = pGateway === "mercadopago" ? "Mercado Pago" : pGateway === "infinitepay" ? "InfinitePay" : "Asaas";
                   message += `\n\n💳 *Link de pagamento (${gatewayName}):*\n${paymentLink}`;
@@ -1093,7 +1133,9 @@ async function runAutomation() {
                     student: { phone: due.studentPhone || (due as any).phone, guardianPhone: due.guardianPhone, birthDate: due.birthDate },
                     message,
                     sessionId: `prof_${userId}`,
-                    whatsappConfig: { url: userSet.whatsappBotUrl, token: userSet.whatsappBotToken }
+                    whatsappConfig: { url: userSet.whatsappBotUrl, token: userSet.whatsappBotToken },
+                    // Modo boleto: PDF anexado (com fallback para texto no roteador)
+                    media: boletoMedia,
                   });
 
                   const [newRem] = await db.select({ id: reminders.id }).from(reminders).where(eq(reminders.refId, refId)).limit(1);
@@ -1876,10 +1918,10 @@ async function runAutomation() {
                       sendToStudent: (rule as any).sendToStudent === 1 || (rule as any).sendToStudent === undefined,
                       sendToGuardian: (rule as any).sendToGuardian === 1,
                       student: { phone: student.phone, guardianPhone: student.guardianPhone, birthDate: student.birthDate },
-                      message,
-                      sessionId: `prof_${userId}`,
-                      whatsappConfig: { url: userSet.whatsappBotUrl, token: userSet.whatsappBotToken }
-                    });
+                    message,
+                    sessionId: `prof_${userId}`,
+                    whatsappConfig: { url: userSet.whatsappBotUrl, token: userSet.whatsappBotToken },
+                  });
 
                     const [newRem] = await db.select({ id: reminders.id }).from(reminders).where(eq(reminders.refId, refId)).limit(1);
                     if (newRem) {

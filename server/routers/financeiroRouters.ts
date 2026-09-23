@@ -193,8 +193,12 @@ export const financeiroRouters = {
           .leftJoin(students, eq(paymentDues.studentId, students.id))
           .where(and(
             eq(paymentDues.organizationId, orgId),
-            eq(paymentDues.month, m), 
-            eq(paymentDues.year, y), 
+            // FIX (mensalidade de outubro aparecendo em setembro): a listagem do
+            // Financeiro segue o VENCIMENTO (dueDate). A competência (month/year)
+            // pode divergir quando o vencimento é editado — antes o mês exibido
+            // era a competência e a cobrança "mudava de mês" na tela errada.
+            sql`EXTRACT(MONTH FROM ${paymentDues.dueDate}) = ${m}`,
+            sql`EXTRACT(YEAR FROM ${paymentDues.dueDate}) = ${y}`,
             (ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId) ? undefined : eq(paymentDues.userId, ctx.user.id)
           ))
           .orderBy(asc(paymentDues.dueDate));
@@ -1753,6 +1757,10 @@ export const financeiroRouters = {
             asaasId: charge.id,
             asaasPaymentLink: paymentLink,
             asaasBillingType: input.billingType,
+            // Boleto: guarda PDF + linha digitável para o envio no WhatsApp
+            ...(input.billingType === "BOLETO"
+              ? { asaasBankSlipUrl: bankSlipUrl, asaasIdentificationField: identificationField }
+              : {}),
             updatedAt: new Date(),
           })
           .where(eq(paymentDues.id, input.paymentDueId));

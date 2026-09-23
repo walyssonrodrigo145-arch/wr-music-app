@@ -505,6 +505,8 @@ export const plataformaRouters = {
       infinitepayHandle: z.string().optional(),
       infinitepayApiKey: z.string().optional(),
       infinitepayEnabled: z.boolean().optional(),
+      // Modo de envio da cobrança ao aluno: link do checkout ou boleto (PDF + linha digitável)
+      chargeSendMode: z.enum(["link", "boleto"]).optional(),
     })).mutation(async ({ ctx, input }) => {
       // RN-006: InfiniteTag chega às vezes com "$" — normaliza (sem $, minúsculas)
       let normalizedHandle: string | null | undefined;
@@ -526,6 +528,7 @@ export const plataformaRouters = {
         infinitepayHandle: normalizedHandle,
         infinitepayApiKey: input.infinitepayApiKey ?? null, // upsertSettings criptografa (BYOK)
         infinitepayEnabled: input.infinitepayEnabled !== undefined ? (input.infinitepayEnabled ? 1 : 0) : undefined,
+        chargeSendMode: input.chargeSendMode,
       });
       return { success: true };
     }),

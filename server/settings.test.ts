@@ -114,6 +114,32 @@ describe("settings.updateNotifications", () => {
   });
 });
 
+describe("settings.updateAsaasIntegration (modo de envio da cobrança)", () => {
+  beforeEach(() => {
+    vi.mocked(upsertSettings).mockClear();
+  });
+
+  it("salva chargeSendMode = boleto", async () => {
+    const caller = appRouter.createCaller(createCtx());
+    const result = await caller.settings.updateAsaasIntegration({ chargeSendMode: "boleto" });
+    expect(result).toEqual({ success: true });
+    expect(upsertSettings).toHaveBeenLastCalledWith(1, 1, expect.objectContaining({ chargeSendMode: "boleto" }));
+  });
+
+  it("salva chargeSendMode = link", async () => {
+    const caller = appRouter.createCaller(createCtx());
+    await caller.settings.updateAsaasIntegration({ chargeSendMode: "link" });
+    expect(upsertSettings).toHaveBeenLastCalledWith(1, 1, expect.objectContaining({ chargeSendMode: "link" }));
+  });
+
+  it("rejeita modo inválido", async () => {
+    const caller = appRouter.createCaller(createCtx());
+    await expect(
+      caller.settings.updateAsaasIntegration({ chargeSendMode: "pix" as any })
+    ).rejects.toThrow();
+  });
+});
+
 describe("settings.toggleConversationalMode (Recepcionista Virtual)", () => {
   beforeEach(() => {
     vi.mocked(upsertSettings).mockClear();

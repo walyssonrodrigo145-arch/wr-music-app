@@ -27,7 +27,8 @@ import { decryptSecret } from "../utils/integrationCrypto";
 import { TRPCError } from "@trpc/server";
 
 import crypto from "crypto";
-import { createAsaasCustomer, createAsaasCharge, deleteAsaasCharge, getAsaasPixQrCode } from "../utils/asaas";
+import { createAsaasCustomer, createAsaasCharge, deleteAsaasCharge, getAsaasPixQrCode, getAsaasIdentificationField } from "../utils/asaas";
+import { resolveChargeSendMode, buildBoletoMessageBlock, shouldAttachBoletoPdf } from "@shared/billing";
 import { buildUserContext } from "../utils/aiContext";
 import { getSystemPrompt } from "../utils/aiPrompts";
 import { callGemini, genAI } from "../utils/gemini";
@@ -294,6 +295,8 @@ export const comunicacaoRouters = {
         infinitepayHandle: settings.infinitepayHandle,
         infinitepayApiKey: settings.infinitepayApiKey,
         infinitepayEnabled: settings.infinitepayEnabled,
+        // Modo de envio da cobrança: 'link' (checkout) | 'boleto' (PDF + linha digitável)
+        chargeSendMode: settings.chargeSendMode,
       })
         .from(settings)
         .where(eq(settings.userId, ctx.user.id))
@@ -316,6 +319,9 @@ export const comunicacaoRouters = {
         studentCpf: students.cpf,
         instrumentName: instruments.name,
         asaasPaymentLink: paymentDues.asaasPaymentLink,
+        asaasBillingType: paymentDues.asaasBillingType,
+        asaasBankSlipUrl: paymentDues.asaasBankSlipUrl,
+        asaasIdentificationField: paymentDues.asaasIdentificationField,
         mpPaymentLink: paymentDues.mpPaymentLink,
         infinitepayPaymentLink: paymentDues.infinitepayPaymentLink,
       })
@@ -423,6 +429,13 @@ export const comunicacaoRouters = {
             ? (due.infinitepayPaymentLink ?? null)
             : (due.asaasPaymentLink ?? null);
 
+        // Modo BOLETO (só Asaas): a mensagem leva a linha digitável e o envio anexa o PDF.
+        // Cobrança já existente de OUTRO tipo é preservada (nunca duplica cobrança).
+        const wantsBoleto = resolveChargeSendMode(userSettings?.chargeSendMode) === "boleto" && paymentGateway === "asaas";
+        let boletoBlock = wantsBoleto && String(due.asaasBillingType || "").toUpperCase() === "BOLETO"
+          ? buildBoletoMessageBlock(due.asaasIdentificationField)
+          : null;
+
         if (!paymentLink) {
           if (paymentGateway === "infinitepay" && userSettings.infinitepayHandle && (userSettings.infinitepayEnabled === 1 || userSettings.infinitepayEnabled === undefined || userSettings.infinitepayEnabled === null)) {
             try {
@@ -508,14 +521,33 @@ export const comunicacaoRouters = {
               if (asaasCustomerId) {
                 const charge = await createAsaasCharge({
                   asaasCustomerId,
-                  billingType: 'UNDEFINED',
+                  billingType: wantsBoleto ? "BOLETO" : 'UNDEFINED',
                   value: Number(due.amount),
                   dueDate: String(due.dueDate).slice(0, 10),
                   description: `Mensalidade ${due.month}/${due.year} - ${due.studentName}`,
                 }, decryptSecret(userSettings.asaasApiKey));
 
-                await db.update(paymentDues).set({ asaasId: charge.id, asaasPaymentLink: charge.invoiceUrl, asaasBillingType: charge.billingType }).where(eq(paymentDues.id, due.id));
-                paymentLink = charge.invoiceUrl;
+                // Boleto: guarda PDF + linha digitável para o envio no WhatsApp
+                let bankSlipUrl: string | null = null;
+                let identificationField: string | null = null;
+                if (wantsBoleto) {
+                  bankSlipUrl = charge.bankSlipUrl ?? null;
+                  try {
+                    const info = await getAsaasIdentificationField(charge.id, decryptSecret(userSettings.asaasApiKey));
+                    identificationField = info.identificationField;
+                  } catch (e) {
+                    console.error("[Asaas] Erro ao buscar linha digitável (lembretes):", e);
+                  }
+                }
+
+                await db.update(paymentDues).set({
+                  asaasId: charge.id,
+                  asaasPaymentLink: wantsBoleto ? (bankSlipUrl ?? charge.invoiceUrl) : charge.invoiceUrl,
+                  asaasBillingType: charge.billingType,
+                  ...(wantsBoleto ? { asaasBankSlipUrl: bankSlipUrl, asaasIdentificationField: identificationField } : {}),
+                }).where(eq(paymentDues.id, due.id));
+                paymentLink = wantsBoleto ? (bankSlipUrl ?? charge.invoiceUrl) : charge.invoiceUrl;
+                if (wantsBoleto) boletoBlock = buildBoletoMessageBlock(identificationField);
               }
             } catch (err) {
               console.error("[Asaas Auto-Generate Error]", err);
@@ -525,12 +557,14 @@ export const comunicacaoRouters = {
 
         const hasLinkTag = /\{link_pagamento\}|\{link_cobranca\}|\{link\}|\{payment_link\}/.test(message);
         if (hasLinkTag) {
-          const replacement = paymentLink ?? (pixKey ? `PIX: ${pixKey}` : "");
+          const replacement = boletoBlock ?? paymentLink ?? (pixKey ? `PIX: ${pixKey}` : "");
           message = message
             .replace(/\{link_pagamento\}/g, replacement)
             .replace(/\{link_cobranca\}/g, replacement)
             .replace(/\{link\}/g, replacement)
             .replace(/\{payment_link\}/g, replacement);
+        } else if (boletoBlock) {
+          message += `\n\n${boletoBlock}`;
         } else if (paymentLink) {
           const gatewayName = paymentGateway === "mercadopago" ? "Mercado Pago" : paymentGateway === "infinitepay" ? "InfinitePay" : "Asaas";
           message += `\n\n💳 *Pague agora via ${gatewayName}:*\n${paymentLink}`;
@@ -629,6 +663,10 @@ export const comunicacaoRouters = {
           whatsappInteractiveEnabled: settings.whatsappInteractiveEnabled,
           // PRD_LEMBRETE_COM_LOGO: toggle + logo (já selecionada acima em logoUrl)
           whatsappReminderLogo: settings.whatsappReminderLogo,
+          // Modo de envio da cobrança + dados do boleto (PDF anexado)
+          chargeSendMode: settings.chargeSendMode,
+          paymentGateway: settings.paymentGateway,
+          paymentDueId: reminders.paymentDueId,
         })
         .from(reminders)
         .leftJoin(students, and(eq(reminders.studentId, students.id), eq(students.organizationId, orgId)))
@@ -734,15 +772,55 @@ export const comunicacaoRouters = {
           }
         }
 
-        const sendRes = await sendWhatsAppMessage({
-          url: botUrl,
-          token: botToken,
-          phone: targetPhone,
-          message: msgToSend,
-          // PRD_LEMBRETE_COM_LOGO: respeita o toggle da escola no caminho textual
-          mediaUrl: (rem as any).whatsappReminderLogo === 1 ? schoolLogo : null,
-          sessionId: `prof_${ctx.user.id}`,
-        });
+        const sendRes = await (async () => {
+          // Modo BOLETO: anexa o PDF do boleto como documento (fallback para texto)
+          let boletoMedia: { url: string; fileName: string } | null = null;
+          if (rem.paymentDueId && resolveChargeSendMode((rem as any).chargeSendMode) === "boleto") {
+            try {
+              const [due] = await db.select({
+                billingType: paymentDues.asaasBillingType,
+                bankSlipUrl: paymentDues.asaasBankSlipUrl,
+                month: paymentDues.month,
+                year: paymentDues.year,
+              }).from(paymentDues)
+                .where(and(eq(paymentDues.id, rem.paymentDueId), eq(paymentDues.organizationId, orgId)))
+                .limit(1);
+              if (due && shouldAttachBoletoPdf({
+                mode: (rem as any).chargeSendMode,
+                gateway: (rem as any).paymentGateway,
+                billingType: due.billingType,
+                bankSlipUrl: due.bankSlipUrl,
+              })) {
+                boletoMedia = { url: due.bankSlipUrl!, fileName: `boleto-${due.month}-${due.year}.pdf` };
+              }
+            } catch (e) {
+              console.error("[Reminders] Falha ao carregar dados do boleto (não impeditivo):", e);
+            }
+          }
+
+          const res = await sendWhatsAppMessage({
+            url: botUrl,
+            token: botToken,
+            phone: targetPhone,
+            message: msgToSend,
+            // Boleto em PDF tem prioridade sobre a logo da escola
+            mediaUrl: boletoMedia ? boletoMedia.url : ((rem as any).whatsappReminderLogo === 1 ? schoolLogo : null),
+            mediaType: boletoMedia ? "document" : undefined,
+            fileName: boletoMedia?.fileName,
+            sessionId: `prof_${ctx.user.id}`,
+          });
+          if (!res.success && boletoMedia) {
+            console.warn("[Reminders] Falha ao enviar boleto em PDF — reenviando como texto (linha digitável já está na mensagem).");
+            return sendWhatsAppMessage({
+              url: botUrl,
+              token: botToken,
+              phone: targetPhone,
+              message: msgToSend,
+              sessionId: `prof_${ctx.user.id}`,
+            });
+          }
+          return res;
+        })();
 
         if (sendRes.success) {
           await db.update(reminders)

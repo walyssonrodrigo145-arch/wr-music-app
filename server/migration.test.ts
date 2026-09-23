@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { addDaysISO, firstWeekdayISO, sumRequestedWeeks } from "./routers/lessonsRouters";
 import { resolveMigrationFee, resolvePlanFee, computeRemainingMonths, resolveEffectivePlanId, groupActiveStudentsByPlan } from "./routers/financeiroRouters";
-import { periodicityStep } from "@shared/billing";
+import { periodicityStep, resolveChargeSendMode, buildBoletoMessageBlock, shouldAttachBoletoPdf } from "@shared/billing";
 import { computeDaysLeft, isSubscriptionOverdue, shouldShowRenewalNotice, buildRenewalNoticeCopy, buildOverdueBannerCopy, resolveSubscriptionAlertKind, relativeDayLabel } from "@shared/subscriptionAlerts";
 
 /**
@@ -189,6 +189,33 @@ describe("Avisos da assinatura MusicPro", () => {
     expect(shouldShowRenewalNotice({ dueDate: "2026-09-20", status: "active", alreadyShownToday: false, today })).toBe(false);
     expect(shouldShowRenewalNotice({ dueDate: "2026-09-24", status: "canceled", alreadyShownToday: false, today })).toBe(false);
     expect(shouldShowRenewalNotice({ dueDate: null, status: "active", alreadyShownToday: false, today })).toBe(false);
+  });
+});
+
+describe("Cobrança — modo de envio (link × boleto)", () => {
+  it("resolveChargeSendMode: só 'boleto' explícito vira boleto", () => {
+    expect(resolveChargeSendMode("boleto")).toBe("boleto");
+    expect(resolveChargeSendMode("BOLETO")).toBe("boleto");
+    expect(resolveChargeSendMode(" link ")).toBe("link");
+    expect(resolveChargeSendMode(null)).toBe("link");
+    expect(resolveChargeSendMode(undefined)).toBe("link");
+    expect(resolveChargeSendMode("pix")).toBe("link");
+  });
+
+  it("buildBoletoMessageBlock: devolve a linha digitável ou null (fallback link)", () => {
+    const block = buildBoletoMessageBlock("34191.79001 01043.510047 91020.150008 9 12345678901234");
+    expect(block).toContain("linha digitável");
+    expect(block).toContain("34191.79001");
+    expect(buildBoletoMessageBlock("   ")).toBeNull();
+    expect(buildBoletoMessageBlock(null)).toBeNull();
+  });
+
+  it("shouldAttachBoletoPdf: só anexa no Asaas com cobrança BOLETO e URL", () => {
+    expect(shouldAttachBoletoPdf({ mode: "boleto", gateway: "asaas", billingType: "BOLETO", bankSlipUrl: "https://x/boleto.pdf" })).toBe(true);
+    expect(shouldAttachBoletoPdf({ mode: "link", gateway: "asaas", billingType: "BOLETO", bankSlipUrl: "https://x/boleto.pdf" })).toBe(false);
+    expect(shouldAttachBoletoPdf({ mode: "boleto", gateway: "mercadopago", billingType: "BOLETO", bankSlipUrl: "https://x/boleto.pdf" })).toBe(false);
+    expect(shouldAttachBoletoPdf({ mode: "boleto", gateway: "asaas", billingType: "PIX", bankSlipUrl: "https://x/boleto.pdf" })).toBe(false);
+    expect(shouldAttachBoletoPdf({ mode: "boleto", gateway: "asaas", billingType: "BOLETO", bankSlipUrl: null })).toBe(false);
   });
 });
 

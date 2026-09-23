@@ -35,3 +35,34 @@ export function resolveEffectivePlanId(
   if (hasIndividualChoice) return individualPlanId != null ? Number(individualPlanId) : null;
   return globalPlanId != null ? Number(globalPlanId) : null;
 }
+
+// ─── Modo de envio da cobrança: link do checkout × boleto ────────────────────
+export type ChargeSendMode = "link" | "boleto";
+
+/** Normaliza o modo salvo nas settings ('boleto' só com valor explícito). */
+export function resolveChargeSendMode(mode: unknown): ChargeSendMode {
+  return String(mode ?? "").trim().toLowerCase() === "boleto" ? "boleto" : "link";
+}
+
+/**
+ * Bloco de boleto para a mensagem (linha digitável).
+ * Retorna null sem linha digitável → o chamador cai para o link.
+ */
+export function buildBoletoMessageBlock(identificationField: unknown): string | null {
+  const code = String(identificationField ?? "").trim();
+  if (!code) return null;
+  return `🧾 *Boleto — linha digitável:*\n${code}`;
+}
+
+/** Só anexa o PDF do boleto no Asaas com cobrança BOLETO e URL disponível. */
+export function shouldAttachBoletoPdf(params: {
+  mode: unknown;
+  gateway?: string | null;
+  billingType?: string | null;
+  bankSlipUrl?: string | null;
+}): boolean {
+  if (resolveChargeSendMode(params.mode) !== "boleto") return false;
+  if (String(params.gateway || "").toLowerCase() !== "asaas") return false;
+  if (String(params.billingType || "").toUpperCase() !== "BOLETO") return false;
+  return !!String(params.bankSlipUrl || "").trim();
+}

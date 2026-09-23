@@ -14,6 +14,12 @@ export interface RoutingParams {
     url: string | null;
     token: string | null;
   };
+  /** Mídia opcional (ex.: PDF do boleto no modo "boleto"). */
+  media?: {
+    url: string;
+    type?: "image" | "document";
+    fileName?: string;
+  } | null;
 }
 
 /**
@@ -26,7 +32,8 @@ export async function sendSmartWhatsAppNotification({
   student, 
   message, 
   sessionId,
-  whatsappConfig
+  whatsappConfig,
+  media
 }: RoutingParams): Promise<{ success: boolean; errors?: string[] }> {
   
   if (!whatsappConfig.url || !whatsappConfig.token) {
@@ -71,10 +78,27 @@ export async function sendSmartWhatsAppNotification({
         token: whatsappConfig.token,
         phone, 
         message, 
-        sessionId 
+        sessionId,
+        mediaUrl: media?.url ?? null,
+        mediaType: media?.type,
+        fileName: media?.fileName,
       });
       if (!res.success) {
         errors.push(`Erro ao enviar para ${phone}: ${res.error || 'Desconhecido'}`);
+        // Fallback: mídia falhou → reenvia como texto (a mensagem já contém o conteúdo)
+        if (media?.url) {
+          const textRes = await sendWhatsAppMessage({ 
+            url: whatsappConfig.url,
+            token: whatsappConfig.token,
+            phone, 
+            message, 
+            sessionId,
+          });
+          if (textRes.success) {
+            errors.pop();
+            continue;
+          }
+        }
       }
       // ANTI-BAN: delay humanizado aleat\u00f3rio entre mensagens (3s~10s)
       await humanDelay(3000, 10000);

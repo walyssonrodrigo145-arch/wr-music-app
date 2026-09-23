@@ -5,8 +5,10 @@ import { cn } from "@/lib/utils";
 import { downloadBase64 } from "@/lib/nativeDownload";
 import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
+import { useAuth } from "@/hooks/useAuth";
+import { ModelosContratoTab } from "@/components/contratos/ModelosContratoTab";
 import {
-  FileSignature, Loader2, Search, Copy, Eye, Download, RefreshCw, Ban, RotateCcw, History, UserRound,
+  FileSignature, FileText, Loader2, Search, Copy, Eye, Download, RefreshCw, Ban, RotateCcw, History, UserRound,
 } from "lucide-react";
 
 const STATUS_CONFIG: Record<string, { label: string; cls: string }> = {
@@ -38,6 +40,9 @@ function StatusBadge({ status }: { status: string }) {
 export default function Contratos() {
   const utils = trpc.useUtils();
   const [, setLocation] = useLocation();
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
+  const [tab, setTab] = useState<"contratos" | "modelos">("contratos");
   const { data: contracts = [], isLoading } = trpc.contracts.list.useQuery({}, { refetchInterval: 30_000 });
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("todos");
@@ -103,10 +108,42 @@ export default function Contratos() {
           <h1 className="text-xl sm:text-2xl font-outfit font-extrabold text-foreground flex items-center gap-2">
             <FileSignature size={22} className="text-violet-500" /> Contratos
           </h1>
-          <p className="text-xs sm:text-sm text-muted-foreground font-medium">Todos os contratos da sua escola ({contracts.length})</p>
+          <p className="text-xs sm:text-sm text-muted-foreground font-medium">
+            {tab === "modelos"
+              ? "Monte os modelos de contrato da sua escola em blocos"
+              : `Todos os contratos da sua escola (${contracts.length})`}
+          </p>
+        </div>
+
+        {/* Abas: Contratos | Modelos de Contrato (admin) */}
+        <div className="flex gap-1.5 p-1.5 rounded-2xl border border-border/60 bg-card/50 backdrop-blur-md">
+          <button
+            onClick={() => setTab("contratos")}
+            className={cn(
+              "inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all",
+              tab === "contratos" ? "bg-violet-600 text-white shadow-lg shadow-violet-500/25" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+            )}
+          >
+            <FileSignature size={14} /> Contratos
+          </button>
+          {isAdmin && (
+            <button
+              onClick={() => setTab("modelos")}
+              className={cn(
+                "inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all",
+                tab === "modelos" ? "bg-violet-600 text-white shadow-lg shadow-violet-500/25" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+              )}
+            >
+              <FileText size={14} /> Modelos de Contrato
+            </button>
+          )}
         </div>
       </div>
 
+      {tab === "modelos" && isAdmin ? (
+        <ModelosContratoTab />
+      ) : (
+        <>
       <div className="flex flex-col sm:flex-row gap-3 flex-wrap">
         <div className="relative flex-1 min-w-[220px]">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -243,6 +280,8 @@ export default function Contratos() {
             </div>
           ))}
         </div>
+      )}
+        </>
       )}
     </div>
   );

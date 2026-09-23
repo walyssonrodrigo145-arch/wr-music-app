@@ -26,6 +26,29 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: "2026.09.22.3",
+    date: "2026-09-22",
+    title: "Modelos de contrato com editor visual (na aba Contratos)",
+    summary: "Os modelos de contrato saíram das Configurações e ganharam um editor em blocos na página Contratos — como no Emusys: título, partes, cláusulas e parágrafos, com prévia ao vivo.",
+    items: [
+      { type: "novo", title: "Editor em blocos", description: "Monte o contrato item por item: tipo (Título, Contratante, Contratada, Cláusula, Parágrafo Único, Texto, Assinaturas, Data), título e texto — com adicionar, duplicar, mover e excluir." },
+      { type: "novo", title: "Prévia ao vivo e variáveis", description: "A prévia mostra o contrato final com as variáveis destacadas. Clique numa variável para inseri-la na posição do cursor do item em edição." },
+      { type: "melhoria", title: "Modelos agora ficam em Contratos", description: "A criação/edição de modelos foi movida para a aba “Modelos de Contrato” dentro de Contratos (admin) e saiu das Configurações." },
+      { type: "melhoria", title: "Modelos antigos convertidos automaticamente", description: "Modelos criados no editor antigo abrem já divididos em blocos, sem perder o texto original." },
+    ],
+  },
+  {
+    version: "2026.09.22.2",
+    date: "2026-09-22",
+    title: "Cobrança por boleto ou link + mês correto no Financeiro",
+    summary: "A escola agora escolhe se a cobrança vai por boleto (PDF + linha digitável) ou link do checkout — e as mensalidades aparecem no mês do vencimento.",
+    items: [
+      { type: "novo", title: "Enviar boleto ou link", description: "Em Configurações → Integrações, escolha o “Modo de envio da cobrança”: Link do checkout (padrão) ou Boleto. No modo boleto (Asaas), o lembrete leva a linha digitável e o PDF do boleto vai anexado no WhatsApp." },
+      { type: "melhoria", title: "Fallback seguro", description: "Sem PDF/linha digitável ou em outros gateways (Mercado Pago/InfinitePay), o envio continua por link automaticamente." },
+      { type: "correcao", title: "Mensalidade no mês do vencimento", description: "A listagem do Financeiro agora segue a data de vencimento: uma cobrança com vencimento em outubro não aparece mais no mês de setembro." },
+    ],
+  },
+  {
     version: "2026.09.22.1",
     date: "2026-09-22",
     title: "Avisos corretos para escolas no teste grátis",

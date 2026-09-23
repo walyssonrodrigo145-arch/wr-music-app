@@ -156,6 +156,8 @@ async function ensureSchemaConsistency(db: any) {
     await db.execute(sql`ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "conversationalMode" integer DEFAULT 1 NOT NULL`);
     await db.execute(sql`ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "attendancePersonaName" varchar(60)`);
     await db.execute(sql`ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "attendanceTone" varchar(20)`);
+    // Modo de envio da cobrança: 'link' (checkout) | 'boleto' (PDF + linha digitável)
+    await db.execute(sql`ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "chargeSendMode" varchar(20) DEFAULT 'link' NOT NULL`);
     await db.execute(sql`ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "hiddenTabs" text DEFAULT '' NOT NULL`);
     await db.execute(sql`ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "hiddenDashboardWidgets" text DEFAULT '' NOT NULL`);
     await db.execute(sql`ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "hideFinancialValues" integer DEFAULT 0 NOT NULL`);
@@ -218,6 +220,9 @@ async function ensureSchemaConsistency(db: any) {
     await db.execute(sql`ALTER TABLE "payment_dues" ADD COLUMN IF NOT EXISTS "asaasId" text`);
     await db.execute(sql`ALTER TABLE "payment_dues" ADD COLUMN IF NOT EXISTS "asaasPaymentLink" text`);
     await db.execute(sql`ALTER TABLE "payment_dues" ADD COLUMN IF NOT EXISTS "asaasBillingType" varchar(30)`);
+    // Boleto (Asaas): PDF + linha digitável (modo de envio da cobrança)
+    await db.execute(sql`ALTER TABLE "payment_dues" ADD COLUMN IF NOT EXISTS "asaasBankSlipUrl" text`);
+    await db.execute(sql`ALTER TABLE "payment_dues" ADD COLUMN IF NOT EXISTS "asaasIdentificationField" text`);
     await db.execute(sql`ALTER TABLE "payment_dues" ADD COLUMN IF NOT EXISTS "receiptUrl" text`);
     
     // lessonType column
@@ -866,6 +871,9 @@ async function ensureSchemaConsistency(db: any) {
         "updatedAt" timestamp DEFAULT now() NOT NULL
       )
     `, "create contract_templates table");
+
+    // Editor em blocos dos modelos de contrato (JSON) — `content` segue como texto final
+    await safeExecute(sql`ALTER TABLE "contract_templates" ADD COLUMN IF NOT EXISTS "blocks" text`, "contract_templates.blocks");
 
     // Tabela contract_events (histórico + idempotência de webhook)
     await safeExecute(sql`
