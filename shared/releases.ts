@@ -26,6 +26,16 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: "2026.09.22.5",
+    date: "2026-09-22",
+    title: "Fatura da assinatura sempre visível",
+    summary: "A tela de Assinatura agora mostra cobranças pendentes ou vencidas mesmo quando elas foram geradas fora da assinatura (avulsas) — antes podia aparecer “Tudo em dia” com fatura em aberto no Asaas.",
+    items: [
+      { type: "correcao", title: "Cobrança vencida não ficava escondida", description: "A consulta considerava apenas cobranças “pendentes”; agora procura também as vencidas (OVERDUE) do cliente no Asaas e exibe a mais urgente." },
+      { type: "melhoria", title: "Status e vencimento no card", description: "O card “Sua Fatura” indica se está Pendente (com a data de vencimento) ou Vencida, além do valor e do botão Pagar Agora." },
+    ],
+  },
+  {
     version: "2026.09.22.4",
     date: "2026-09-22",
     title: "Aulas em turma: adicionar e remover alunos",

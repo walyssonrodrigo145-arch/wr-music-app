@@ -174,7 +174,11 @@ export default function Assinatura() {
             </div>
           ) : pendingInvoice ? (
             <div className="bg-amber-500/5 p-3 rounded-xl border border-amber-500/20">
-              <p className="text-[9px] font-bold uppercase tracking-widest text-amber-600 mb-0.5">Pendente</p>
+              <p className="text-[9px] font-bold uppercase tracking-widest text-amber-600 mb-0.5">
+                {(pendingInvoice as any).status === "OVERDUE"
+                  ? `Vencida${(pendingInvoice as any).dueDate ? ` em ${String((pendingInvoice as any).dueDate).slice(0, 10).split("-").reverse().join("/")}` : ""}`
+                  : `Pendente${(pendingInvoice as any).dueDate ? ` · vence ${String((pendingInvoice as any).dueDate).slice(0, 10).split("-").reverse().join("/")}` : ""}`}
+              </p>
               <p className="text-xl font-black text-amber-600 mb-2">
                 {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(pendingInvoice.value)}
               </p>

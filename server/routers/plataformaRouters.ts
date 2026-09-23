@@ -53,6 +53,44 @@ import { schoolAiRouter } from "../schoolAiRouter";
 import { fiscalRouter } from "../fiscalRouter";
 import { FiscalService } from "../services/fiscal/FiscalService";
 import { loginAttempts, safeEqualStr, isReservedSuperAdminEmail, getOrgPlanLimits, syncOrgAsaasSubscription, reconcileOrgAsaasCharges, runCreateAssinafyContract } from "./helpers";
+
+/**
+ * Escolhe o pagamento pendente mais urgente da escola: vencidos (OVERDUE)
+ * primeiro; empate resolvido pelo vencimento mais antigo. Puro para testes.
+ */
+export function pickMostUrgentPendingPayment<T extends { status?: string | null; dueDate?: string | null }>(
+  candidates: T[] | null | undefined
+): T | null {
+  const pending = (candidates || []).filter((p) => p && (p.status === "PENDING" || p.status === "OVERDUE"));
+  if (pending.length === 0) return null;
+  return pending.slice().sort((a, b) => {
+    const aOver = String(a.status).toUpperCase() === "OVERDUE" ? 0 : 1;
+    const bOver = String(b.status).toUpperCase() === "OVERDUE" ? 0 : 1;
+    if (aOver !== bOver) return aOver - bOver;
+    // Sem vencimento conta como o mais distante (fica por último)
+    return String(a.dueDate || "9999-12-31").localeCompare(String(b.dueDate || "9999-12-31"));
+  })[0];
+}
+
+/** Busca cobranças do cliente na conta Asaas da plataforma (nunca lança). */
+async function fetchAsaasCustomerPayments(customerId: string, status: "PENDING" | "OVERDUE"): Promise<any[]> {
+  try {
+    const res = await fetch(
+      `${ENV.asaasBaseUrl}/payments?customer=${customerId}&status=${status}&limit=10`,
+      { headers: { access_token: ENV.asaasApiKey } }
+    );
+    if (!res.ok) {
+      console.warn(`[getPendingInvoice] Asaas respondeu HTTP ${res.status} para status=${status}`);
+      return [];
+    }
+    const data = await res.json();
+    return Array.isArray(data?.data) ? data.data : [];
+  } catch (e) {
+    console.warn(`[getPendingInvoice] Falha ao buscar cobranças ${status} do cliente:`, e);
+    return [];
+  }
+}
+
 export const plataformaRouters = {
   settings: router({
     get: protectedProcedure.query(async ({ ctx }) => {
@@ -776,7 +814,7 @@ export const plataformaRouters = {
       if (!db) return null;
       const orgId = ctx.user.organizationId!;
       const [org] = await db.select().from(organizations).where(eq(organizations.id, orgId)).limit(1);
-      if (!org || !org.asaasSubscriptionId) return null;
+      if (!org) return null;
 
       // ── 🎁 Indique & Ganhe: aplica o crédito antes de exibir a fatura ──
       try {
@@ -786,35 +824,37 @@ export const plataformaRouters = {
         console.warn("[Referral] Falha não bloqueante ao aplicar crédito na fatura:", referralErr);
       }
 
-      const { getAsaasSubscriptionPayments } = await import('../utils/asaas');
-      const payments = await getAsaasSubscriptionPayments(org.asaasSubscriptionId);
-      let pendingPayment = payments.find((p: any) => p.status === 'PENDING' || p.status === 'OVERDUE');
+      // Candidatos: parcelas da assinatura + cobranças avulsas do cliente.
+      // IMPORTANTE: avulsas podem estar PENDING **ou** OVERDUE (vencidas) — antes
+      // só PENDING era consultado e a fatura vencida não aparecia na tela.
+      const candidates: any[] = [];
 
-      // BUG FIX: cobrança avulsa gerada pela reconciliação (não pertence à assinatura) —
-      // buscar também cobranças pendentes do cliente para expor a fatura correta na UI
-      if (!pendingPayment && org.asaasCustomerId) {
+      if (org.asaasSubscriptionId) {
         try {
-          const res = await fetch(
-            `${ENV.asaasBaseUrl}/payments?customer=${org.asaasCustomerId}&status=PENDING&limit=5`,
-            { headers: { access_token: ENV.asaasApiKey } }
-          );
-          if (res.ok) {
-            const data = await res.json();
-            const avulsas = (data?.data || []).filter((p: any) =>
-              p.status === 'PENDING' || p.status === 'OVERDUE'
-            );
-            pendingPayment = avulsas[0];
-          }
+          const { getAsaasSubscriptionPayments } = await import('../utils/asaas');
+          const payments = await getAsaasSubscriptionPayments(org.asaasSubscriptionId);
+          candidates.push(...(payments || []));
         } catch (e) {
-          console.warn(`[getPendingInvoice] Falha ao buscar cobranças avulsas do cliente:`, e);
+          console.warn("[getPendingInvoice] Falha ao buscar parcelas da assinatura:", e);
         }
       }
 
+      if (org.asaasCustomerId) {
+        const [pending, overdue] = await Promise.all([
+          fetchAsaasCustomerPayments(org.asaasCustomerId, 'PENDING'),
+          fetchAsaasCustomerPayments(org.asaasCustomerId, 'OVERDUE'),
+        ]);
+        candidates.push(...pending, ...overdue);
+      }
+
+      const pendingPayment = pickMostUrgentPendingPayment(candidates);
       if (!pendingPayment) return null;
-      
+
       return {
         invoiceUrl: pendingPayment.invoiceUrl,
-        value: pendingPayment.value
+        value: pendingPayment.value,
+        status: pendingPayment.status,
+        dueDate: pendingPayment.dueDate,
       };
     }),
     syncSubscription: protectedProcedure.mutation(async ({ ctx }) => {
