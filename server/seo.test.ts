@@ -92,6 +92,17 @@ describe("SEO — páginas públicas", () => {
     expect(html).not.toContain("<script");
   });
 
+  it("páginas de funcionalidade têm imagem real do sistema (cover)", () => {
+    const features = SEO_PAGES.filter((p) => p.kind === "feature");
+    expect(features.length).toBeGreaterThanOrEqual(5);
+    for (const p of features) {
+      expect(p.cover?.src, `cover ausente: ${p.path}`).toMatch(/^\/images\//);
+      expect((p.cover?.alt || "").length, `alt curto: ${p.path}`).toBeGreaterThan(15);
+    }
+    const html = renderSeoContentHtml(getSeoPage("/funcionalidades/financeiro", SEO_PAGES)!, SEO_PAGES);
+    expect(html).toContain("<img");
+  });
+
   it("isSeoContentPath reconhece o site público e ignora o app", () => {
     expect(isSeoContentPath("/funcionalidades/financeiro")).toBe(true);
     expect(isSeoContentPath("/blog")).toBe(true);

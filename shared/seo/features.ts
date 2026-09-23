@@ -43,6 +43,7 @@ export const featurePages: SeoPage[] = [
     ],
     intro:
       "O módulo financeiro foi feito para quem cobra mensalidade de aluno de música: valores por plano, vencimentos por aluno, desconto para pagamento antecipado, juros e multa automáticos e emissão de cobrança no PIX, boleto ou cartão.",
+    cover: { src: "/images/relatorios-preview.png", alt: "Financeiro do MusicPro com mensalidades, inadimplência e relatórios" },
     sections: [
       {
         heading: "Mensalidades sem retrabalho",
@@ -107,6 +108,7 @@ export const featurePages: SeoPage[] = [
     ],
     intro:
       "Organize a semana da escola com visão por dia, semana, mês e lista. Cada aula tem aluno, professor, sala, duração e status — e a presença pode ser confirmada pelo próprio aluno.",
+    cover: { src: "/images/aulas-preview.png", alt: "Agenda de aulas individuais e em turma no MusicPro" },
     sections: [
       {
         heading: "Individual e turma no mesmo calendário",
@@ -160,6 +162,7 @@ export const featurePages: SeoPage[] = [
     ],
     intro:
       "Use o próprio número da escola para falar com alunos e responsáveis: lembretes de aula, cobranças com link ou boleto, avisos e confirmação de presença — tudo automático.",
+    cover: { src: "/images/lembretes-preview.png", alt: "Lembretes e cobranças automáticas do MusicPro no WhatsApp" },
     sections: [
       {
         heading: "Automações que economizam horas",
@@ -214,6 +217,7 @@ export const featurePages: SeoPage[] = [
     keywords: ["portal do aluno escola de música", "app para aluno de música", "plano de estudo musical online"],
     intro:
       "Cada aluno recebe um acesso próprio para acompanhar as aulas, estudar com o plano diário e resolver a parte financeira sem precisar falar com a secretaria.",
+    cover: { src: "/images/alunos-preview.png", alt: "Portal do aluno e gestão de alunos no MusicPro" },
     sections: [
       {
         heading: "O aluno no controle da própria evolução",
@@ -257,6 +261,7 @@ export const featurePages: SeoPage[] = [
     keywords: ["contrato de prestação de serviços escola de música", "contrato digital assinatura eletrônica", "modelo de contrato para professor de música"],
     intro:
       "Crie modelos de contrato com as cláusulas da sua escola e gere o documento do aluno em segundos, com nome, CPF, valor da mensalidade e vigência preenchidos automaticamente.",
+    cover: { src: "/images/dashboard-preview.png", alt: "Painel do MusicPro com contratos digitais e modelos da escola" },
     sections: [
       {
         heading: "Modelos em blocos, do seu jeito",

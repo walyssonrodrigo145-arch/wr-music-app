@@ -11,7 +11,7 @@ import {
 } from "@shared/seo";
 import { useSeo } from "@/hooks/useSeo";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, CheckCircle2, FileSignature, Menu, X } from "lucide-react";
+import { ArrowRight, CalendarDays, CheckCircle2, FileSignature, Menu, Music, Smartphone, Sparkles, Wallet, X } from "lucide-react";
 import { useState } from "react";
 
 const NAV_LINKS = [
@@ -156,8 +156,122 @@ function KindBadge({ kind }: { kind: SeoPageKind }) {
   );
 }
 
-function SeoPageView({ page }: { page: SeoPage }) {
-  useSeo(page);
+/** Mockup de celular com a interface real do MusicPro (portal do aluno). */
+function PhoneMockup() {
+  return (
+    <div className="relative mx-auto w-[250px] sm:w-[280px] shrink-0">
+      <div className="absolute -inset-6 rounded-full bg-primary/10 blur-3xl pointer-events-none" />
+      <div className="relative rounded-[2.75rem] border-[10px] border-slate-900 bg-slate-900 shadow-2xl overflow-hidden">
+        <div className="rounded-[2.1rem] bg-background overflow-hidden">
+          {/* Status bar */}
+          <div className="flex items-center justify-between px-4 pt-3 pb-2 text-[9px] font-bold text-muted-foreground">
+            <span>9:41</span>
+            <span className="h-1.5 w-16 rounded-full bg-slate-900/80" />
+            <span>100%</span>
+          </div>
+          {/* Header do app */}
+          <div className="px-4 pb-3 flex items-center gap-2 border-b border-border/50">
+            <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shrink-0">
+              <Music size={13} className="text-white" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-[11px] font-black leading-tight">MusicPro</p>
+              <p className="text-[8px] text-muted-foreground leading-tight">Escola Harmonia · Aluno</p>
+            </div>
+          </div>
+          {/* Conteúdo do app */}
+          <div className="px-3 py-3 space-y-2">
+            <div className="rounded-2xl border border-border/60 bg-card p-3">
+              <p className="text-[8px] font-black uppercase tracking-widest text-primary flex items-center gap-1">
+                <CalendarDays size={9} /> Próxima aula
+              </p>
+              <p className="text-[11px] font-bold mt-1">Hoje às 19:00 · Violão</p>
+              <p className="text-[8px] text-muted-foreground">Sala 2 · Prof. Bruno</p>
+              <div className="mt-2 h-6 rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-emerald-600 text-[8px] font-black flex items-center justify-center">
+                CONFIRMAR PRESENÇA
+              </div>
+            </div>
+            <div className="rounded-2xl border border-amber-500/25 bg-amber-500/5 p-3">
+              <p className="text-[8px] font-black uppercase tracking-widest text-amber-600 flex items-center gap-1">
+                <Wallet size={9} /> Mensalidade
+              </p>
+              <p className="text-[11px] font-bold mt-1">Setembro · R$ 180,00</p>
+              <div className="mt-2 h-6 rounded-lg bg-amber-500 text-white text-[8px] font-black flex items-center justify-center">
+                PAGAR COM PIX
+              </div>
+            </div>
+            <div className="rounded-2xl border border-border/60 bg-card p-3">
+              <p className="text-[8px] font-black uppercase tracking-widest text-emerald-600 flex items-center gap-1">
+                <Sparkles size={9} /> Plano de estudo
+              </p>
+              <p className="text-[11px] font-bold mt-1">Dia 3 de 5 · 18 min</p>
+              <div className="mt-2 h-1.5 rounded-full bg-muted overflow-hidden">
+                <div className="h-full w-[60%] rounded-full bg-emerald-500" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      {/* Selo flutuante */}
+      <div className="absolute -bottom-3 -left-4 rounded-2xl border border-border/60 bg-card/95 backdrop-blur px-3 py-2 shadow-xl">
+        <p className="text-[9px] font-black uppercase tracking-widest text-primary flex items-center gap-1">
+          <Smartphone size={10} /> Instalável como app
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/** Seção "no celular" exibida no hub de funcionalidades. */
+function MobileShowcase() {
+  const items = [
+    "Agenda e confirmação de presença na palma da mão",
+    "Mensalidade com PIX ou boleto direto no celular",
+    "Plano de estudo diário com cronômetro de prática",
+    "Avisos, materiais e progresso do aluno",
+    "Cobranças e lembretes automáticos no WhatsApp",
+    "Painel do gestor acessível de qualquer aparelho",
+  ];
+  return (
+    <section className="mt-14 relative overflow-hidden rounded-[2rem] border border-border/60 bg-card/40 backdrop-blur-xl p-6 sm:p-10 shadow-2xl shadow-primary/5">
+      <div className="absolute -top-24 -right-16 h-56 w-56 rounded-full bg-primary/10 blur-3xl pointer-events-none" />
+      <div className="relative grid lg:grid-cols-[minmax(0,1fr)_auto] gap-10 items-center">
+        <div className="space-y-5 min-w-0">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/25 bg-primary/5 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-primary">
+            <Smartphone size={11} /> MusicPro no celular
+          </span>
+          <h2 className="font-outfit text-2xl sm:text-3xl font-extrabold tracking-tight leading-tight">
+            Sua escola no bolso do aluno e da equipe
+          </h2>
+          <p className="text-sm sm:text-base text-muted-foreground leading-relaxed max-w-xl">
+            O portal do aluno abre no navegador do celular e pode ser instalado como aplicativo (PWA), com notificações. A equipe acompanha agenda, cobranças e indicadores de qualquer lugar.
+          </p>
+          <ul className="grid sm:grid-cols-2 gap-2.5">
+            {items.map((item) => (
+              <li key={item} className="flex items-start gap-2 rounded-xl border border-border/60 bg-background/60 p-3">
+                <CheckCircle2 size={14} className="mt-0.5 shrink-0 text-primary" />
+                <span className="text-xs sm:text-sm text-foreground/90 leading-relaxed">{item}</span>
+              </li>
+            ))}
+          </ul>
+          <div className="flex flex-wrap items-center gap-3 pt-1">
+            <Link href="/cadastro">
+              <Button className="h-11 rounded-2xl px-5 font-black text-[11px] uppercase tracking-widest shadow-lg shadow-primary/20">
+                Testar no celular grátis
+              </Button>
+            </Link>
+            <span className="text-[11px] text-muted-foreground font-semibold">
+              Sem instalar nada · funciona em Android e iPhone
+            </span>
+          </div>
+        </div>
+        <PhoneMockup />
+      </div>
+    </section>
+  );
+}
+
+function SeoPageView({ page }: { page: SeoPage }) {  useSeo(page);
   const related = SEO_PAGES.filter((p) => p.path !== page.path && !p.noindex && p.kind === page.kind).slice(0, 6);
   const children = childrenOf(page.path);
 
@@ -195,6 +309,21 @@ function SeoPageView({ page }: { page: SeoPage }) {
           </div>
         </header>
 
+        {/* Imagem real do sistema (páginas de funcionalidade) */}
+        {page.cover && (
+          <div className="mt-10 rounded-3xl border border-border/60 bg-card/40 p-1.5 sm:p-2 shadow-2xl shadow-primary/10 backdrop-blur-xl">
+            <img
+              src={page.cover.src}
+              alt={page.cover.alt}
+              width={1024}
+              height={494}
+              loading="lazy"
+              decoding="async"
+              className="w-full h-auto rounded-[1.25rem] border border-border/40"
+            />
+          </div>
+        )}
+
         {/* Filhos (hubs) */}
         {children.length > 0 && (
           <section className="mt-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -202,17 +331,35 @@ function SeoPageView({ page }: { page: SeoPage }) {
               <Link
                 key={child.path}
                 href={child.path}
-                className="group rounded-2xl border border-border/70 bg-card/60 p-5 transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-xl hover:shadow-primary/5"
+                className="group rounded-2xl border border-border/70 bg-card/60 overflow-hidden transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-xl hover:shadow-primary/5 flex flex-col"
               >
-                <p className="font-outfit text-base font-extrabold leading-snug group-hover:text-primary transition-colors">{child.h1}</p>
-                {child.intro && <p className="mt-2 text-xs text-muted-foreground line-clamp-3 leading-relaxed">{child.intro}</p>}
-                <span className="mt-3 inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-primary">
-                  Ler mais <ArrowRight size={11} />
-                </span>
+                {child.cover && (
+                  <div className="aspect-video overflow-hidden border-b border-border/50 bg-muted/30">
+                    <img
+                      src={child.cover.src}
+                      alt={child.cover.alt}
+                      width={1024}
+                      height={494}
+                      loading="lazy"
+                      decoding="async"
+                      className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-500"
+                    />
+                  </div>
+                )}
+                <div className="p-5 flex flex-col flex-1">
+                  <p className="font-outfit text-base font-extrabold leading-snug group-hover:text-primary transition-colors">{child.h1}</p>
+                  {child.intro && <p className="mt-2 text-xs text-muted-foreground line-clamp-3 leading-relaxed flex-1">{child.intro}</p>}
+                  <span className="mt-3 inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-primary">
+                    Ler mais <ArrowRight size={11} />
+                  </span>
+                </div>
               </Link>
             ))}
           </section>
         )}
+
+        {/* Sistema no celular (hub de funcionalidades) */}
+        {page.path === "/funcionalidades" && <MobileShowcase />}
 
         {/* Conteúdo */}
         <div className="mt-12 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_20rem] gap-10 items-start">

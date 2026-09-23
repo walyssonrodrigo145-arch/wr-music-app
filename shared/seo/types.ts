@@ -26,6 +26,11 @@ export interface SeoFaqItem {
   answer: string;
 }
 
+export interface SeoCover {
+  src: string;
+  alt: string;
+}
+
 export interface SeoPage {
   /** Rota canônica, sem barra final. Ex.: "/funcionalidades/financeiro" */
   path: string;
@@ -39,6 +44,8 @@ export interface SeoPage {
   intro?: string;
   sections?: SeoSection[];
   faq?: SeoFaqItem[];
+  /** Imagem real do sistema exibida no card (hub) e no topo da página. */
+  cover?: SeoCover;
   cta?: { label: string; href: string };
   /** AAAA-MM-DD usado no sitemap */
   updatedAt?: string;
@@ -94,6 +101,11 @@ export function renderSeoContentHtml(page: SeoPage, allPages: SeoPage[]): string
 
   parts.push(`<h1 style="font-size:32px;line-height:1.2;margin:0 0 12px">${escapeHtml(page.h1)}</h1>`);
   if (page.intro) parts.push(`<p style="font-size:16px;line-height:1.6;margin:0 0 20px">${escapeHtml(page.intro)}</p>`);
+  if (page.cover) {
+    parts.push(
+      `<img src="${escapeHtml(page.cover.src)}" alt="${escapeHtml(page.cover.alt)}" width="1024" height="494" loading="lazy" style="max-width:100%;height:auto;border-radius:12px;margin:0 0 20px" />`
+    );
+  }
 
   for (const section of page.sections || []) {
     parts.push(`<section style="margin:0 0 20px">`);
