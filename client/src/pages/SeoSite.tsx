@@ -165,13 +165,22 @@ function SeoPageView({ page }: { page: SeoPage }) {
   const pageMedia = (seoMedia as any)?.[page.path] as
     | { cover?: any[]; gallery?: any[]; mobile?: any[]; desktop?: any[] }
     | undefined;
-  const cover = pageMedia?.cover?.[0];
-  const coverSrc = cover?.url || page.cover?.src;
-  const coverAlt = cover?.alt || page.cover?.alt || page.h1;
   const asArray = (value: any): any[] => (Array.isArray(value) ? value : []);
   const gallery = asArray(pageMedia?.gallery);
   const mobilePrints = asArray(pageMedia?.mobile);
   const desktopPrints = asArray(pageMedia?.desktop);
+
+  /** Capa efetiva de uma página: imagem do Super Admin > capa estática. */
+  const coverFor = (path: string, fallback?: { src: string; alt: string }) => {
+    const adminCover = asArray((seoMedia as any)?.[path]?.cover)[0];
+    return {
+      src: adminCover?.url || fallback?.src || "",
+      alt: adminCover?.alt || fallback?.alt || "",
+    };
+  };
+  const pageCover = coverFor(page.path, page.cover);
+  const coverSrc = pageCover.src;
+  const coverAlt = pageCover.alt || page.h1;
   const related = SEO_PAGES.filter((p) => p.path !== page.path && !p.noindex && p.kind === page.kind).slice(0, 6);
   const children = childrenOf(page.path);
 
@@ -224,37 +233,40 @@ function SeoPageView({ page }: { page: SeoPage }) {
           </div>
         )}
 
-        {/* Filhos (hubs) */}
+        {/* Filhos (hubs) — capa usa a imagem cadastrada no Super Admin quando houver */}
         {children.length > 0 && (
           <section className="mt-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {children.map((child) => (
-              <Link
-                key={child.path}
-                href={child.path}
-                className="group rounded-2xl border border-border/70 bg-card/60 overflow-hidden transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-xl hover:shadow-primary/5 flex flex-col"
-              >
-                {child.cover && (
-                  <div className="aspect-video overflow-hidden border-b border-border/50 bg-muted/30">
-                    <img
-                      src={child.cover.src}
-                      alt={child.cover.alt}
-                      width={1024}
-                      height={494}
-                      loading="lazy"
-                      decoding="async"
-                      className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-500"
-                    />
+            {children.map((child) => {
+              const childCover = coverFor(child.path, child.cover);
+              return (
+                <Link
+                  key={child.path}
+                  href={child.path}
+                  className="group rounded-2xl border border-border/70 bg-card/60 overflow-hidden transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-xl hover:shadow-primary/5 flex flex-col"
+                >
+                  {childCover.src && (
+                    <div className="aspect-video overflow-hidden border-b border-border/50 bg-muted/30">
+                      <img
+                        src={childCover.src}
+                        alt={childCover.alt || child.h1}
+                        width={1024}
+                        height={494}
+                        loading="lazy"
+                        decoding="async"
+                        className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-500"
+                      />
+                    </div>
+                  )}
+                  <div className="p-5 flex flex-col flex-1">
+                    <p className="font-outfit text-base font-extrabold leading-snug group-hover:text-primary transition-colors">{child.h1}</p>
+                    {child.intro && <p className="mt-2 text-xs text-muted-foreground line-clamp-3 leading-relaxed flex-1">{child.intro}</p>}
+                    <span className="mt-3 inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-primary">
+                      Ler mais <ArrowRight size={11} />
+                    </span>
                   </div>
-                )}
-                <div className="p-5 flex flex-col flex-1">
-                  <p className="font-outfit text-base font-extrabold leading-snug group-hover:text-primary transition-colors">{child.h1}</p>
-                  {child.intro && <p className="mt-2 text-xs text-muted-foreground line-clamp-3 leading-relaxed flex-1">{child.intro}</p>}
-                  <span className="mt-3 inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-primary">
-                    Ler mais <ArrowRight size={11} />
-                  </span>
-                </div>
-              </Link>
-            ))}
+                </Link>
+              );
+            })}
           </section>
         )}
 
