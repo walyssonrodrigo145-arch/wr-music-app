@@ -1921,6 +1921,9 @@ export const landingClients = pgTable("landing_clients", {
   id: serial("id").primaryKey(),
   name: varchar("name", { length: 255 }).notNull(),
   logoUrl: text("logoUrl").notNull(),
+  // Vínculo com a escola cadastrada (importação das logos no Super Admin).
+  // NULL = cliente manual/parceiro sem organização.
+  organizationId: integer("organizationId"),
   websiteUrl: text("websiteUrl"),
   testimonial: text("testimonial"),
   order: integer("order").default(0).notNull(),

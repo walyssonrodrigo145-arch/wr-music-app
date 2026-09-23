@@ -1084,6 +1084,9 @@ async function ensureSchemaConsistency(db: any) {
       )
     `, "create landing_clients table");
 
+    // Vínculo da vitrine com a escola cadastrada (importação das logos no Super Admin)
+    await safeExecute(sql`ALTER TABLE "landing_clients" ADD COLUMN IF NOT EXISTS "organizationId" integer`, "landing_clients.organizationId");
+
     // ─── OFERTAS DE ANTECIPAÇÃO DE HORÁRIOS POR FALTA (slot_offers) ─────────────
     await safeExecute(sql`
       CREATE TABLE IF NOT EXISTS "slot_offers" (

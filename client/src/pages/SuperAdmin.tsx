@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import {
@@ -1889,6 +1889,61 @@ function LandingClientsManager() {
     onError: (err) => toast.error(`Erro ao remover: ${err.message}`),
   });
 
+  // ── Puxar logos das escolas cadastradas (vincula a vitrine à organização) ──
+  const [isImportOpen, setIsImportOpen] = useState(false);
+  const [schoolSearch, setSchoolSearch] = useState("");
+  const [selectedSchools, setSelectedSchools] = useState<Set<number>>(new Set());
+
+  const { data: schools = [], isLoading: isLoadingSchools } = trpc.superAdmin.listSchoolLogos.useQuery();
+
+  // Ao abrir, pré-marca as escolas que já estão ativas na vitrine
+  useEffect(() => {
+    if (!isImportOpen) return;
+    setSelectedSchools(
+      new Set((schools as any[]).filter((s) => s.landingActive).map((s) => Number(s.id)))
+    );
+  }, [isImportOpen, schools]);
+
+  const syncMutation = trpc.superAdmin.syncSchoolLogos.useMutation({
+    onSuccess: (res: any) => {
+      const parts: string[] = [];
+      if (res.added > 0) parts.push(`${res.added} publicada(s)`);
+      if (res.reactivated > 0) parts.push(`${res.reactivated} reativada(s)`);
+      if (res.deactivated > 0) parts.push(`${res.deactivated} removida(s) da vitrine`);
+      toast.success(parts.length > 0 ? `Vitrine atualizada: ${parts.join(", ")}.` : "Nenhuma alteração na vitrine.");
+      utils.superAdmin.listLandingClients.invalidate();
+      utils.publicData.getLandingClients.invalidate();
+      setIsImportOpen(false);
+    },
+    onError: (err) => toast.error(`Erro ao sincronizar logos: ${err.message}`),
+  });
+
+  const openImport = () => {
+    setSchoolSearch("");
+    setIsImportOpen(true);
+  };
+
+  const toggleSchool = (id: number) =>
+    setSelectedSchools((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
+  const filteredSchools = (schools as any[]).filter((s) => {
+    const q = schoolSearch.trim().toLowerCase();
+    return !q || String(s.name).toLowerCase().includes(q);
+  });
+  const selectableSchools = filteredSchools.filter((s) => s.hasLogo);
+
+  const handleSync = () => {
+    const ids = (schools as any[])
+      .filter((s) => s.hasLogo && selectedSchools.has(Number(s.id)))
+      .map((s) => Number(s.id));
+    syncMutation.mutate({ organizationIds: ids });
+  };
+
   const resetForm = () => {
     setEditingClient(null);
     setName("");
@@ -1944,6 +1999,10 @@ function LandingClientsManager() {
           <h2 className="text-xl font-bold">Clientes & Escolas Parceiras na Landing Page</h2>
           <p className="text-sm text-muted-foreground">Adicione logos, nomes e depoimentos das escolas em destaque na página inicial.</p>
         </div>
+        <div className="flex items-center gap-2 flex-wrap justify-end">
+          <Button type="button" variant="outline" onClick={openImport} className="flex items-center gap-2">
+            <RefreshCw size={16} /> Puxar logos das escolas
+          </Button>
         <Dialog open={isClientModalOpen} onOpenChange={(open) => {
           setIsClientModalOpen(open);
           if (!open) resetForm();
@@ -2096,6 +2155,107 @@ function LandingClientsManager() {
             </form>
           </DialogContent>
         </Dialog>
+
+        {/* Dialog: puxar logos das escolas cadastradas */}
+        <Dialog open={isImportOpen} onOpenChange={setIsImportOpen}>
+          <DialogContent className="w-[95vw] sm:max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+            <DialogHeader>
+              <DialogTitle>Puxar logos das escolas</DialogTitle>
+              <DialogDescription>
+                Escolha quais escolas já cadastradas no sistema aparecem na Landing Page. As logos vêm do cadastro da própria escola — escolas sem logo ficam bloqueadas.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+              <div className="relative flex-1">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={schoolSearch}
+                  onChange={(e) => setSchoolSearch(e.target.value)}
+                  placeholder="Buscar escola..."
+                  className="pl-8"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSelectedSchools(new Set(selectableSchools.map((s: any) => Number(s.id))))}
+                >
+                  Selecionar todas com logo
+                </Button>
+                <Button type="button" variant="ghost" size="sm" onClick={() => setSelectedSchools(new Set())}>
+                  Limpar
+                </Button>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto rounded-xl border border-border divide-y divide-border/40">
+              {isLoadingSchools ? (
+                <div className="p-8 text-center">
+                  <Loader2 className="animate-spin mx-auto text-primary" />
+                </div>
+              ) : filteredSchools.length === 0 ? (
+                <p className="p-8 text-center text-sm text-muted-foreground">Nenhuma escola encontrada.</p>
+              ) : (
+                filteredSchools.map((s: any) => {
+                  const checked = selectedSchools.has(Number(s.id));
+                  const disabled = !s.hasLogo;
+                  return (
+                    <label
+                      key={s.id}
+                      className={cn(
+                        "flex items-center gap-3 p-3 transition-colors",
+                        disabled ? "opacity-60 cursor-not-allowed" : "cursor-pointer hover:bg-muted/40"
+                      )}
+                    >
+                      <input
+                        type="checkbox"
+                        disabled={disabled}
+                        checked={checked}
+                        onChange={() => toggleSchool(Number(s.id))}
+                        className="h-4 w-4 rounded border-border accent-primary shrink-0"
+                      />
+                      <div className="w-10 h-10 rounded-lg bg-muted/50 border border-border/50 flex items-center justify-center p-1 shrink-0 overflow-hidden">
+                        {s.logo ? (
+                          <img src={s.logo} alt={s.name} loading="lazy" className="max-w-full max-h-full object-contain" />
+                        ) : (
+                          <Building size={18} className="text-muted-foreground/40" />
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-bold text-foreground truncate">{s.name}</p>
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                          {disabled ? "Sem logo cadastrada" : s.landingActive ? "Já está na Landing" : "Disponível para publicar"}
+                        </p>
+                      </div>
+                      {s.landingActive && !disabled && (
+                        <span className="text-[9px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-full px-2 py-1 shrink-0">
+                          Na vitrine
+                        </span>
+                      )}
+                    </label>
+                  );
+                })
+              )}
+            </div>
+
+            <div className="flex items-center justify-between gap-3 pt-1">
+              <span className="text-xs text-muted-foreground font-bold">
+                {selectedSchools.size} escola(s) selecionada(s)
+              </span>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => setIsImportOpen(false)}>Cancelar</Button>
+                <Button onClick={handleSync} disabled={syncMutation.isPending}>
+                  {syncMutation.isPending ? <Loader2 className="animate-spin mr-2" size={16} /> : <Check size={16} className="mr-2" />}
+                  Salvar seleção
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+        </div>
       </div>
 
       {isLoading && <Loader2 className="animate-spin text-primary mx-auto my-10" />}
@@ -2110,6 +2270,11 @@ function LandingClientsManager() {
                     <img src={c.logoUrl} alt={c.name} className="w-full h-full object-contain" />
                   </div>
                   <div className="flex items-center gap-1.5">
+                    {c.organizationId && (
+                      <span className="text-[10px] font-bold text-primary bg-primary/10 border border-primary/20 px-2 py-1 rounded-full">
+                        Escola
+                      </span>
+                    )}
                     <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full ${c.isActive ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-500 border border-rose-500/20'}`}>
                       {c.isActive ? 'Ativo' : 'Inativo'}
                     </span>

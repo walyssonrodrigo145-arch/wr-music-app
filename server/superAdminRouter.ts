@@ -3,7 +3,7 @@ import { z } from "zod";
 import { router, protectedProcedure } from "./_core/trpc";
 import { TRPCError } from "@trpc/server";
 import { getDb } from "./db";
-import { eq, sql, count, inArray } from "drizzle-orm";
+import { eq, sql, count, inArray, and, isNotNull, asc } from "drizzle-orm";
 import {
   systemPlans,
   systemCoupons,
@@ -75,6 +75,22 @@ export const isSuperAdmin = protectedProcedure.use(async ({ ctx, next }) => {
   }
   return next({ ctx });
 });
+
+/**
+ * Diff da vitrine de escolas: o que publicar (selecionado e ainda não vinculado)
+ * e o que desativar (vinculado e não selecionado). Puro para testes.
+ */
+export function diffLandingSchoolSelection(
+  currentOrgIds: number[],
+  selectedOrgIds: number[]
+): { toPublish: number[]; toDeactivate: number[] } {
+  const current = new Set(currentOrgIds.map(Number));
+  const selected = new Set(selectedOrgIds.map(Number));
+  return {
+    toPublish: Array.from(selected).filter((id) => !current.has(id)),
+    toDeactivate: Array.from(current).filter((id) => !selected.has(id)),
+  };
+}
 
 export const superAdminRouter = router({
 
@@ -791,6 +807,122 @@ export const superAdminRouter = router({
 
       await db.delete(landingClients).where(eq(landingClients.id, input.id));
       return { success: true };
+    }),
+
+  // ─── PUXAR LOGOS DAS ESCOLAS CADASTRADAS ────────────────────────────────────
+  // Lista todas as organizações com a logo que já está no sistema, indicando
+  // quais já estão vinculadas à vitrine da landing page.
+  listSchoolLogos: isSuperAdmin.query(async () => {
+    const db = await getDb();
+    if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+
+    const orgs = await db
+      .select({ id: organizations.id, name: organizations.name, logo: organizations.logo })
+      .from(organizations)
+      .orderBy(asc(organizations.name));
+
+    const links = await db
+      .select({ id: landingClients.id, organizationId: landingClients.organizationId, isActive: landingClients.isActive })
+      .from(landingClients)
+      .where(isNotNull(landingClients.organizationId));
+
+    const byOrg = new Map<number, { id: number; isActive: boolean }>();
+    links.forEach((l: any) => byOrg.set(Number(l.organizationId), { id: Number(l.id), isActive: l.isActive === true }));
+
+    return orgs.map((o: any) => {
+      const link = byOrg.get(Number(o.id));
+      return {
+        id: Number(o.id),
+        name: o.name,
+        logo: o.logo || null,
+        hasLogo: !!(o.logo && String(o.logo).trim()),
+        landingClientId: link?.id ?? null,
+        landingActive: link?.isActive === true,
+      };
+    });
+  }),
+
+  /**
+   * Sincroniza a vitrine com a seleção de escolas:
+   *  • publica as novas (com logo) e reativa/atualiza a logo das existentes;
+   *  • desativa (soft) os vínculos de escolas desmarcadas — preserva
+   *    depoimento/ordem/link editados manualmente.
+   */
+  syncSchoolLogos: isSuperAdmin
+    .input(z.object({
+      organizationIds: z.array(z.number().int().positive()).max(200, "Limite de 200 escolas por vez"),
+    }))
+    .mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+
+      const selected = Array.from(new Set(input.organizationIds.map(Number)));
+
+      const orgs = selected.length > 0
+        ? await db
+            .select({ id: organizations.id, name: organizations.name, logo: organizations.logo })
+            .from(organizations)
+            .where(inArray(organizations.id, selected))
+        : [];
+      const withLogo = orgs.filter((o: any) => o.logo && String(o.logo).trim());
+      const validIds = withLogo.map((o: any) => Number(o.id));
+
+      const currentLinks = await db
+        .select({ id: landingClients.id, organizationId: landingClients.organizationId, isActive: landingClients.isActive })
+        .from(landingClients)
+        .where(isNotNull(landingClients.organizationId));
+      const currentByOrg = new Map<number, { id: number; isActive: boolean }>();
+      currentLinks.forEach((l: any) => currentByOrg.set(Number(l.organizationId), { id: Number(l.id), isActive: l.isActive === true }));
+
+      const { toPublish, toDeactivate } = diffLandingSchoolSelection(Array.from(currentByOrg.keys()), validIds);
+
+      // Escolas selecionadas que já existem: reativa e atualiza a logo (mantém
+      // nome/depoimento/ordem personalizados pelo super admin).
+      let reactivated = 0;
+      for (const orgId of validIds) {
+        const existing = currentByOrg.get(orgId);
+        if (!existing) continue;
+        const org = withLogo.find((o: any) => Number(o.id) === orgId)!;
+        await db.update(landingClients)
+          .set({ isActive: true, logoUrl: org.logo as string, updatedAt: new Date() })
+          .where(eq(landingClients.id, existing.id));
+        if (!existing.isActive) reactivated++;
+      }
+
+      if (toDeactivate.length > 0) {
+        await db.update(landingClients)
+          .set({ isActive: false, updatedAt: new Date() })
+          .where(and(isNotNull(landingClients.organizationId), inArray(landingClients.organizationId, toDeactivate)));
+      }
+
+      let added = 0;
+      if (toPublish.length > 0) {
+        const [maxRow] = await db
+          .select({ maxOrder: sql<number>`COALESCE(MAX(${landingClients.order}), 0)::int` })
+          .from(landingClients);
+        const base = Number(maxRow?.maxOrder) || 0;
+        const rows = toPublish.map((orgId, idx) => {
+          const org = withLogo.find((o: any) => Number(o.id) === orgId)!;
+          return {
+            name: org.name,
+            logoUrl: org.logo as string,
+            organizationId: orgId,
+            order: base + idx + 1,
+            isActive: true,
+          };
+        });
+        await db.insert(landingClients).values(rows);
+        added = rows.length;
+      }
+
+      return {
+        success: true,
+        added,
+        reactivated,
+        deactivated: toDeactivate.length,
+        totalSelected: validIds.length,
+        invalid: selected.length - validIds.length,
+      };
     }),
 
   // ─── GESTÃO DE SLIDES DE FUNCIONALIDADES (HERO SLIDER) ──────────────────────

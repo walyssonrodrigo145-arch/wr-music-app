@@ -26,6 +26,18 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: "2026.09.22.5",
+    date: "2026-09-22",
+    title: "Landing Page: puxar logos direto das escolas cadastradas",
+    summary: "No Super Admin agora dá para importar as logos de todas as escolas já cadastradas no sistema e escolher quais aparecem na Landing Page — sem precisar pedir arquivo para o cliente.",
+    items: [
+      { type: "novo", title: "Puxar logos das escolas", description: "Botão “Puxar logos das escolas” na área de Clientes da Landing: lista todas as escolas com a logo que já está no sistema, com busca e preview." },
+      { type: "novo", title: "Escolher quem entra na vitrine", description: "Marque/desmarque as escolas e salve: as marcadas entram (ou voltam) no carrossel da Landing; as desmarcadas saem — sem apagar depoimentos, links e ordem." },
+      { type: "melhoria", title: "Sem duplicar escola", description: "Cada escola fica vinculada uma única vez; re-salvar apenas reativa e atualiza a logo atual dela." },
+      { type: "melhoria", title: "Escolas sem logo bloqueadas", description: "Escolas que ainda não cadastraram logo aparecem identificadas e não podem ser publicadas até terem a imagem." },
+    ],
+  },
+  {
     version: "2026.09.22.4",
     date: "2026-09-22",
     title: "Aulas em turma: adicionar e remover alunos",
