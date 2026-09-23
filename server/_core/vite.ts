@@ -58,6 +58,24 @@ export function serveStatic(app: Express) {
     );
   }
 
+  // HTML pré-renderizado por rota (SEO): /blog/guia → dist/public/blog/guia/index.html.
+  // Roda ANTES do express.static para não cair no redirect de diretório.
+  app.use((req, res, next) => {
+    if (req.method !== "GET" && req.method !== "HEAD") return next();
+    const pathname = decodeURIComponent(req.path || "/");
+    if (pathname.startsWith("/api/") || pathname.startsWith("/uploads")) return next();
+
+    const safe = path.normalize(pathname).replace(/^([/\\]|\.\.[/\\])+/, "");
+    const candidate = path.resolve(distPath, safe, "index.html");
+    if (candidate.startsWith(distPath) && fs.existsSync(candidate)) {
+      res.setHeader("Cache-Control", "no-cache");
+      return res.sendFile(candidate, (err) => {
+        if (err) next();
+      });
+    }
+    return next();
+  });
+
   // Assets com hash no nome: cache imutável. HTML: sempre revalidar (SEO).
   app.use(express.static(distPath, {
     index: false,
@@ -72,23 +90,9 @@ export function serveStatic(app: Express) {
     },
   }));
 
-  // HTML pré-renderizado por rota (SEO): /blog/guia → dist/public/blog/guia/index.html.
-  // O conteúdo é gerado no build por scripts/prerender.ts.
+  // Fallback SPA
   app.use((req, res, next) => {
     if (req.method !== "GET" && req.method !== "HEAD") return next();
-    const pathname = decodeURIComponent(req.path || "/");
-    if (pathname.startsWith("/api/") || pathname.startsWith("/uploads")) return next();
-
-    const safe = path.normalize(pathname).replace(/^([/\\]|\.\.[/\\])+/, "");
-    const candidate = path.resolve(distPath, safe, "index.html");
-    if (candidate.startsWith(distPath) && fs.existsSync(candidate)) {
-      res.setHeader("Cache-Control", "no-cache");
-      return res.sendFile(candidate, (err) => {
-        if (err) next();
-      });
-    }
-
-    // Fallback SPA
     res.setHeader("Cache-Control", "no-cache");
     return res.sendFile(path.resolve(distPath, "index.html"), (err) => {
       if (err) next();
