@@ -1,5 +1,10 @@
-wrmusicpro.com.br, www.wrmusicpro.com.br {
+wrmusicpro.com.br {
+    encode zstd gzip
     reverse_proxy app:3000
+}
+
+www.wrmusicpro.com.br {
+    redir https://wrmusicpro.com.br{uri} permanent
 }
 
 escola.wrmusicpro.com.br {

@@ -58,10 +58,40 @@ export function serveStatic(app: Express) {
     );
   }
 
-  app.use(express.static(distPath));
+  // Assets com hash no nome: cache imutável. HTML: sempre revalidar (SEO).
+  app.use(express.static(distPath, {
+    index: false,
+    setHeaders: (res, filePath) => {
+      if (filePath.includes(`${path.sep}assets${path.sep}`)) {
+        res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+      } else if (filePath.endsWith(".html")) {
+        res.setHeader("Cache-Control", "no-cache");
+      } else {
+        res.setHeader("Cache-Control", "public, max-age=86400");
+      }
+    },
+  }));
 
-  // fall through to index.html if the file doesn't exist
-  app.use("*", (_req, res) => {
-    res.sendFile(path.resolve(distPath, "index.html"));
+  // HTML pré-renderizado por rota (SEO): /blog/guia → dist/public/blog/guia/index.html.
+  // O conteúdo é gerado no build por scripts/prerender.ts.
+  app.use((req, res, next) => {
+    if (req.method !== "GET" && req.method !== "HEAD") return next();
+    const pathname = decodeURIComponent(req.path || "/");
+    if (pathname.startsWith("/api/") || pathname.startsWith("/uploads")) return next();
+
+    const safe = path.normalize(pathname).replace(/^([/\\]|\.\.[/\\])+/, "");
+    const candidate = path.resolve(distPath, safe, "index.html");
+    if (candidate.startsWith(distPath) && fs.existsSync(candidate)) {
+      res.setHeader("Cache-Control", "no-cache");
+      return res.sendFile(candidate, (err) => {
+        if (err) next();
+      });
+    }
+
+    // Fallback SPA
+    res.setHeader("Cache-Control", "no-cache");
+    return res.sendFile(path.resolve(distPath, "index.html"), (err) => {
+      if (err) next();
+    });
   });
 }

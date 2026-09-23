@@ -9,6 +9,7 @@ import { MusicLayout } from "./components/MusicLayout";
 import { StudentPortalLayout } from "./components/StudentPortalLayout";
 import { useAuth } from "@/hooks/useAuth";
 import { useBotStatusSSE } from "@/hooks/useBotStatusSSE";
+import { isSeoContentPath } from "@shared/seo";
 
 // Lazy loading the pages
 const Dashboard = lazy(() => import("./pages/Dashboard"));
@@ -27,6 +28,7 @@ const LandingPage = lazy(() => import("./pages/LandingPage"));
 const Checkout = lazy(() => import("./pages/Checkout"));
 const Cadastro = lazy(() => import("./pages/Cadastro"));
 const PublicReferralPage = lazy(() => import("./pages/indicacao/PublicReferralPage"));
+const SeoSite = lazy(() => import("./pages/SeoSite"));
 const Migracao = lazy(() => import("./pages/Migracao"));
 const ReferralProgram = lazy(() => import("./pages/indicacao/ReferralProgram"));
 const ReferralAdmin = lazy(() => import("./pages/indicacao/ReferralAdmin"));
@@ -109,6 +111,16 @@ function Router() {
   }
 
   if (loading) return <PageLoader />;
+
+  // Site público de conteúdo (SEO): funcionalidades, planos, comparativos, blog e glossário
+  // — acessível logado ou deslogado, com meta tags e links internos próprios.
+  if (isSeoContentPath(currentPath)) {
+    return (
+      <Suspense fallback={<PageLoader />}>
+        <SeoSite />
+      </Suspense>
+    );
+  }
 
   // Se o acesso for via subdomínio leads.wrmusicpro.com.br ou rota /leads
   const isLeadsHost =

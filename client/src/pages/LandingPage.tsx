@@ -37,10 +37,10 @@ import ClientsMarquee from '@/components/ClientsMarquee';
 import { trpc } from '@/lib/trpc';
 import { clearReferralCode, readReferralCode } from './indicacao/PublicReferralPage';
 
-// ─── CONSTANTES ───────────────────────────────────────────────────────────────
+// â”€â”€â”€ CONSTANTES â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export const TRIAL_DAYS = 7;
 
-// ─── TIPOS ────────────────────────────────────────────────────────────────────
+// â”€â”€â”€ TIPOS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 type PlanType = '10alunos' | '20alunos' | '30alunos' | 'basico' | 'profissional' | 'premium';
 type ModalStep = 'conta' | 'endereco' | 'sucesso';
 
@@ -58,7 +58,7 @@ interface SignupForm {
   estado: string;
 }
 
-// ─── MODAL DE CADASTRO ────────────────────────────────────────────────────────
+// â”€â”€â”€ MODAL DE CADASTRO â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const SignupModal = ({ plan, onClose }: { plan: string; onClose: () => void }) => {
   const [step, setStep] = useState<ModalStep>('conta');
   const [showPassword, setShowPassword] = useState(false);
@@ -74,11 +74,11 @@ const SignupModal = ({ plan, onClose }: { plan: string; onClose: () => void }) =
   });
 
   const registerMutation = trpc.auth.registerWithPlan.useMutation();
-  // Programa Indique & Ganhe: preserva o código de indicação capturado no link
+  // Programa Indique & Ganhe: preserva o cÃ³digo de indicaÃ§Ã£o capturado no link
   const referralCode = readReferralCode();
 
   const steps: ModalStep[] = ['conta', 'endereco'];
-  const stepLabels: Record<ModalStep, string> = { conta: 'Sua Conta', endereco: 'Endereço', sucesso: 'Concluído' };
+  const stepLabels: Record<ModalStep, string> = { conta: 'Sua Conta', endereco: 'EndereÃ§o', sucesso: 'ConcluÃ­do' };
   const currentStepIdx = steps.indexOf(step as any);
 
   const set = (key: keyof SignupForm, value: string) =>
@@ -156,14 +156,14 @@ const SignupModal = ({ plan, onClose }: { plan: string; onClose: () => void }) =
         set('cidade', addr.city || '');
         set('estado', (addr.state || '').toUpperCase());
       } else {
-        setCepError('CEP não encontrado — verifique o número ou preencha manualmente.');
+        setCepError('CEP nÃ£o encontrado â€” verifique o nÃºmero ou preencha manualmente.');
       }
     } catch {
       if (!isCurrent()) return;
       if (timedOut) {
-        setCepError('A consulta demorou demais — preencha manualmente se preferir.');
+        setCepError('A consulta demorou demais â€” preencha manualmente se preferir.');
       } else if (!controller.signal.aborted) {
-        setCepError('Não foi possível consultar o CEP — preencha manualmente.');
+        setCepError('NÃ£o foi possÃ­vel consultar o CEP â€” preencha manualmente.');
       }
     } finally {
       clearTimeout(timeout);
@@ -176,16 +176,16 @@ const SignupModal = ({ plan, onClose }: { plan: string; onClose: () => void }) =
     if (step === 'conta') {
       if (!form.nome || !form.email || !form.senha || !form.telefone || !form.cpfCnpj)
         return setError('Preencha todos os campos.');
-      if (!form.email.includes('@')) return setError('E-mail inválido.');
-      if (form.senha.length < 8) return setError('A senha deve ter no mínimo 8 caracteres.');
+      if (!form.email.includes('@')) return setError('E-mail invÃ¡lido.');
+      if (form.senha.length < 8) return setError('A senha deve ter no mÃ­nimo 8 caracteres.');
       const cpfDigits = form.cpfCnpj.replace(/\D/g, '');
       if (cpfDigits.length !== 11 && cpfDigits.length !== 14)
-        return setError('CPF deve ter 11 dígitos ou CNPJ 14 dígitos.');
+        return setError('CPF deve ter 11 dÃ­gitos ou CNPJ 14 dÃ­gitos.');
       setStep('endereco');
     }
     else if (step === 'endereco') {
       if (!form.cep || !form.rua || !form.numero || !form.bairro || !form.cidade || !form.estado)
-        return setError('Preencha todos os campos do endereço.');
+        return setError('Preencha todos os campos do endereÃ§o.');
       // Registrar conta e redirecionar para o checkout do Asaas
       setLoading(true);
       try {
@@ -223,7 +223,7 @@ const SignupModal = ({ plan, onClose }: { plan: string; onClose: () => void }) =
     }
   };
 
-  // Overlay click handler (desativado o fechamento ao clicar fora para não perder dados)
+  // Overlay click handler (desativado o fechamento ao clicar fora para nÃ£o perder dados)
   const handleOverlayClick = (e: React.MouseEvent<HTMLDivElement>) => {
     // if (e.target === e.currentTarget && step !== 'sucesso') onClose();
   };
@@ -261,7 +261,7 @@ const SignupModal = ({ plan, onClose }: { plan: string; onClose: () => void }) =
                 <Check size={36} className="text-white" strokeWidth={3} />
               </div>
               <h2 className="text-2xl font-black mb-1">Cadastro realizado!</h2>
-              <p className="text-blue-100 text-sm">Sua assinatura começará em instantes</p>
+              <p className="text-blue-100 text-sm">Sua assinatura comeÃ§arÃ¡ em instantes</p>
             </div>
           ) : (
             <>
@@ -281,7 +281,7 @@ const SignupModal = ({ plan, onClose }: { plan: string; onClose: () => void }) =
               <h2 className="text-xl font-black mb-1">
                 Cadastro
               </h2>
-              <p className="text-blue-100 text-xs">Acesso total • Cancele quando quiser</p>
+              <p className="text-blue-100 text-xs">Acesso total â€¢ Cancele quando quiser</p>
 
               {/* Steps indicator */}
               <div className="flex items-center gap-2 mt-5">
@@ -307,11 +307,11 @@ const SignupModal = ({ plan, onClose }: { plan: string; onClose: () => void }) =
           )}
         </div>
 
-        {/* Conteúdo */}
+        {/* ConteÃºdo */}
         <div className="px-8 py-6">
           <AnimatePresence mode="wait">
 
-            {/* ── ETAPA 1: CONTA ── */}
+            {/* â”€â”€ ETAPA 1: CONTA â”€â”€ */}
             {step === 'conta' && (
               <motion.div key="conta" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-4">
                 <div>
@@ -341,7 +341,7 @@ const SignupModal = ({ plan, onClose }: { plan: string; onClose: () => void }) =
                   <div className="relative">
                     <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/50" />
                     <input
-                      type={showPassword ? 'text' : 'password'} placeholder="Mínimo 8 caracteres"
+                      type={showPassword ? 'text' : 'password'} placeholder="MÃ­nimo 8 caracteres"
                       value={form.senha} onChange={e => set('senha', e.target.value)}
                       className="w-full pl-10 pr-10 py-3 border-2 border-gray-200 rounded-xl text-sm focus:border-blue-500 focus:outline-none transition-colors bg-gray-50 focus:bg-white"
                     />
@@ -372,12 +372,12 @@ const SignupModal = ({ plan, onClose }: { plan: string; onClose: () => void }) =
                       className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:border-blue-500 focus:outline-none transition-colors bg-gray-50 focus:bg-white font-mono tracking-wider"
                     />
                   </div>
-                  <p className="text-[10px] text-muted-foreground/50 mt-1">Necessário para emissão da cobrança</p>
+                  <p className="text-[10px] text-muted-foreground/50 mt-1">NecessÃ¡rio para emissÃ£o da cobranÃ§a</p>
                 </div>
               </motion.div>
             )}
 
-            {/* ── ETAPA 2: ENDEREÇO ── */}
+            {/* â”€â”€ ETAPA 2: ENDEREÃ‡O â”€â”€ */}
             {step === 'endereco' && (
               <motion.div key="endereco" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-4">
                 <div className="grid grid-cols-2 gap-3">
@@ -418,9 +418,9 @@ const SignupModal = ({ plan, onClose }: { plan: string; onClose: () => void }) =
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-bold text-muted-foreground mb-1.5 uppercase tracking-wider">Número</label>
+                    <label className="block text-xs font-bold text-muted-foreground mb-1.5 uppercase tracking-wider">NÃºmero</label>
                     <input
-                      type="text" placeholder="Nº"
+                      type="text" placeholder="NÂº"
                       value={form.numero} onChange={e => set('numero', e.target.value)}
                       className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:border-blue-500 focus:outline-none transition-colors bg-gray-50 focus:bg-white"
                     />
@@ -446,7 +446,7 @@ const SignupModal = ({ plan, onClose }: { plan: string; onClose: () => void }) =
             )}
 
 
-            {/* ── SUCESSO ── */}
+            {/* â”€â”€ SUCESSO â”€â”€ */}
             {step === 'sucesso' && (
               <motion.div key="sucesso" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="text-center py-4 space-y-5">
                 <div>
@@ -454,10 +454,10 @@ const SignupModal = ({ plan, onClose }: { plan: string; onClose: () => void }) =
                     <Sparkles size={32} />
                   </div>
                   <h3 className="text-xl font-outfit font-black text-foreground mb-2">
-                    Bem-vindo ao MusicPro! 🎉
+                    Bem-vindo ao MusicPro! ðŸŽ‰
                   </h3>
                   <p className="text-gray-500 text-sm">
-                    Sua conta foi criada com sucesso! Você ganhou <strong className="text-blue-600">7 dias grátis</strong> para testar a plataforma.
+                    Sua conta foi criada com sucesso! VocÃª ganhou <strong className="text-blue-600">7 dias grÃ¡tis</strong> para testar a plataforma.
                   </p>
                 </div>
 
@@ -476,7 +476,7 @@ const SignupModal = ({ plan, onClose }: { plan: string; onClose: () => void }) =
 
           </AnimatePresence>
 
-          {/* Botão de avançar */}
+          {/* BotÃ£o de avanÃ§ar */}
           {step !== 'sucesso' && (
             <>
               {error && (
@@ -517,7 +517,7 @@ const SignupModal = ({ plan, onClose }: { plan: string; onClose: () => void }) =
   );
 };
 
-// ─── CARD DE PLANO (reuso: grid da landing + modal "ver mais planos") ─────────
+// â”€â”€â”€ CARD DE PLANO (reuso: grid da landing + modal "ver mais planos") â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const PlanCard = ({ plan, index = 0, onSelect, animate = true }: {
   plan: any;
   index?: number;
@@ -559,7 +559,7 @@ const PlanCard = ({ plan, index = 0, onSelect, animate = true }: {
         <span className="text-base font-bold text-gray-500">R$</span>
         <span className="text-5xl font-black tracking-tight">{plan.price}</span>
         <span className="text-2xl font-black">,{plan.cents}</span>
-        <span className="text-gray-400 font-medium text-sm">/mês</span>
+        <span className="text-gray-400 font-medium text-sm">/mÃªs</span>
       </div>
 
       {/* Features */}
@@ -592,7 +592,7 @@ const PlanCard = ({ plan, index = 0, onSelect, animate = true }: {
 
       {/* Trial note */}
       <div className={`text-center mt-4 space-y-1 ${plan.highlight ? 'text-primary/70' : 'text-muted-foreground'}`}>
-        <p className="text-xs font-bold uppercase tracking-wider text-emerald-500">✓ {TRIAL_DAYS} Dias Grátis</p>
+        <p className="text-xs font-bold uppercase tracking-wider text-emerald-500">âœ“ {TRIAL_DAYS} Dias GrÃ¡tis</p>
         <p className="text-[10px] font-medium leading-tight">
           Sem fidelidade. Cancele ou mude de plano quando quiser.
         </p>
@@ -617,7 +617,7 @@ const PlanCard = ({ plan, index = 0, onSelect, animate = true }: {
   );
 };
 
-// ─── MODAL "VER MAIS PLANOS" ──────────────────────────────────────────────────
+// â”€â”€â”€ MODAL "VER MAIS PLANOS" â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const AllPlansModal = ({ plans, onClose, onSelect }: {
   plans: any[];
   onClose: () => void;
@@ -655,7 +655,7 @@ const AllPlansModal = ({ plans, onClose, onSelect }: {
           <div>
             <h3 className="text-xl md:text-2xl font-outfit font-extrabold text-foreground">Todos os planos</h3>
             <p className="text-xs text-muted-foreground font-medium mt-0.5">
-              Todos incluem acesso imediato ao sistema completo e {TRIAL_DAYS} dias grátis.
+              Todos incluem acesso imediato ao sistema completo e {TRIAL_DAYS} dias grÃ¡tis.
             </p>
           </div>
           <button
@@ -667,7 +667,7 @@ const AllPlansModal = ({ plans, onClose, onSelect }: {
           </button>
         </div>
 
-        {/* Grid scrollável */}
+        {/* Grid scrollÃ¡vel */}
         <div className="overflow-y-auto p-6 md:p-8">
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 items-start">
             {sortedPlans.map((plan, i) => (
@@ -680,7 +680,7 @@ const AllPlansModal = ({ plans, onClose, onSelect }: {
   );
 };
 
-// ─── LANDING PAGE PRINCIPAL ───────────────────────────────────────────────────
+// â”€â”€â”€ LANDING PAGE PRINCIPAL â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const LandingPage = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -735,13 +735,13 @@ const LandingPage = () => {
     return {
       id: p.id,
       name: p.name,
-      subtitle: p.maxStudents >= 999999 ? 'Para escolas exigentes' : `Até ${p.maxStudents} alunos`,
+      subtitle: p.maxStudents >= 999999 ? 'Para escolas exigentes' : `AtÃ© ${p.maxStudents} alunos`,
       price,
       cents,
       highlight: isHighlight,
       badge: isHighlight ? 'Mais Escolhido' : null,
       features: parseFeatures(p.features),
-      cta: 'Começar 7 Dias Grátis',
+      cta: 'ComeÃ§ar 7 Dias GrÃ¡tis',
       ctaStyle: isHighlight ? 'solid' : 'border',
       allowExtraStudents: (p as any).allowExtraStudents ?? true,
       extraStudentPrice: Number((p as any).extraStudentPrice ?? 1.49),
@@ -755,7 +755,7 @@ const LandingPage = () => {
     { name: 'Recursos', href: '#features' },
     { name: 'Clientes & Parceiros', href: '#clients' },
     { name: 'Depoimentos', href: '#testimonials' },
-    { name: 'Preços', href: '#pricing' },
+    { name: 'PreÃ§os', href: '#pricing' },
     { name: 'Contato', href: 'https://wa.me/5533984055949?text=ola%20gostaria%20de%20mais%20informa%C3%A7%C3%B5es%20sobre%20o%20sistema%20musicpro', target: '_blank' },
   ];
 
@@ -824,12 +824,12 @@ const LandingPage = () => {
           <div className="hidden md:flex items-center gap-4">
             <Link href="/login?type=aluno">
               <button className="px-5 py-2 text-xs font-black uppercase tracking-[0.2em] text-primary hover:opacity-80 transition-all border border-primary/20 bg-primary/5 rounded-xl">
-                Área do Aluno
+                Ãrea do Aluno
               </button>
             </Link>
             <Link href="/login?type=professor">
               <button className="px-5 py-2 text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors">
-                Área da Escola / Professor
+                Ãrea da Escola / Professor
               </button>
             </Link>
             <button
@@ -873,10 +873,10 @@ const LandingPage = () => {
                 <hr className="border-border/50 my-2" />
                 <div className="flex flex-col gap-3">
                   <Link href="/login?type=aluno" onClick={() => setMobileMenuOpen(false)}>
-                    <button className="w-full py-3 bg-muted text-foreground rounded-xl font-bold border border-border">Área do Aluno</button>
+                    <button className="w-full py-3 bg-muted text-foreground rounded-xl font-bold border border-border">Ãrea do Aluno</button>
                   </Link>
                   <Link href="/login?type=professor" onClick={() => setMobileMenuOpen(false)}>
-                    <button className="w-full py-3 bg-muted text-foreground rounded-xl font-bold border border-border">Área da Escola / Professor</button>
+                    <button className="w-full py-3 bg-muted text-foreground rounded-xl font-bold border border-border">Ãrea da Escola / Professor</button>
                   </Link>
                   <button
                     onClick={() => { setMobileMenuOpen(false); setSignupPlan('profissional'); }}
@@ -901,7 +901,7 @@ const LandingPage = () => {
         </div>
         {/* Piano Decoration */}
         <div className="hidden xl:block absolute top-[40px] right-[-80px] transform -rotate-[8deg] z-0 pointer-events-none">
-          <img src="/img/piano-trans.png" loading="lazy" alt="" className="w-[460px] object-contain select-none opacity-70 drop-shadow-2xl" draggable={false} />
+          <img src="/img/piano-trans.webp" loading="lazy" alt="" className="w-[460px] object-contain select-none opacity-70 drop-shadow-2xl" draggable={false} />
         </div>
 
         <div className="container relative z-10">
@@ -913,15 +913,15 @@ const LandingPage = () => {
             >
               <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-bold mb-6 hover:bg-primary/15 transition-colors cursor-default">
                 <Star size={14} className="fill-current" />
-                <span>Sistema completo para escolas de música</span>
+                <span>Sistema completo para escolas de mÃºsica</span>
               </div>
               
               <h1 className="text-5xl md:text-7xl font-outfit font-extrabold text-foreground leading-tight mb-6 tracking-tight">
-                Gestão total para <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-indigo-500">escolas de música</span>
+                GestÃ£o total para <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-indigo-500">escolas de mÃºsica</span>
               </h1>
               
               <p className="text-lg md:text-xl text-muted-foreground mb-10 max-w-lg leading-relaxed font-medium">
-                Pare de perder tempo com planilhas e WhatsApp. O MusicPro cuida da burocracia enquanto você foca no que ama: <strong className="text-foreground">ensinar música.</strong>
+                Pare de perder tempo com planilhas e WhatsApp. O MusicPro cuida da burocracia enquanto vocÃª foca no que ama: <strong className="text-foreground">ensinar mÃºsica.</strong>
               </p>
               
               <div className="flex flex-col sm:flex-row items-center gap-4 mb-10">
@@ -929,13 +929,13 @@ const LandingPage = () => {
                   onClick={() => document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' })}
                   className="w-full sm:w-auto px-8 py-4 bg-primary text-primary-foreground rounded-2xl font-bold shadow-xl shadow-primary/30 hover:bg-primary/90 hover:-translate-y-1 transition-all flex items-center justify-center gap-2 group"
                 >
-                  Ver Planos e Preços
+                  Ver Planos e PreÃ§os
                   <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
                 </button>
                 <Link href="/login?type=professor">
                   <button className="w-full sm:w-auto px-8 py-4 bg-background border-2 border-primary/20 text-foreground rounded-2xl font-black text-sm uppercase tracking-widest hover:border-primary/50 hover:bg-muted/50 active:scale-95 transition-all flex items-center justify-center gap-3">
                     <Users size={18} className="text-primary" />
-                    Área da Escola
+                    Ãrea da Escola
                   </button>
                 </Link>
               </div>
@@ -943,8 +943,8 @@ const LandingPage = () => {
               <div className="grid grid-cols-3 gap-3 sm:gap-4">
                 {[
                   { value: '100% Online', label: 'Acesso em qualquer lugar', color: 'text-primary' },
-                  { value: '7 Dias Grátis', label: 'Sem cartão de crédito', color: 'text-indigo-500' },
-                  { value: 'WhatsApp', label: 'Automação de lembretes', color: 'text-emerald-500' },
+                  { value: '7 Dias GrÃ¡tis', label: 'Sem cartÃ£o de crÃ©dito', color: 'text-indigo-500' },
+                  { value: 'WhatsApp', label: 'AutomaÃ§Ã£o de lembretes', color: 'text-emerald-500' },
                 ].map(stat => (
                   <div key={stat.label} className="text-center p-3 sm:p-4 bg-card/60 rounded-2xl border border-border/50 backdrop-blur-sm shadow-sm hover:shadow-md hover:border-primary/20 transition-all duration-300">
                     <div className={`text-sm sm:text-base font-black ${stat.color}`}>{stat.value}</div>
@@ -964,7 +964,11 @@ const LandingPage = () => {
                 <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-indigo-500/20 rounded-[48px] blur-2xl"></div>
                 <img
                   src="/images/dashboard-preview.png"
-                  alt="Dashboard do Sistema MusicPro"
+                  alt="Dashboard do Sistema MusicPro com agenda, alunos e financeiro"
+                  width={1024}
+                  height={494}
+                  fetchPriority="high"
+                  decoding="async"
                   className="relative rounded-[24px] shadow-2xl border border-border w-full h-auto object-cover"
                   onError={(e) => {
                     e.currentTarget.classList.add('hidden');
@@ -976,7 +980,7 @@ const LandingPage = () => {
                   <div className="text-center p-8">
                     <Music size={52} className="text-primary/40 mx-auto mb-4" />
                     <p className="text-foreground font-bold text-base">Dashboard MusicPro</p>
-                    <p className="text-muted-foreground/60 text-xs mt-1">Visualização do painel administrativo</p>
+                    <p className="text-muted-foreground/60 text-xs mt-1">VisualizaÃ§Ã£o do painel administrativo</p>
                   </div>
                 </div>
               </div>
@@ -993,26 +997,26 @@ const LandingPage = () => {
       <section id="features" className="relative py-24 bg-muted/30 border-b border-border/50 overflow-hidden">
         {/* Instrument Decorations */}
         <div className="hidden xl:block absolute top-[20px] right-[-200px] transform rotate-[20deg] z-0 pointer-events-none">
-          <img src="/img/guitar-trans.png" loading="lazy" alt="Imagem de guitarra" className="w-[500px] object-contain select-none opacity-90 drop-shadow-2xl" draggable={false} />
+          <img src="/img/guitar-trans.webp" loading="lazy" alt="Imagem de guitarra" className="w-[500px] object-contain select-none opacity-90 drop-shadow-2xl" draggable={false} />
         </div>
 
         <div className="container relative z-10">
           <div className="text-center max-w-3xl mx-auto mb-20">
-            <h2 className="text-primary font-black tracking-widest uppercase text-sm mb-4">Tudo que você precisa</h2>
-            <h3 className="text-4xl md:text-5xl font-outfit font-extrabold text-foreground mb-6">Funcionalidades pensadas para músicos</h3>
+            <h2 className="text-primary font-black tracking-widest uppercase text-sm mb-4">Tudo que vocÃª precisa</h2>
+            <h3 className="text-4xl md:text-5xl font-outfit font-extrabold text-foreground mb-6">Funcionalidades pensadas para mÃºsicos</h3>
             <p className="text-lg text-muted-foreground font-medium">
-              Desenvolvido por quem entende a rotina de uma escola de música. Simples de usar, poderoso nos resultados.
+              Desenvolvido por quem entende a rotina de uma escola de mÃºsica. Simples de usar, poderoso nos resultados.
             </p>
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[
-              { icon: Users, title: 'Gestão de Alunos', desc: 'Cadastro completo, histórico de evolução, presença e notas em um só lugar.' },
-              { icon: Calendar, title: 'Agendamento Inteligente', desc: 'Organize horários, aulas e eventos com um calendário visual e intuitivo.' },
-              { icon: DollarSign, title: 'Controle Financeiro', desc: 'Mensalidades, comprovantes e relatórios financeiros automáticos.' },
-              { icon: Bell, title: 'Lembretes Automáticos', desc: 'Notificações por WhatsApp para alunos sobre aulas e pagamentos pendentes.' },
-              { icon: BarChart3, title: 'Relatórios Avançados', desc: 'Dashboards detalhados para tomar decisões baseadas em dados reais.' },
-              { icon: Guitar, title: 'IA para Professores', desc: 'Gere planos de aula, análises de progresso e sugestões com inteligência artificial.' },
+              { icon: Users, title: 'GestÃ£o de Alunos', desc: 'Cadastro completo, histÃ³rico de evoluÃ§Ã£o, presenÃ§a e notas em um sÃ³ lugar.' },
+              { icon: Calendar, title: 'Agendamento Inteligente', desc: 'Organize horÃ¡rios, aulas e eventos com um calendÃ¡rio visual e intuitivo.' },
+              { icon: DollarSign, title: 'Controle Financeiro', desc: 'Mensalidades, comprovantes e relatÃ³rios financeiros automÃ¡ticos.' },
+              { icon: Bell, title: 'Lembretes AutomÃ¡ticos', desc: 'NotificaÃ§Ãµes por WhatsApp para alunos sobre aulas e pagamentos pendentes.' },
+              { icon: BarChart3, title: 'RelatÃ³rios AvanÃ§ados', desc: 'Dashboards detalhados para tomar decisÃµes baseadas em dados reais.' },
+              { icon: Guitar, title: 'IA para Professores', desc: 'Gere planos de aula, anÃ¡lises de progresso e sugestÃµes com inteligÃªncia artificial.' },
             ].map((feature, i) => (
               <motion.div
                 key={feature.title}
@@ -1033,27 +1037,27 @@ const LandingPage = () => {
 
       <BenefitsCarousel />
 
-      {/* ── CLIENTES & ESCOLAS PARCEIRAS (MARQUEE INFINITO) ──────────────── */}
+      {/* â”€â”€ CLIENTES & ESCOLAS PARCEIRAS (MARQUEE INFINITO) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <ClientsMarquee />
 
       {/* TESTIMONIALS */}
       <section id="testimonials" className="relative py-24 bg-background overflow-hidden">
         {/* Instrument Decorations */}
         <div className="hidden xl:block absolute top-[20px] left-[-150px] transform -rotate-[15deg] z-0 pointer-events-none">
-          <img src="/img/sax-trans.png" loading="lazy" alt="Imagem de saxofone" className="w-[450px] object-contain select-none opacity-80 drop-shadow-2xl" draggable={false} />
+          <img src="/img/sax-trans.webp" loading="lazy" alt="Imagem de saxofone" className="w-[450px] object-contain select-none opacity-80 drop-shadow-2xl" draggable={false} />
         </div>
 
         <div className="container relative z-10">
           <div className="text-center max-w-3xl mx-auto mb-20">
             <h2 className="text-primary font-black tracking-widest uppercase text-sm mb-4">Depoimentos</h2>
-            <h3 className="text-4xl md:text-5xl font-outfit font-extrabold text-foreground mb-6">Quem já usa, aprova</h3>
+            <h3 className="text-4xl md:text-5xl font-outfit font-extrabold text-foreground mb-6">Quem jÃ¡ usa, aprova</h3>
           </div>
 
           <div className="grid md:grid-cols-3 gap-6">
             {[
               { name: 'Ana Lima', role: 'Diretora - Escola Harmonia', text: 'O MusicPro transformou completamente a forma como gerencio minha escola. Economizo horas por semana!', avatarColor: 'bg-gradient-to-br from-blue-500 to-indigo-600' },
-              { name: 'Carlos Mendes', role: 'Professor - Studio Ritmo', text: 'Os lembretes automáticos reduziram em 80% as faltas dos alunos. Resultado incrível!', avatarColor: 'bg-gradient-to-br from-emerald-500 to-teal-600' },
-              { name: 'Patricia Souza', role: 'Fundadora - Acorde Music', text: 'O controle financeiro é fantástico. Antes era tudo planilha, agora tenho tudo automatizado.', avatarColor: 'bg-gradient-to-br from-violet-500 to-purple-600' },
+              { name: 'Carlos Mendes', role: 'Professor - Studio Ritmo', text: 'Os lembretes automÃ¡ticos reduziram em 80% as faltas dos alunos. Resultado incrÃ­vel!', avatarColor: 'bg-gradient-to-br from-emerald-500 to-teal-600' },
+              { name: 'Patricia Souza', role: 'Fundadora - Acorde Music', text: 'O controle financeiro Ã© fantÃ¡stico. Antes era tudo planilha, agora tenho tudo automatizado.', avatarColor: 'bg-gradient-to-br from-violet-500 to-purple-600' },
             ].map((t, i) => (
               <motion.div key={t.name} {...fadeIn} transition={{ delay: i * 0.15 }} className="p-8 bg-card/40 backdrop-blur-xl shadow-2xl shadow-primary/5 border border-border/50 rounded-[32px] hover:border-primary/20 hover:shadow-primary/10 transition-all duration-300">
                 <div className="flex gap-1 mb-4">
@@ -1077,16 +1081,16 @@ const LandingPage = () => {
         </div>
       </section>
 
-      {/* ── INTEGRAÇÕES ────────────────────────────────────────────────────────── */}
+      {/* â”€â”€ INTEGRAÃ‡Ã•ES â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <section className="relative py-24 bg-background overflow-hidden">
         <div className="container relative z-10">
           <div className="text-center max-w-3xl mx-auto mb-16">
-            <h2 className="text-primary font-black tracking-widest uppercase text-sm mb-4">Integrações Oficiais</h2>
+            <h2 className="text-primary font-black tracking-widest uppercase text-sm mb-4">IntegraÃ§Ãµes Oficiais</h2>
             <h3 className="text-4xl md:text-5xl font-outfit font-extrabold text-foreground mb-6">
               Receba pagamentos como os grandes
             </h3>
             <p className="text-lg text-muted-foreground font-medium">
-              Integração nativa com as principais plataformas de pagamento do Brasil. Seus alunos pagam por Pix, cartão ou boleto — tudo automático e rastreado.
+              IntegraÃ§Ã£o nativa com as principais plataformas de pagamento do Brasil. Seus alunos pagam por Pix, cartÃ£o ou boleto â€” tudo automÃ¡tico e rastreado.
             </p>
           </div>
 
@@ -1109,14 +1113,14 @@ const LandingPage = () => {
                   </div>
                   <div>
                     <h4 className="text-xl font-extrabold text-foreground">Asaas</h4>
-                    <span className="text-xs font-bold text-blue-600 bg-blue-500/10 px-2 py-0.5 rounded-full">Integração Oficial</span>
+                    <span className="text-xs font-bold text-blue-600 bg-blue-500/10 px-2 py-0.5 rounded-full">IntegraÃ§Ã£o Oficial</span>
                   </div>
                 </div>
                 <p className="text-muted-foreground font-medium leading-relaxed mb-6">
-                  Gere cobranças de mensalidades com Pix, boleto bancário e cartão de crédito. A plataforma cria as faturas automaticamente e você acompanha tudo no painel.
+                  Gere cobranÃ§as de mensalidades com Pix, boleto bancÃ¡rio e cartÃ£o de crÃ©dito. A plataforma cria as faturas automaticamente e vocÃª acompanha tudo no painel.
                 </p>
                 <ul className="space-y-2">
-                  {['Pix com QR Code automático', 'Boleto bancário e cartão', 'Dashboard de inadimplência', 'Notificação automática de vencimento'].map((item) => (
+                  {['Pix com QR Code automÃ¡tico', 'Boleto bancÃ¡rio e cartÃ£o', 'Dashboard de inadimplÃªncia', 'NotificaÃ§Ã£o automÃ¡tica de vencimento'].map((item) => (
                     <li key={item} className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
                       <span className="w-5 h-5 rounded-full bg-blue-500/10 text-blue-600 flex items-center justify-center flex-shrink-0">
                         <Check size={11} strokeWidth={3} />
@@ -1146,14 +1150,14 @@ const LandingPage = () => {
                   </div>
                   <div>
                     <h4 className="text-xl font-extrabold text-foreground">Mercado Pago</h4>
-                    <span className="text-xs font-bold text-yellow-700 bg-yellow-500/10 px-2 py-0.5 rounded-full">Integração Oficial</span>
+                    <span className="text-xs font-bold text-yellow-700 bg-yellow-500/10 px-2 py-0.5 rounded-full">IntegraÃ§Ã£o Oficial</span>
                   </div>
                 </div>
                 <p className="text-muted-foreground font-medium leading-relaxed mb-6">
-                  Checkout Mercado Pago completo com Pix, cartão de crédito em parcelas e muito mais. O link de pagamento é gerado automaticamente quando o aluno clica em "Pagar".
+                  Checkout Mercado Pago completo com Pix, cartÃ£o de crÃ©dito em parcelas e muito mais. O link de pagamento Ã© gerado automaticamente quando o aluno clica em "Pagar".
                 </p>
                 <ul className="space-y-2">
-                  {['Checkout com Pix instantâneo', 'Cartão em até 12x', 'Link de pagamento automático', 'Confirmação em tempo real'].map((item) => (
+                  {['Checkout com Pix instantÃ¢neo', 'CartÃ£o em atÃ© 12x', 'Link de pagamento automÃ¡tico', 'ConfirmaÃ§Ã£o em tempo real'].map((item) => (
                     <li key={item} className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
                       <span className="w-5 h-5 rounded-full bg-yellow-500/10 text-yellow-600 flex items-center justify-center flex-shrink-0">
                         <Check size={11} strokeWidth={3} />
@@ -1184,14 +1188,14 @@ const LandingPage = () => {
                     </div>
                     <div>
                       <h4 className="text-xl font-extrabold text-foreground">InfinitePay</h4>
-                      <span className="text-xs font-bold text-lime-600 bg-lime-500/10 px-2 py-0.5 rounded-full">Integração Oficial</span>
+                      <span className="text-xs font-bold text-lime-600 bg-lime-500/10 px-2 py-0.5 rounded-full">IntegraÃ§Ã£o Oficial</span>
                     </div>
                   </div>
                   <p className="text-muted-foreground font-medium leading-relaxed mb-6">
-                    Checkout seguro da InfinitePay com Pix (taxa zero) ou cartão de crédito em até 12x. O MusicPro gera o link e confirma o pagamento automaticamente — sem mensalidade e sem custo de integração.
+                    Checkout seguro da InfinitePay com Pix (taxa zero) ou cartÃ£o de crÃ©dito em atÃ© 12x. O MusicPro gera o link e confirma o pagamento automaticamente â€” sem mensalidade e sem custo de integraÃ§Ã£o.
                   </p>
                   <ul className="space-y-2">
-                    {['PIX com taxa zero — você recebe 100%', 'Cartão em até 12x', 'Links curtos prontos para o WhatsApp', 'Confirmação automática em tempo real'].map((item) => (
+                    {['PIX com taxa zero â€” vocÃª recebe 100%', 'CartÃ£o em atÃ© 12x', 'Links curtos prontos para o WhatsApp', 'ConfirmaÃ§Ã£o automÃ¡tica em tempo real'].map((item) => (
                       <li key={item} className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
                         <span className="w-5 h-5 rounded-full bg-lime-500/10 text-lime-600 flex items-center justify-center flex-shrink-0">
                           <Check size={11} strokeWidth={3} />
@@ -1203,9 +1207,9 @@ const LandingPage = () => {
                 </div>
                 <div className="hidden md:block w-px h-40 bg-border/60" />
                 <div className="hidden md:flex flex-col items-center text-center gap-2 px-6">
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Você recebe</span>
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">VocÃª recebe</span>
                   <span className="text-3xl font-outfit font-black text-lime-600">100%</span>
-                  <span className="text-[10px] font-medium text-muted-foreground max-w-[140px]">do valor de cada PIX — taxa zero na conta InfinitePay</span>
+                  <span className="text-[10px] font-medium text-muted-foreground max-w-[140px]">do valor de cada PIX â€” taxa zero na conta InfinitePay</span>
                 </div>
               </div>
             </motion.div>
@@ -1233,7 +1237,7 @@ const LandingPage = () => {
               </div>
               <div>
                 <p className="font-bold text-foreground text-sm">Sem taxa adicional</p>
-                <p className="text-xs text-muted-foreground">Use sua própria conta nas plataformas</p>
+                <p className="text-xs text-muted-foreground">Use sua prÃ³pria conta nas plataformas</p>
               </div>
             </div>
             <div className="w-px h-10 bg-border hidden md:block" />
@@ -1242,7 +1246,7 @@ const LandingPage = () => {
                 <Sparkles size={20} />
               </div>
               <div>
-                <p className="font-bold text-foreground text-sm">Configuração em 2 min</p>
+                <p className="font-bold text-foreground text-sm">ConfiguraÃ§Ã£o em 2 min</p>
                 <p className="text-xs text-muted-foreground">Cole sua chave de API e pronto</p>
               </div>
             </div>
@@ -1250,14 +1254,14 @@ const LandingPage = () => {
         </div>
       </section>
 
-      {/* ── PREÇOS ─────────────────────────────────────────────────────────────── */}
+      {/* â”€â”€ PREÃ‡OS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <section id="pricing" className="relative py-24 bg-muted/30 border-y border-border/50 overflow-hidden">
         {/* Instrument Decorations */}
         <div className="hidden xl:block absolute top-[40px] left-[-250px] transform -rotate-[15deg] z-0 pointer-events-none">
-          <img src="/img/synth-trans.png" alt="" className="w-[600px] object-contain select-none opacity-80 drop-shadow-2xl" draggable={false} />
+          <img src="/img/synth-trans.webp" alt="" className="w-[600px] object-contain select-none opacity-80 drop-shadow-2xl" draggable={false} />
         </div>
         <div className="hidden xl:block absolute top-[40px] right-[-180px] transform rotate-[15deg] z-0 pointer-events-none">
-          <img src="/img/violin-trans.png" alt="" className="w-[450px] object-contain select-none opacity-80 drop-shadow-2xl" draggable={false} />
+          <img src="/img/violin-trans.webp" alt="" className="w-[450px] object-contain select-none opacity-80 drop-shadow-2xl" draggable={false} />
         </div>
 
         <div className="container relative z-10">
@@ -1292,7 +1296,7 @@ const LandingPage = () => {
                 <ChevronDown size={16} strokeWidth={3} className="text-primary" />
               </button>
               <p className="text-xs text-muted-foreground font-medium mt-2">
-                {plans.length - 3} {plans.length - 3 > 1 ? 'planos adicionais disponíveis' : 'plano adicional disponível'}
+                {plans.length - 3} {plans.length - 3 > 1 ? 'planos adicionais disponÃ­veis' : 'plano adicional disponÃ­vel'}
               </p>
             </motion.div>
           )}
@@ -1302,7 +1306,7 @@ const LandingPage = () => {
             <div className="inline-flex items-center gap-3 px-6 py-4 bg-card border border-border/50 rounded-2xl">
               <Shield size={20} className="text-primary" />
               <span className="text-sm font-semibold text-muted-foreground">
-                Garantia de {TRIAL_DAYS} dias: se não gostar, cancele sem custo algum.
+                Garantia de {TRIAL_DAYS} dias: se nÃ£o gostar, cancele sem custo algum.
               </span>
             </div>
           </motion.div>
@@ -1314,26 +1318,26 @@ const LandingPage = () => {
         <div className="container max-w-4xl">
           <div className="text-center mb-16">
             <h2 className="text-primary font-black tracking-widest uppercase text-sm mb-4">Perguntas Frequentes</h2>
-            <h3 className="text-4xl font-outfit font-extrabold text-foreground mb-6">Tirando suas dúvidas</h3>
+            <h3 className="text-4xl font-outfit font-extrabold text-foreground mb-6">Tirando suas dÃºvidas</h3>
           </div>
           
           <div className="space-y-4">
             {[
               {
-                q: "Preciso de cartão de crédito para os 7 dias grátis?",
-                a: "Não! Você pode testar o sistema completo por 7 dias sem informar nenhum dado de pagamento. Só cobramos se você decidir continuar."
+                q: "Preciso de cartÃ£o de crÃ©dito para os 7 dias grÃ¡tis?",
+                a: "NÃ£o! VocÃª pode testar o sistema completo por 7 dias sem informar nenhum dado de pagamento. SÃ³ cobramos se vocÃª decidir continuar."
               },
               {
-                q: "Como funciona a emissão de cobranças?",
-                a: "Integramos com Asaas, Mercado Pago e InfinitePay. Você pode gerar boletos, PIX e cartões diretamente pelo sistema — com o InfinitePay o PIX tem taxa zero e você recebe 100%. A baixa no pagamento é automática."
+                q: "Como funciona a emissÃ£o de cobranÃ§as?",
+                a: "Integramos com Asaas, Mercado Pago e InfinitePay. VocÃª pode gerar boletos, PIX e cartÃµes diretamente pelo sistema â€” com o InfinitePay o PIX tem taxa zero e vocÃª recebe 100%. A baixa no pagamento Ã© automÃ¡tica."
               },
               {
-                q: "Os lembretes do WhatsApp têm custo extra?",
-                a: "Não cobramos pelos envios, pois o sistema conecta diretamente com o seu próprio WhatsApp! Apenas escaneie o QRCode e seus lembretes usarão seu número de forma gratuita e ilimitada."
+                q: "Os lembretes do WhatsApp tÃªm custo extra?",
+                a: "NÃ£o cobramos pelos envios, pois o sistema conecta diretamente com o seu prÃ³prio WhatsApp! Apenas escaneie o QRCode e seus lembretes usarÃ£o seu nÃºmero de forma gratuita e ilimitada."
               },
               {
                 q: "Consigo acessar pelo celular?",
-                a: "Sim, todo o sistema é 100% responsivo. Você e seus alunos podem acessar pelo navegador de qualquer dispositivo, funcionando como um aplicativo nativo."
+                a: "Sim, todo o sistema Ã© 100% responsivo. VocÃª e seus alunos podem acessar pelo navegador de qualquer dispositivo, funcionando como um aplicativo nativo."
               }
             ].map((faq, i) => (
               <details key={i} className="group bg-card/40 backdrop-blur-md border border-border/50 rounded-2xl overflow-hidden shadow-sm">
@@ -1364,11 +1368,11 @@ const LandingPage = () => {
             <div className="relative z-10 text-center max-w-4xl mx-auto">
               <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 border border-white/20 text-blue-200 text-xs font-bold mb-8">
                 <Sparkles size={14} className="text-blue-300" />
-                <span>7 Dias Grátis · Sem Cartão de Crédito</span>
+                <span>7 Dias GrÃ¡tis Â· Sem CartÃ£o de CrÃ©dito</span>
               </div>
               <h2 className="text-4xl md:text-6xl font-outfit font-black text-white mb-8 leading-tight tracking-tight">
                 Pronto para levar sua escola para o{' '}
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-300 to-indigo-300">próximo nível?</span>
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-300 to-indigo-300">prÃ³ximo nÃ­vel?</span>
               </h2>
               <p className="text-xl text-blue-100/70 font-medium mb-12 max-w-2xl mx-auto">
                 Comece agora mesmo. Sem burocracia. Cancele quando quiser.
@@ -1380,7 +1384,7 @@ const LandingPage = () => {
                 Criar conta agora <ArrowRight size={20} />
               </button>
               <p className="mt-6 text-blue-300/50 text-sm font-medium">
-                Sem fidelidade · Cancele quando quiser · Suporte incluído
+                Sem fidelidade Â· Cancele quando quiser Â· Suporte incluÃ­do
               </p>
             </div>
           </div>
@@ -1406,7 +1410,7 @@ const LandingPage = () => {
                 <span className="text-2xl font-black text-foreground tracking-tight">Music<span className="text-primary">Pro</span></span>
               </div>
               <p className="text-muted-foreground font-medium mb-8 max-w-sm leading-relaxed">
-                A plataforma definitiva para gestão de escolas de música. Criada por músicos, para músicos.
+                A plataforma definitiva para gestÃ£o de escolas de mÃºsica. Criada por mÃºsicos, para mÃºsicos.
               </p>
             </div>
 
@@ -1415,15 +1419,15 @@ const LandingPage = () => {
               <ul className="space-y-4 text-muted-foreground font-medium">
                 <li><a href="#features" onClick={(e) => { e.preventDefault(); document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' }); }} className="hover:text-primary transition-colors cursor-pointer">Recursos</a></li>
                 <li><a href="#testimonials" onClick={(e) => { e.preventDefault(); document.getElementById('testimonials')?.scrollIntoView({ behavior: 'smooth' }); }} className="hover:text-primary transition-colors cursor-pointer">Depoimentos</a></li>
-                <li><a href="#pricing" onClick={(e) => { e.preventDefault(); document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' }); }} className="hover:text-primary transition-colors cursor-pointer">Preços</a></li>
-                <li><Link href="/login" className="hover:text-primary transition-colors">Área do Aluno</Link></li>
+                <li><a href="#pricing" onClick={(e) => { e.preventDefault(); document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' }); }} className="hover:text-primary transition-colors cursor-pointer">PreÃ§os</a></li>
+                <li><Link href="/login" className="hover:text-primary transition-colors">Ãrea do Aluno</Link></li>
               </ul>
             </div>
 
             <div>
               <h5 className="font-extrabold text-foreground mb-6 uppercase tracking-widest text-sm">Escola</h5>
               <ul className="space-y-4 text-muted-foreground font-medium">
-                <li><a href="#" onClick={(e) => { e.preventDefault(); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="hover:text-primary transition-colors cursor-pointer">Sobre nós</a></li>
+                <li><a href="#" onClick={(e) => { e.preventDefault(); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="hover:text-primary transition-colors cursor-pointer">Sobre nÃ³s</a></li>
                 <li><a href="https://wa.me/5533984055949?text=Gostaria%20de%20saber%20sobre%20parceria%20com%20o%20MusicPro" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">Parceiros</a></li>
                 <li><a href="https://wa.me/5533984055949?text=Quero%20saber%20mais%20sobre%20o%20MusicPro" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">Blog</a></li>
                 <li><a href="https://wa.me/5533984055949?text=ola%20gostaria%20de%20mais%20informa%C3%A7%C3%B5es%20sobre%20o%20sistema%20musicpro" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">Contato</a></li>
@@ -1434,7 +1438,7 @@ const LandingPage = () => {
               <h5 className="font-extrabold text-foreground mb-6 uppercase tracking-widest text-sm">Suporte</h5>
               <ul className="space-y-4 text-muted-foreground font-medium">
                 <li><a href="https://wa.me/5533984055949?text=Preciso%20de%20ajuda%20com%20o%20MusicPro" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">Central de Ajuda</a></li>
-                <li><a href="/politica-de-privacidade" className="hover:text-primary transition-colors">Política de Privacidade</a></li>
+                <li><a href="/politica-de-privacidade" className="hover:text-primary transition-colors">PolÃ­tica de Privacidade</a></li>
                 <li><a href="/termos-de-uso" className="hover:text-primary transition-colors">Termos de Uso</a></li>
                 <li><a href="https://wa.me/5533984055949?text=Status%20do%20sistema%20MusicPro" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">Status do Sistema</a></li>
               </ul>
@@ -1443,7 +1447,7 @@ const LandingPage = () => {
           </div>
 
           <div className="flex flex-col md:flex-row items-center justify-between pt-10 border-t border-border/50 text-muted-foreground font-medium text-sm gap-4">
-            <p>© {new Date().getFullYear()} MusicPro. Todos os direitos reservados.</p>
+            <p>Â© {new Date().getFullYear()} MusicPro. Todos os direitos reservados.</p>
           </div>
         </div>
       </footer>
