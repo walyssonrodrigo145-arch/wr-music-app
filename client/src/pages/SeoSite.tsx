@@ -6,7 +6,6 @@ import { trpc } from "@/lib/trpc";
 import {
   SEO_PAGES,
   childrenOf,
-  groupSeoMedia,
   resolveSeoPage,
   type SeoPage,
   type SeoPageKind,
@@ -162,13 +161,17 @@ function KindBadge({ kind }: { kind: SeoPageKind }) {
 function SeoPageView({ page }: { page: SeoPage }) {
   useSeo(page);
   const { data: seoMedia } = trpc.publicData.getSeoMedia.useQuery();
-  const pageMedia = groupSeoMedia(seoMedia as any)[page.path];
+  // A API já devolve as mídias agrupadas por rota e tipo (capa/galeria/celular/notebook)
+  const pageMedia = (seoMedia as any)?.[page.path] as
+    | { cover?: any[]; gallery?: any[]; mobile?: any[]; desktop?: any[] }
+    | undefined;
   const cover = pageMedia?.cover?.[0];
   const coverSrc = cover?.url || page.cover?.src;
   const coverAlt = cover?.alt || page.cover?.alt || page.h1;
-  const gallery = pageMedia?.gallery || [];
-  const mobilePrints = pageMedia?.mobile || [];
-  const desktopPrints = pageMedia?.desktop || [];
+  const asArray = (value: any): any[] => (Array.isArray(value) ? value : []);
+  const gallery = asArray(pageMedia?.gallery);
+  const mobilePrints = asArray(pageMedia?.mobile);
+  const desktopPrints = asArray(pageMedia?.desktop);
   const related = SEO_PAGES.filter((p) => p.path !== page.path && !p.noindex && p.kind === page.kind).slice(0, 6);
   const children = childrenOf(page.path);
 

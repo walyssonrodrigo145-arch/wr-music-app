@@ -94,7 +94,9 @@ export function isSeoMediaKind(value: unknown): value is SeoMediaKind {
  */
 export function groupSeoMedia(rows: SeoMediaRow[] | null | undefined): Record<string, SeoMediaGroup> {
   const grouped: Record<string, SeoMediaGroup> = {};
-  for (const row of rows || []) {
+  // Defensivo: nunca iterar algo que não seja lista (evita crash na página)
+  const list = Array.isArray(rows) ? rows : [];
+  for (const row of list) {
     if (!row || row.isActive === false) continue;
     if (!isSeoMediaKind(row.kind)) continue;
     const path = String(row.pagePath || "");

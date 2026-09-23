@@ -71,7 +71,7 @@ export function MobileShowcase({
   title?: string;
 }) {
   const [index, setIndex] = useState(0);
-  const shots = (prints || []).filter((p) => p?.url);
+  const shots = (Array.isArray(prints) ? prints : []).filter((p) => p?.url);
   const current = shots[Math.min(index, Math.max(0, shots.length - 1))];
 
   const hubItems = [
@@ -159,7 +159,7 @@ export function MobileShowcase({
 /** Notebook: prints da versão web na moldura (escolhidos no Super Admin). */
 export function DesktopShowcase({ prints, title }: { prints: SeoMediaRow[]; title?: string }) {
   const [index, setIndex] = useState(0);
-  const shots = (prints || []).filter((p) => p?.url);
+  const shots = (Array.isArray(prints) ? prints : []).filter((p) => p?.url);
   if (shots.length === 0) return null;
   const current = shots[Math.min(index, Math.max(0, shots.length - 1))];
 
@@ -205,7 +205,7 @@ export function DesktopShowcase({ prints, title }: { prints: SeoMediaRow[]; titl
 }
 
 /** Galeria de prints do sistema (imagens adicionais por funcionalidade). */export function MediaGallery({ images }: { images: SeoMediaRow[] }) {
-  const shots = (images || []).filter((i) => i?.url);
+  const shots = (Array.isArray(images) ? images : []).filter((i) => i?.url);
   if (shots.length === 0) return null;
   return (
     <section className="mt-14">

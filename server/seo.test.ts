@@ -171,4 +171,12 @@ describe("SEO — mídias das páginas (Super Admin)", () => {
     expect(groupSeoMedia(null)).toEqual({});
     expect(groupSeoMedia(undefined)).toEqual({});
   });
+
+  it("REGRESSÃO: entrada não-iterável (ex.: resposta já agrupada) NÃO quebra a página", () => {
+    // A API pública já devolve agrupado; se o client chamar groupSeoMedia de novo,
+    // antes isso lançava "rows is not iterable" e derrubava a página (ErrorBoundary).
+    expect(() => groupSeoMedia({} as any)).not.toThrow();
+    expect(groupSeoMedia({} as any)).toEqual({});
+    expect(groupSeoMedia({ "/funcionalidades": { cover: [] } } as any)).toEqual({});
+  });
 });
