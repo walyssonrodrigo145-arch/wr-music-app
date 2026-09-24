@@ -144,6 +144,9 @@ const filesToUpload = [
   'client/src/components/LoadingScreen.tsx',
   'client/src/components/MusicLayout.tsx',
   'client/src/App.tsx',
+  // ── Capa da Página inicial editável no Super Admin ──
+  'client/src/components/superadmin/SeoMediaManager.tsx',
+  'client/src/pages/LandingPage.tsx',
 ];
 
 console.log('🚀 Iniciando deploy no Ambiente de Testes (STAGING)...');

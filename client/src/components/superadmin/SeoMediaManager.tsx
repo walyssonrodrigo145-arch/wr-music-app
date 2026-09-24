@@ -30,8 +30,8 @@ export function SeoMediaManager() {
   const { data: items = [], isLoading } = trpc.superAdmin.listSeoMedia.useQuery();
 
   const pages = useMemo(
-    // Apenas páginas renderizadas pelo site público de conteúdo (SeoSite)
-    () => SEO_PAGES.filter((p) => !["home", "signup", "login", "legal"].includes(p.kind)),
+    // Páginas públicas de conteúdo + Página inicial (a Capa da home vira a imagem do topo da landing)
+    () => SEO_PAGES.filter((p) => !["signup", "login", "legal"].includes(p.kind)),
     []
   );
   const [pagePath, setPagePath] = useState(
@@ -118,9 +118,10 @@ export function SeoMediaManager() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold">Imagens das Funcionalidades (site)</h2>
+          <h2 className="text-xl font-bold">Imagens das Páginas Públicas (site)</h2>
           <p className="text-sm text-muted-foreground">
-            Capa, galeria e prints de celular por página pública. As imagens de celular aparecem na moldura de cada funcionalidade.
+            Capa, galeria e prints de celular por página pública. Na <strong>Página inicial</strong>, a Capa é a imagem
+            principal do topo da landing. As imagens de celular aparecem na moldura de cada funcionalidade.
           </p>
         </div>
         <div className="flex items-center gap-2">

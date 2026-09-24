@@ -26,6 +26,16 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: "2026.09.24.2",
+    date: "2026-09-24",
+    title: "Imagem principal da página inicial editável no Super Admin",
+    summary: "Agora você troca a imagem do topo da landing pelo painel, em Imagens das Páginas Públicas → Página inicial → Capa — sem precisar de deploy.",
+    items: [
+      { type: "novo", title: "Capa da Página inicial", description: "No Super Admin, selecione a Página inicial e envie a imagem da Capa: ela substitui o print do sistema no topo da landing. Sem imagem cadastrada, continua valendo a atual." },
+      { type: "melhoria", title: "Home incluída no gerenciador de imagens", description: "A Página inicial passou a aparecer no seletor de páginas do gerenciador de mídia (antes era ocultada)." },
+    ],
+  },
+  {
     version: "2026.09.24.1",
     date: "2026-09-24",
     title: "Simulador de planos: total em todos os planos + limite de excedentes",

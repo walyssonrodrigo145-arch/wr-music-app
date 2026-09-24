@@ -762,6 +762,10 @@ const LandingPage = () => {
 
   const { data: dbPlans, isLoading: loadingPlans } = trpc.publicData.getPlans.useQuery();
   const { data: publicStats } = trpc.publicData.getPublicStats.useQuery(undefined, { staleTime: 10 * 60 * 1000 });
+  const { data: seoMedia } = trpc.publicData.getSeoMedia.useQuery();
+  const homeCover = ((seoMedia as any)?.["/"]?.cover ?? [])[0];
+  const heroImage = homeCover?.url || "/images/dashboard-preview.png";
+  const heroImageAlt = homeCover?.alt || "Dashboard do Sistema MusicPro com agenda, alunos e financeiro";
 
   const parseFeatures = (fStr: any) => {
     if (Array.isArray(fStr)) return fStr;
@@ -1031,8 +1035,8 @@ const LandingPage = () => {
               <div className="relative w-full">
                 <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-indigo-500/20 rounded-[48px] blur-2xl"></div>
                 <img
-                  src="/images/dashboard-preview.png"
-                  alt="Dashboard do Sistema MusicPro com agenda, alunos e financeiro"
+                  src={heroImage}
+                  alt={heroImageAlt}
                   width={1024}
                   height={494}
                   fetchPriority="high"
