@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { trpc } from '../lib/trpc';
 import { formatBRL } from '../lib/money';
+import { safeFormat } from '../lib/dates';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { toast } from 'sonner';
@@ -217,7 +218,7 @@ const Relatorios: React.FC = () => {
         columns = ['Data Vencimento', 'Aluno/Descrição', 'Valor', 'Status', 'Data Pagamento'];
         paymentDuesQuery.data?.forEach(p => {
           rows.push([
-            format(new Date(p.dueDate), 'dd/MM/yyyy'),
+            safeFormat(p.dueDate, 'dd/MM/yyyy'),
             p.studentName || p.notes || 'Mensalidade',
             Number(p.amount),
             p.status.toUpperCase(),
@@ -250,7 +251,7 @@ const Relatorios: React.FC = () => {
       } else if (activeTab === 'mensalidades') {
         columns = ["Aluno", "Vencimento", "Valor", "Status"];
         overduePaymentsQuery.data?.forEach(p => {
-          rows.push([p.studentName, format(new Date(p.dueDate), 'dd/MM/yyyy'), Number(p.amount), p.status]);
+          rows.push([p.studentName, safeFormat(p.dueDate, 'dd/MM/yyyy'), Number(p.amount), p.status]);
         });
       } else if (activeTab === 'instrumentos') {
         columns = ["Instrumento", "Categoria", "Alunos Ativos"];
@@ -890,7 +891,7 @@ const Relatorios: React.FC = () => {
                         </div>
                       </td>
                       <td className="py-5 px-4 text-muted-foreground text-xs font-semibold">
-                        {format(new Date(pay.dueDate), 'dd/MM/yyyy')}
+                        {safeFormat(pay.dueDate, 'dd/MM/yyyy')}
                       </td>
                       <td className="py-5 px-4 font-black text-foreground text-sm font-outfit">
                         {formatBRL(Number(pay.amount))}

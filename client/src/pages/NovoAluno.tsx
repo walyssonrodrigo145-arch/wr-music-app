@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { generateOccurrences, RECURRENCE_INTERVALS, RECURRENCE_DURATIONS, MAX_OCCURRENCES, type RecurrenceInterval } from "@shared/recurrence";
+import { buildSchedulePreview } from "@shared/schedulePreview";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { validateCPF } from "@/lib/cpf";
@@ -30,7 +31,9 @@ import {
   Clock,
   Timer,
   CheckCircle2,
-  AlertTriangle
+  AlertTriangle,
+  Trash2,
+  CalendarCheck
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -51,6 +54,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Switch } from "@/components/ui/switch";
 import { CreateContractModal } from "@/components/modals/StudentContractsSection";
 import { PortalAccessCard } from "@/components/alunos/PortalAccessCard";
+import AgendarModal from "@/components/modals/AgendarModal";
 
 const nameRegex = /^[a-zA-ZáàâãéêíóôõúüçÁÀÂÃÉÊÍÓÔÕÚÜÇ\s]+$/;
 
@@ -154,16 +158,25 @@ export default function NovoAluno() {
   // Indica se o usuário interagiu com o formulário de agendamento, para que o
   // botão "Salvar Aluno" também agende as aulas quando a seção estiver preenchida.
   const [scheduleTouched, setScheduleTouched] = useState(false);
+  const [scheduleResult, setScheduleResult] = useState<{
+    items: Array<{ scheduledAt: string; duration: number }>;
+    createdCount: number;
+  } | null>(null);
+  const [createdStudentId, setCreatedStudentId] = useState<number | null>(null);
+  const [editingLesson, setEditingLesson] = useState<any>(null);
+  const scheduleTouchedRef = useRef(false);
   const updateSchedule = (updater: (p: typeof scheduleForm) => typeof scheduleForm) => {
     setScheduleForm(updater);
     setScheduleTouched(true);
+    scheduleTouchedRef.current = true;
   };
 
   const scheduleRecurrenceDuration = scheduleForm.interval === "semanal" ? scheduleForm.weeksCount : scheduleForm.recurrenceCount;
-  const isScheduleBatch = scheduleRecurrenceDuration > 1;
+  const scheduleMultiSlot = scheduleForm.lessonsPerWeek > 1 && scheduleForm.interval !== "mensal_fixo";
+  const isScheduleBatch = scheduleRecurrenceDuration > 1 || (scheduleMultiSlot && scheduleForm.weeklySlots.length > 0);
   const scheduleOccurrences = useMemo(() => {
-    if (!isScheduleBatch) return [];
     const [y, M, d] = scheduleForm.date.split("-").map(Number);
+    if (!Number.isFinite(y) || !Number.isFinite(M) || !Number.isFinite(d)) return [];
     const base = new Date(y, M - 1, d);
     const slots = (scheduleForm.interval !== "mensal_fixo" && scheduleForm.lessonsPerWeek > 1 && scheduleForm.weeklySlots.length > 0)
       ? scheduleForm.weeklySlots.map((s) => ({ dayOfWeek: s.dayOfWeek, time: s.time }))
@@ -171,7 +184,7 @@ export default function NovoAluno() {
     return generateOccurrences(scheduleForm.interval, scheduleRecurrenceDuration, base, slots, scheduleForm.time);
   }, [isScheduleBatch, scheduleForm.interval, scheduleRecurrenceDuration, scheduleForm.date, scheduleForm.lessonsPerWeek, scheduleForm.weeklySlots, scheduleForm.time]);
   const scheduleExceedsLimit = scheduleOccurrences.length > MAX_OCCURRENCES;
-  const scheduleMultiSlot = scheduleForm.lessonsPerWeek > 1 && scheduleForm.interval !== "mensal_fixo";
+  const schedulePreview = useMemo(() => buildSchedulePreview(scheduleOccurrences), [scheduleOccurrences]);
 
   const [isSaving, setIsSaving] = useState(false);
   const [form, setForm] = useState({
@@ -355,7 +368,8 @@ export default function NovoAluno() {
           } : {}),
         });
       }
-      setLocation("/alunos");
+      setCreatedStudentId(data.studentId ?? null);
+      if (!scheduleTouchedRef.current) setLocation("/alunos");
     },
     onError: (e) => {
       let msg = e.message;
@@ -414,15 +428,20 @@ export default function NovoAluno() {
   // ─── Agendamento de aulas ─────────────────────────────────────────────────────
 
   // BUG #4 FIX: query filtrada por studentId para não retornar todas as aulas da organização
-  const { data: studentLessons = [], refetch: refetchStudentLessons } = trpc.lessons.list.useQuery(
-    { studentId: studentId! },
-    { enabled: isEditMode && !!studentId, staleTime: 0 }
+  // PRD_AGENDAMENTO_VISIVEL: habilita também no fluxo de matrícula (aluno recém-criado) para
+  // exibir o painel "Aulas agendadas" e a confirmação do que foi criado.
+  const panelStudentId = isEditMode ? studentId : createdStudentId;
+  const { data: studentLessons = [], refetch: refetchStudentLessons, isLoading: isLoadingStudentLessons } = trpc.lessons.list.useQuery(
+    { studentId: panelStudentId! },
+    { enabled: !!panelStudentId, staleTime: 0 }
   );
-  const studentUpcomingLessons = isEditMode
-    ? studentLessons.filter((l: any) => l.status === "agendada" && new Date(l.scheduledAt).getTime() >= Date.now())
-        .sort((a: any, b: any) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime())
-        .slice(0, 5)
-    : [];
+  const studentUpcomingLessons = useMemo(() => {
+    if (!panelStudentId) return [];
+    return studentLessons
+      .filter((l: any) => l.status === "agendada" && new Date(l.scheduledAt).getTime() >= Date.now())
+      .sort((a: any, b: any) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime());
+  }, [studentLessons, panelStudentId]);
+  const panelPreviewLessons = studentUpcomingLessons.slice(0, 5);
 
   // BUG #1/#2/#8 FIX: checkConflicts agora é useMutation para poder receber slots dinâmicos
   // Antes: useQuery com IIFE estático enviava campo "scheduledAt" inexistente no schema,
@@ -432,19 +451,31 @@ export default function NovoAluno() {
 
   // Mutation: agendar 1 aula avulsa
   const createLessonMutation = trpc.lessons.create.useMutation({
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       toast.success("✅ Aula agendada com sucesso!");
       utils.lessons.list.invalidate();
       utils.lessons.listRange?.invalidate();
       utils.dashboard.stats?.invalidate();
-      setScheduleForm(prev => ({
-        ...prev,
-        title: "",
-        notes: "",
-        weeksCount: 1,
-        interval: "semanal",
-        recurrenceCount: 4,
-      }));
+      setScheduleResult({
+        items: [{ scheduledAt: variables.scheduledAt, duration: variables.duration ?? scheduleForm.duration }],
+        createdCount: 1,
+      });
+      setScheduleForm(prev => {
+        const [y, M, d] = prev.date.split("-").map(Number);
+        const dayOfWeek = Number.isFinite(y) && Number.isFinite(M) && Number.isFinite(d)
+          ? new Date(y, M - 1, d).getDay()
+          : 1;
+        return {
+          ...prev,
+          title: "",
+          notes: "",
+          weeksCount: 1,
+          interval: "semanal",
+          recurrenceCount: 4,
+          lessonsPerWeek: 1,
+          weeklySlots: [{ dayOfWeek, time: prev.time, studioRoomId: "" }],
+        };
+      });
       setScheduleStep("form");
       setBatchItems([]);
       refetchStudentLessons();
@@ -454,24 +485,49 @@ export default function NovoAluno() {
 
   // Mutation: agendar N aulas recorrentes (batch)
   const createBatchLessonMutation = trpc.lessons.createBatch.useMutation({
-    onSuccess: (data) => {
+    onSuccess: (data, variables) => {
       toast.success(`✅ ${data.count} aula(s) agendada(s) com sucesso!`);
       utils.lessons.list.invalidate();
       utils.lessons.listRange?.invalidate();
       utils.dashboard.stats?.invalidate();
-      setScheduleForm(prev => ({
-        ...prev,
-        title: "",
-        notes: "",
-        weeksCount: 1,
-        interval: "semanal",
-        recurrenceCount: 4,
-      }));
+      setScheduleResult({
+        items: variables.items.map((item: { scheduledAt: string }) => ({
+          scheduledAt: item.scheduledAt,
+          duration: variables.duration ?? scheduleForm.duration,
+        })),
+        createdCount: data.count,
+      });
+      setScheduleForm(prev => {
+        const [y, M, d] = prev.date.split("-").map(Number);
+        const dayOfWeek = Number.isFinite(y) && Number.isFinite(M) && Number.isFinite(d)
+          ? new Date(y, M - 1, d).getDay()
+          : 1;
+        return {
+          ...prev,
+          title: "",
+          notes: "",
+          weeksCount: 1,
+          interval: "semanal",
+          recurrenceCount: 4,
+          lessonsPerWeek: 1,
+          weeklySlots: [{ dayOfWeek, time: prev.time, studioRoomId: "" }],
+        };
+      });
       setScheduleStep("form");
       setBatchItems([]);
       refetchStudentLessons();
     },
     onError: (e) => toast.error("Erro ao agendar aulas: " + e.message),
+  });
+
+  const deleteLessonMutation = trpc.lessons.delete.useMutation({
+    onSuccess: () => {
+      toast.success("Aula excluída.");
+      utils.lessons.list.invalidate();
+      utils.dashboard.invalidate();
+      refetchStudentLessons();
+    },
+    onError: (e) => toast.error("Erro ao excluir aula: " + e.message),
   });
 
   const buildScheduledAt = () => {
@@ -481,6 +537,8 @@ export default function NovoAluno() {
   };
 
   const handleScheduleSubmit = async (preCreatedStudentId?: number) => {
+    scheduleTouchedRef.current = true;
+    setScheduleResult(null);
     // Se for novo aluno, precisa ter o nome preenchido
     if (!isEditMode && !preCreatedStudentId && !form.name.trim()) {
       setActiveTab("dados");
@@ -618,6 +676,7 @@ export default function NovoAluno() {
             studentId: targetStudentId,
             title: submissionTitle,
             duration: scheduleForm.duration,
+            recurrence: scheduleForm.interval,
             instrumentId: scheduleForm.instrumentId ? Number(scheduleForm.instrumentId) : null,
             // BUG #7 FIX: studioRoomId no batch sem conflitos
             studioRoomId: scheduleForm.studioRoomId ? Number(scheduleForm.studioRoomId) : null,
@@ -646,6 +705,7 @@ export default function NovoAluno() {
       studentId: targetStudentId,
       title: submissionTitle,
       duration: scheduleForm.duration,
+      recurrence: scheduleForm.interval,
       instrumentId: scheduleForm.instrumentId ? Number(scheduleForm.instrumentId) : null,
       // BUG #7 FIX: studioRoomId passado também ao confirmar lote de aulas recorrentes
       studioRoomId: scheduleForm.studioRoomId ? Number(scheduleForm.studioRoomId) : null,
@@ -1137,7 +1197,20 @@ export default function NovoAluno() {
                       <Input
                         type="date"
                         value={scheduleForm.date}
-                        onChange={e => updateSchedule(p => ({ ...p, date: e.target.value }))}
+                        onChange={e => {
+                          const value = e.target.value;
+                          const [yy, mm, dd] = value.split("-").map(Number);
+                          const dayOfWeek = Number.isFinite(yy) && Number.isFinite(mm) && Number.isFinite(dd)
+                            ? new Date(yy, mm - 1, dd).getDay()
+                            : null;
+                          updateSchedule(p => ({
+                            ...p,
+                            date: value,
+                            weeklySlots: dayOfWeek === null
+                              ? p.weeklySlots
+                              : p.weeklySlots.map((slot, index) => (index === 0 ? { ...slot, dayOfWeek } : slot)),
+                          }));
+                        }}
                         className={cn("h-12 rounded-xl pl-10 text-sm font-semibold border-border bg-muted/30", scheduleErrors.date && "border-red-500")}
                       />
                       <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
@@ -1163,7 +1236,16 @@ export default function NovoAluno() {
                           <Input
                             type="time"
                             value={scheduleForm.time}
-                            onChange={e => updateSchedule(p => ({ ...p, time: e.target.value }))}
+                            onChange={e => {
+                              const value = e.target.value;
+                              updateSchedule(p => ({
+                                ...p,
+                                time: value,
+                                weeklySlots: p.weeklySlots.map((slot, index) =>
+                                  index === 0 ? { ...slot, time: value } : slot
+                                ),
+                              }));
+                            }}
                             className={cn("h-12 rounded-xl pl-10 text-sm font-semibold border-border bg-muted/30", scheduleErrors.time && "border-red-500")}
                           />
                           <Clock className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
@@ -1400,6 +1482,45 @@ export default function NovoAluno() {
                   />
                 </div>
 
+                {/* PRD_AGENDAMENTO_VISIVEL: prévia detalhada do que será agendado */}
+                {scheduleOccurrences.length > 0 && (
+                  <div className={cn(
+                    "rounded-2xl border p-4 space-y-3",
+                    scheduleExceedsLimit ? "border-rose-500/30 bg-rose-500/5" : "border-violet-500/25 bg-violet-500/5"
+                  )}>
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className={cn("text-xs font-black uppercase tracking-widest flex items-center gap-2", scheduleExceedsLimit ? "text-rose-600" : "text-violet-700 dark:text-violet-400")}>
+                        <CalendarRange size={14} /> Prévia do agendamento
+                      </p>
+                      <span className={cn("text-[11px] font-bold", scheduleExceedsLimit ? "text-rose-600" : "text-violet-700 dark:text-violet-400")}>
+                        {scheduleExceedsLimit
+                          ? `Limite de ${MAX_OCCURRENCES} aulas excedido (${scheduleOccurrences.length})`
+                          : schedulePreview.summary}
+                      </span>
+                    </div>
+                    {!scheduleExceedsLimit && (
+                      <ul className="space-y-1.5 max-h-44 overflow-y-auto pr-1">
+                        {schedulePreview.groups.map((group) => (
+                          <li key={group.dayOfWeek} className="flex flex-wrap items-center gap-2 rounded-xl border border-border/40 bg-background/70 px-3 py-2 text-xs">
+                            <span className="font-black text-foreground min-w-[34px]">{group.label}</span>
+                            <span className="text-muted-foreground font-semibold">
+                              {group.dates.map((d) => format(d, "dd/MM")).join(", ")}
+                            </span>
+                            <span className="ml-auto font-black text-violet-700 dark:text-violet-300">
+                              {group.times.join(" · ")}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    {scheduleExceedsLimit && (
+                      <p className="text-xs text-rose-600 font-semibold">
+                        Reduza a duração ou os dias por semana para continuar.
+                      </p>
+                    )}
+                  </div>
+                )}
+
                 {/* Botão Ação de Agendamento Inline */}
                 {/* BUG #6 FIX: checkConflicts.isFetching substituído por checkConflictsMutation.isPending */}
                 <Button
@@ -1416,8 +1537,122 @@ export default function NovoAluno() {
                     <><CalendarDays size={18} /> Agendar Aula</>                       
                   )}
                 </Button>
+
+                {/* PRD_AGENDAMENTO_VISIVEL: confirmação com o que foi criado */}
+                {scheduleResult && (
+                  <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-4 space-y-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-sm font-black text-emerald-700 dark:text-emerald-400 flex items-center gap-2">
+                        <CheckCircle2 size={17} />
+                        {scheduleResult.createdCount} {scheduleResult.createdCount === 1 ? "aula agendada" : "aulas agendadas"}
+                      </p>
+                      {scheduleResult.createdCount < scheduleResult.items.length && (
+                        <span className="text-[11px] font-bold text-amber-600 dark:text-amber-400">
+                          {scheduleResult.items.length - scheduleResult.createdCount} não criada(s) por conflito
+                        </span>
+                      )}
+                    </div>
+                    <ul className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                      {scheduleResult.items.slice(0, 12).map((item, index) => {
+                        const createdLesson = studentLessons.find(
+                          (l: any) => new Date(l.scheduledAt).getTime() === new Date(item.scheduledAt).getTime()
+                        );
+                        return (
+                          <li key={index} className="flex items-center justify-between gap-2 rounded-xl border border-border/40 bg-background/70 px-3 py-2 text-xs">
+                            <span className="font-bold text-foreground">
+                              {format(new Date(item.scheduledAt), "dd/MM/yyyy")} · {format(new Date(item.scheduledAt), "HH:mm")} · {item.duration}min
+                            </span>
+                            {createdLesson ? (
+                              <button
+                                type="button"
+                                onClick={() => setEditingLesson(createdLesson)}
+                                className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-primary transition-colors"
+                                aria-label="Editar esta aula"
+                              >
+                                <Pencil size={13} />
+                              </button>
+                            ) : null}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                    {scheduleResult.items.length > 12 && (
+                      <p className="text-[11px] text-muted-foreground">+ {scheduleResult.items.length - 12} aula(s) — veja todas no painel abaixo.</p>
+                    )}
+                    <div className="flex flex-wrap gap-2">
+                      <Button type="button" variant="outline" size="sm" className="rounded-xl font-bold text-xs" onClick={() => setLocation("/aulas")}>
+                        Ver na agenda
+                      </Button>
+                      <Button type="button" variant="outline" size="sm" className="rounded-xl font-bold text-xs" onClick={() => setScheduleResult(null)}>
+                        Agendar outra
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
             </motion.div>
+
+            {/* PRD_AGENDAMENTO_VISIVEL: painel de aulas agendadas do aluno */}
+            {panelStudentId && (
+              <motion.div variants={cardVariants} className="bg-card rounded-[2rem] p-6 sm:p-8 shadow-sm border border-border/50 space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <h3 className="text-lg font-black text-foreground tracking-tight flex items-center gap-2">
+                      <CalendarCheck size={18} className="text-emerald-600" /> Aulas agendadas
+                    </h3>
+                    <p className="text-[10px] text-muted-foreground/70 font-bold uppercase tracking-[0.2em]">Próximas aulas deste aluno</p>
+                  </div>
+                  {studentUpcomingLessons.length > 5 && (
+                    <button type="button" onClick={() => setLocation("/aulas")} className="text-xs font-bold text-primary hover:underline">
+                      Ver todas ({studentUpcomingLessons.length})
+                    </button>
+                  )}
+                </div>
+
+                {isLoadingStudentLessons ? (
+                  <p className="text-sm text-muted-foreground flex items-center gap-2">
+                    <Loader2 size={14} className="animate-spin" /> Carregando aulas...
+                  </p>
+                ) : panelPreviewLessons.length === 0 ? (
+                  <p className="text-sm text-muted-foreground rounded-xl border border-dashed border-border/60 bg-muted/20 px-4 py-3">
+                    Nenhuma aula agendada ainda — use o formulário acima para agendar.
+                  </p>
+                ) : (
+                  <ul className="space-y-2">
+                    {panelPreviewLessons.map((lesson: any) => (
+                      <li key={lesson.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/50 bg-muted/20 px-3 py-2.5">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-sm font-black text-foreground">{format(new Date(lesson.scheduledAt), "dd/MM/yyyy")}</span>
+                          <span className="text-sm font-bold text-muted-foreground">{format(new Date(lesson.scheduledAt), "HH:mm")}</span>
+                          <span className="text-[10px] font-black uppercase tracking-widest text-emerald-600 bg-emerald-500/10 px-2 py-0.5 rounded-md">Agendada</span>
+                          <span className="text-xs font-semibold text-muted-foreground">{lesson.duration ?? 60}min</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => setEditingLesson(lesson)}
+                            className="p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-primary transition-colors"
+                            aria-label={`Editar aula de ${format(new Date(lesson.scheduledAt), "dd/MM/yyyy HH:mm")}`}
+                          >
+                            <Pencil size={14} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (confirm("Excluir esta aula?")) deleteLessonMutation.mutate({ id: lesson.id });
+                            }}
+                            className="p-2 rounded-lg hover:bg-rose-500/10 text-muted-foreground hover:text-rose-600 transition-colors"
+                            aria-label={`Excluir aula de ${format(new Date(lesson.scheduledAt), "dd/MM/yyyy HH:mm")}`}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </motion.div>
+            )}
           </div>
 
           {/* Coluna 2 */}
@@ -1988,6 +2223,15 @@ export default function NovoAluno() {
           }}
         />
       )}
+
+      {/* PRD_AGENDAMENTO_VISIVEL: edição de aula do painel de aulas agendadas */}
+      <AgendarModal
+        open={!!editingLesson}
+        onOpenChange={(open) => {
+          if (!open) setEditingLesson(null);
+        }}
+        editingLesson={editingLesson}
+      />
         </>
       )}
     </div>

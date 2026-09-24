@@ -147,6 +147,20 @@ const filesToUpload = [
   // ── Capa da Página inicial editável no Super Admin ──
   'client/src/components/superadmin/SeoMediaManager.tsx',
   'client/src/pages/LandingPage.tsx',
+  // ── Correções (baixa/datas) + Agendamento visível (PRD_AGENDAMENTO_VISIVEL) ──
+  'shared/schedulePreview.ts',
+  'shared/releases.ts',
+  'client/src/lib/dates.ts',
+  'client/src/pages/NovoAluno.tsx',
+  'client/src/pages/Relatorios.tsx',
+  'client/src/pages/Dashboard.tsx',
+  'client/src/pages/financeiro/MensalidadesTab.tsx',
+  'client/src/components/modals/StudentDetailsModal.tsx',
+  'client/src/pages/student/Pagamentos.tsx',
+  'server/_core/index.ts',
+  'server/dates.test.ts',
+  'server/schedulePreview.test.ts',
+  'PRD_AGENDAMENTO_VISIVEL.md',
 ];
 
 console.log('🚀 Iniciando deploy no Ambiente de Testes (STAGING)...');

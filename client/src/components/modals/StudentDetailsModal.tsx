@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { safeFormat } from "@/lib/dates";
 import { cn } from "@/lib/utils";
 import { StudentContractsSection } from "./StudentContractsSection";
 
@@ -229,7 +230,7 @@ export function StudentDetailsModal({ open, onOpenChange, studentId, onEdit, onD
                   icon={Clock}
                   label="Próx. vencimento"
                   accent="text-amber-500/70"
-                  value={student.nextDueDate ? format(new Date(student.nextDueDate), "dd MMM yyyy", { locale: ptBR }) : "Em dia"}
+                  value={student.nextDueDate ? safeFormat(student.nextDueDate, "dd MMM yyyy", { locale: ptBR }) : "Em dia"}
                 />
                 <MetricCard
                   icon={CheckCircle2}

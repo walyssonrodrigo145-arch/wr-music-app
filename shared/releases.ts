@@ -26,6 +26,29 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: "2026.09.24.4",
+    date: "2026-09-24",
+    title: "Agendamento visível: veja exatamente quais aulas foram marcadas",
+    summary: "Ao agendar pelo cadastro do aluno, agora aparece a prévia com dia e hora de cada aula, a confirmação do que foi criado e um painel \"Aulas agendadas\" com editar/excluir — sem mais dúvida se a aula foi agendada.",
+    items: [
+      { type: "novo", title: "Prévia com dia e hora", description: "Antes de confirmar, o formulário mostra exatamente as datas e horários que serão criados (inclusive 2x/3x por semana), agrupados por dia da semana." },
+      { type: "novo", title: "Confirmação do que foi agendado", description: "Depois de agendar, aparece a lista das aulas criadas com data, hora e duração — e ações para editar, ver na agenda ou agendar outra." },
+      { type: "novo", title: "Painel “Aulas agendadas” no cadastro", description: "O cadastro do aluno passa a listar as próximas aulas (inclusive logo após a matrícula), com editar e excluir." },
+      { type: "correcao", title: "A tela não sai mais antes de agendar", description: "No fluxo “Cadastrar Aluno e Agendar Aula”, a página redirecionava antes de concluir o agendamento; agora o resultado é exibido na tela." },
+    ],
+  },
+  {
+    version: "2026.09.24.3",
+    date: "2026-09-24",
+    title: "Correções: agendamento no cadastro do aluno, baixa de mensalidade e datas de vencimento",
+    summary: "O agendamento pelo cadastro do aluno agora grava a data/hora certa de cada aula (inclusive aulas 2x/3x por semana), a baixa de mensalidade cancela a cobrança aberta e não volta mais como inadimplente, e os vencimentos não aparecem mais um dia antes.",
+    items: [
+      { type: "correcao", title: "Data e hora corretas ao agendar pelo cadastro do aluno", description: "Alterar Data Inicial/Horário agora atualiza os horários semanais, aulas 2x/3x por semana geram todas as aulas (antes gravava só 1 com hora antiga) e a recorrência (semanal/quinzenal/mensal) é gravada junto." },
+      { type: "correcao", title: "Baixa de mensalidade cancela a cobrança e encerra lembretes", description: "Dar baixa agora usa o fluxo completo: cancela a cobrança aberta no gateway, encerra lembretes pendentes e o webhook nunca rebaixa uma mensalidade já paga (o aluno não volta para inadimplentes)." },
+      { type: "correcao", title: "Vencimento não aparece mais um dia antes", description: "Datas de vencimento (coluna data do banco) passam a ser lidas como data local, corrigindo o dia anterior em detalhes do aluno, relatórios, exportações e nomes de comprovantes." },
+    ],
+  },
+  {
     version: "2026.09.24.2",
     date: "2026-09-24",
     title: "Imagem principal da página inicial editável no Super Admin",

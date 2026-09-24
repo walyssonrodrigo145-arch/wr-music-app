@@ -669,8 +669,8 @@ async function startServer() {
           .where(eq(paymentDues.asaasId, payment.id))
           .limit(1);
         if (due) {
-          if (due.status === "atrasado") {
-            debugLog(`[Asaas Webhook] Evento duplicado ignorado (já atrasado): ${event} ${payment.id}`);
+          if (due.status === "atrasado" || due.status === "pago") {
+            debugLog(`[Asaas Webhook] Evento duplicado ignorado (status atual: ${due.status}): ${event} ${payment.id}`);
           } else {
             await db
               .update(paymentDues)
@@ -687,12 +687,14 @@ async function startServer() {
         // CRÍTICO-08 FIX: Idempotência para PAYMENT_DELETED/REFUNDED.
         // Só limpa o asaasId se ele ainda estiver preenchido no registro (evita reprocessamento).
         const [due] = await db
-          .select({ id: paymentDues.id, organizationId: paymentDues.organizationId, asaasId: paymentDues.asaasId })
+          .select({ id: paymentDues.id, organizationId: paymentDues.organizationId, asaasId: paymentDues.asaasId, status: paymentDues.status })
           .from(paymentDues)
           .where(eq(paymentDues.asaasId, payment.id))
           .limit(1);
         if (due) {
-          if (!due.asaasId) {
+          if (due.status === "pago") {
+            debugLog(`[Asaas Webhook] Ignorado (mensalidade já paga): ${event} ${payment.id}`);
+          } else if (!due.asaasId) {
             debugLog(`[Asaas Webhook] Evento duplicado ignorado (asaasId já nulo): ${event} ${payment.id}`);
           } else {
             await db
@@ -710,16 +712,20 @@ async function startServer() {
         // CRÍTICO-08 FIX: Idempotência para PAYMENT_CREATED.
         // Só atualiza se o registro existir E ainda não tiver asaasId preenchido de outra forma.
         const [due] = await db
-          .select({ id: paymentDues.id, organizationId: paymentDues.organizationId })
+          .select({ id: paymentDues.id, organizationId: paymentDues.organizationId, status: paymentDues.status })
           .from(paymentDues)
           .where(eq(paymentDues.asaasId, payment.id))
           .limit(1);
         if (due) {
-          await db
-            .update(paymentDues)
-            .set({ status: "pendente", updatedAt: new Date() })
-            .where(and(eq(paymentDues.id, due.id), eq(paymentDues.organizationId, due.organizationId!)));
-          debugLog(`[Asaas Webhook] Nova cobrança criada/registrada (${payment.id}) — org ${due.organizationId}`);
+          if (due.status === "pago") {
+            debugLog(`[Asaas Webhook] Ignorado (mensalidade já paga): ${event} ${payment.id}`);
+          } else {
+            await db
+              .update(paymentDues)
+              .set({ status: "pendente", updatedAt: new Date() })
+              .where(and(eq(paymentDues.id, due.id), eq(paymentDues.organizationId, due.organizationId!)));
+            debugLog(`[Asaas Webhook] Nova cobrança criada/registrada (${payment.id}) — org ${due.organizationId}`);
+          }
         }
       }
 

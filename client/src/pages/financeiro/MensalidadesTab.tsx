@@ -15,6 +15,7 @@ import { useDashboardPrefs } from "@/hooks/useDashboardPrefs";
 import { motion, AnimatePresence } from "framer-motion";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { safeFormat } from "@/lib/dates";
 import { EditMensalidadeModal } from "@/components/modals/EditMensalidadeModal";
 import PaymentDueDetailPanel from "@/components/modals/PaymentDueDetailPanel";
 import { useAuth } from "@/hooks/useAuth";
@@ -671,7 +672,7 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
       p.studentPhone || "",
       p.email || "",
       p.amount,
-      p.dueDate ? format(new Date(p.dueDate), "dd/MM/yyyy") : "",
+      p.dueDate ? safeFormat(p.dueDate, "dd/MM/yyyy") : "",
       p.paidAt ? format(new Date(p.paidAt), "dd/MM/yyyy") : "",
       p.status,
       p.notes || ""
@@ -700,9 +701,22 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
     onSuccess: () => { 
       toast.success("Status atualizado!"); 
       utils.paymentDues.invalidate();
-      utils.dashboard.stats.invalidate();
+      utils.dashboard.invalidate();
+      utils.reports.getFinanceiroDetails.invalidate();
     },
     onError: (e: any) => toast.error("Erro: " + e.message),
+  });
+
+  const markPaidMutation = trpc.paymentDues.markPaid.useMutation({
+    onSuccess: () => {
+      toast.success("Baixa registrada! Cobrança aberta cancelada e lembretes encerrados.");
+      utils.paymentDues.invalidate();
+      utils.dashboard.invalidate();
+      utils.reports.getFinanceiroDetails.invalidate();
+      utils.students.list.invalidate();
+      utils.reminders.invalidate();
+    },
+    onError: (e: any) => toast.error("Erro ao dar baixa: " + e.message),
   });
 
   const deleteMutation = trpc.paymentDues.delete.useMutation({
@@ -1154,8 +1168,8 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
                                   {payment.status !== "pago" && (
                                     <DropdownMenuItem
                                       className="gap-2 rounded-lg"
-                                      disabled={updateMutation.isPending || updateMutation.variables?.id === payment.id}
-                                      onClick={() => updateMutation.mutate({ id: payment.id, status: "pago" })}
+                                      disabled={markPaidMutation.isPending || markPaidMutation.variables?.id === payment.id}
+                                      onClick={() => markPaidMutation.mutate({ id: payment.id })}
                                     >
                                        <CheckCircle2 className="w-4 h-4 text-emerald-500" />
                                        <span className="text-xs font-bold text-muted-foreground">Marcar como Pago</span>
@@ -1392,8 +1406,8 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
                           <Button
                             variant="ghost" size="sm"
                             className="h-9 px-3 rounded-lg text-[10px] font-bold text-emerald-600 hover:bg-emerald-500/10 shrink-0"
-                            disabled={updateMutation.isPending || updateMutation.variables?.id === payment.id}
-                            onClick={() => updateMutation.mutate({ id: payment.id, status: "pago" })}
+                            disabled={markPaidMutation.isPending || markPaidMutation.variables?.id === payment.id}
+                            onClick={() => markPaidMutation.mutate({ id: payment.id })}
                           >
                             <CheckCircle2 size={12} className="mr-1" /> Pago
                           </Button>
@@ -1459,7 +1473,7 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
             <Button 
               size="sm" 
               onClick={() => {
-                selectedPaymentIds.forEach(id => updateMutation.mutate({ id, status: "pago" }));
+                selectedPaymentIds.forEach(id => markPaidMutation.mutate({ id }));
                 toast.success(`${selectedPaymentIds.length} mensalidades marcadas como pagas!`);
                 setSelectedPaymentIds([]);
               }}

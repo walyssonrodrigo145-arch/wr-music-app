@@ -160,7 +160,7 @@ export default function StudentPayments() {
                 for (const payment of withReceipt) {
                   await downloadUrl(
                     payment.receiptUrl as string,
-                    `comprovante-${format(new Date(payment.dueDate), "MM-yyyy")}.pdf`
+                                `comprovante-${format(parseISO(payment.dueDate as string), "MM-yyyy")}.pdf`
                   );
                 }
               }}
@@ -210,7 +210,7 @@ export default function StudentPayments() {
                               if (!payment.receiptUrl) return;
                               await downloadUrl(
                                 payment.receiptUrl,
-                                `comprovante-${format(new Date(payment.dueDate), "MM-yyyy")}.pdf`
+                    `comprovante-${format(parseISO(payment.dueDate as string), "MM-yyyy")}.pdf`
                               );
                             }}
                             className={cn(

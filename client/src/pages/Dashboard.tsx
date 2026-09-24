@@ -20,7 +20,7 @@ import { LiveRoomsCard } from "@/components/dashboard/LiveRoomsCard";
 import { PlanSelectionModal } from "@/components/PlanSelectionModal";
 import { UnreadNoticeBanner } from "@/components/dashboard/UnreadNoticeBanner";
 import { SubscriptionOverdueBanner } from "@/components/dashboard/SubscriptionAlerts";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 // ─── Color map — usa variáveis CSS Tailwind para consistência entre temas ─────
@@ -488,7 +488,7 @@ export default function Dashboard() {
                       <div>
                          <p className="text-xs font-black text-foreground">{payment.studentName}</p>
                          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-1">
-                           {Math.floor((new Date().getTime() - new Date(payment.dueDate).getTime()) / (1000 * 60 * 60 * 24))} dias em atraso
+                           {Math.floor((new Date().getTime() - parseISO(String(payment.dueDate)).getTime()) / (1000 * 60 * 60 * 24))} dias em atraso
                          </p>
                       </div>
                    </div>
