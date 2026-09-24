@@ -4,7 +4,8 @@ import { AppHeader } from "./AppHeader";
 import { MobileTabBar } from "./MobileTabBar";
 import { useAuth } from "@/hooks/useAuth";
 import { getLoginUrl } from "@/const";
-import { Loader2, Music, ShieldAlert } from "lucide-react";
+import { Music, ShieldAlert } from "lucide-react";
+import LoadingScreen from "./LoadingScreen";
 import { Button } from "@/components/ui/button";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
 import { useLocation } from "wouter";
@@ -68,22 +69,7 @@ export function MusicLayout({ children }: MusicLayoutProps) {
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <div className="relative w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 p-[2px] shadow-xl animate-pulse overflow-hidden">
-            <div className="w-full h-full bg-gradient-to-b from-blue-500 to-indigo-700 rounded-2xl flex items-center justify-center relative z-10">
-              <div className="flex items-center gap-[4px] h-6">
-                <div className="w-1.5 bg-white/90 rounded-full h-3" />
-                <div className="w-1.5 bg-white/90 rounded-full h-6" />
-                <div className="w-1.5 bg-white rounded-full h-full shadow-[0_0_10px_rgba(255,255,255,0.8)]" />
-                <div className="w-1.5 bg-white/90 rounded-full h-4.5" />
-              </div>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <Loader2 size={16} className="animate-spin" />
-            <span className="text-sm font-medium">Carregando...</span>
-          </div>
-        </div>
+        <LoadingScreen />
       </div>
     );
   }

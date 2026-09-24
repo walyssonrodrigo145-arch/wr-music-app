@@ -1,9 +1,9 @@
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { lazy, Suspense } from "react";
-import { Loader2 } from "lucide-react";
 import { Route, Switch, Redirect, useLocation } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
+import LoadingScreen from "./components/LoadingScreen";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { MusicLayout } from "./components/MusicLayout";
 import { StudentPortalLayout } from "./components/StudentPortalLayout";
@@ -74,12 +74,7 @@ const StudentAnnouncements = lazy(() => import("./pages/student/Avisos"));
 const StudentContracts = lazy(() => import("./pages/student/Contratos"));
 const StudentResults = lazy(() => import("./pages/student/Resultados"));
 
-const PageLoader = () => (
-  <div className="flex-1 h-full min-h-[50vh] flex flex-col items-center justify-center text-muted-foreground gap-4">
-    <Loader2 className="animate-spin text-primary" size={32} />
-    <span className="text-xs font-bold uppercase tracking-widest text-primary/60">Carregando MusicPro...</span>
-  </div>
-);
+const PageLoader = () => <LoadingScreen />;
 
 const PublicEnrollmentPage = lazy(() => import("./pages/PublicEnrollment"));
 
@@ -323,6 +318,26 @@ function AppTracking() {
 
 import { ImpersonationBanner } from "./components/ImpersonationBanner";
 
+function BootLoaderDismiss() {
+  const { loading } = useAuth();
+
+  useEffect(() => {
+    if (loading) return;
+    const el = document.getElementById("boot-loader");
+    if (!el) return;
+    const wait = Math.max(0, 400 - performance.now());
+    const timer = window.setTimeout(() => {
+      requestAnimationFrame(() => {
+        el.classList.add("bl-hide");
+        window.setTimeout(() => el.remove(), 450);
+      });
+    }, wait);
+    return () => window.clearTimeout(timer);
+  }, [loading]);
+
+  return null;
+}
+
 function App() {
   // Escuta eventos SSE do bot e exibe toast quando a sessão WhatsApp cair
   useBotStatusSSE();
@@ -335,6 +350,7 @@ function App() {
           <TourProvider>
             <WhatsNewProvider>
               <AppTracking />
+              <BootLoaderDismiss />
               <WelcomeModal />
               <WhatsNewModal />
               <ImpersonationBanner />

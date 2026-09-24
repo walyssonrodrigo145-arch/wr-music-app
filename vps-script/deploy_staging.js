@@ -140,6 +140,10 @@ const filesToUpload = [
   'client/index.html',
   'client/public/sw.js',
   'scripts/prerender.ts',
+  // ── Loading inicial global (boot loader) ──
+  'client/src/components/LoadingScreen.tsx',
+  'client/src/components/MusicLayout.tsx',
+  'client/src/App.tsx',
 ];
 
 console.log('🚀 Iniciando deploy no Ambiente de Testes (STAGING)...');
