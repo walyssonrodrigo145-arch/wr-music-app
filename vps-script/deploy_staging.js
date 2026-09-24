@@ -134,6 +134,12 @@ const filesToUpload = [
   'client/src/pages/Cadastro.tsx',
   'server/planPricing.test.ts',
   'PRD_SIMULADOR_PLANOS.md',
+  // ── Correções de console (CSP, unload, SW, preload) ──
+  'server/_core/index.ts',
+  'vite.config.ts',
+  'client/index.html',
+  'client/public/sw.js',
+  'scripts/prerender.ts',
 ];
 
 console.log('🚀 Iniciando deploy no Ambiente de Testes (STAGING)...');

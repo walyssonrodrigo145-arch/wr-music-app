@@ -52,7 +52,7 @@ self.addEventListener('sync', (event) => {
 });
 
 // ─── PWA Cache ───────────────────────────────────────────────────────────────
-const CACHE_NAME = 'wr-music-cache-v9';
+const CACHE_NAME = 'wr-music-cache-v10';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
@@ -63,6 +63,17 @@ const ASSETS_TO_CACHE = [
 
 self.addEventListener('fetch', (event) => {
   const url = event.request.url;
+
+  let sameOrigin = true;
+  try {
+    sameOrigin = new URL(url).origin === self.location.origin;
+  } catch {
+    sameOrigin = true;
+  }
+  if (!sameOrigin) {
+    logSWEvent('fetch_bypassed_cross_origin', { url, method: event.request.method });
+    return;
+  }
 
   if (
     url.includes('/api/') ||

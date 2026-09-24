@@ -150,8 +150,14 @@ function vitePluginManusDebugCollector(): Plugin {
   };
 }
 
-export default defineConfig({
-  plugins: [react(), tailwindcss(), jsxLocPlugin(), vitePluginManusRuntime(), vitePluginManusDebugCollector()],
+export default defineConfig(({ command }) => ({
+  plugins: [
+    react(),
+    tailwindcss(),
+    jsxLocPlugin(),
+    ...(command === "build" ? [] : [vitePluginManusRuntime()]),
+    vitePluginManusDebugCollector(),
+  ],
   resolve: {
     alias: {
       "@": path.resolve(import.meta.dirname, "client", "src"),
@@ -189,6 +195,6 @@ export default defineConfig({
       deny: ["**/.*"],
     },
   },
-});
+}));
 //
 //

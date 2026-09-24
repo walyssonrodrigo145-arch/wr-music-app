@@ -1141,6 +1141,11 @@ async function startServer() {
         imgSrc: ["'self'", "data:", "blob:", "https:"],
         connectSrc: [
           "'self'",
+          "https://analytics.wrmusicpro.com.br",
+          "https://www.googletagmanager.com",
+          "https://www.google-analytics.com",
+          "https://*.google-analytics.com",
+          "https://www.google.com",
           "https://api.asaas.com",
           "https://sandbox.asaas.com",
           "https://generativelanguage.googleapis.com",

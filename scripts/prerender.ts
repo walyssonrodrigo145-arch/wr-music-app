@@ -72,6 +72,13 @@ function renderPageHtml(page: SeoPage): string {
     .join("\n    ");
   html = html.replace("</head>", `  ${jsonLd}\n  </head>`);
 
+  if (page.path === "/") {
+    html = html.replace(
+      "</head>",
+      `  <link rel="preload" as="image" href="/images/dashboard-preview.png" fetchpriority="high" />\n  </head>`
+    );
+  }
+
   // Conteúdo semântico no #root (crawlers sem JS); o React hidrata por cima.
   if (CONTENT_KINDS.has(page.kind)) {
     const content = renderSeoContentHtml(page, SEO_PAGES);
