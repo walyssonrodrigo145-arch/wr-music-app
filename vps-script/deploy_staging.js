@@ -112,6 +112,20 @@ const filesToUpload = [
   'server/routers/repertoireRouters.ts',
   'drizzle/schema.ts',
   'server/_core/migrate.ts',
+  // ── Simulador de Planos (página /planos) + correções de navegação/botões ──
+  'shared/planPricing.ts',
+  'shared/releases.ts',
+  'client/src/App.tsx',
+  'client/src/components/planos/PlanSimulator.tsx',
+  'client/src/pages/SeoSite.tsx',
+  'client/src/pages/Cadastro.tsx',
+  'client/src/pages/Login.tsx',
+  'client/src/pages/Relatorios.tsx',
+  'client/src/pages/DashboardComercial.tsx',
+  'client/src/pages/Aulas.tsx',
+  'client/src/pages/student/Aulas.tsx',
+  'client/src/pages/student/Avisos.tsx',
+  'client/src/pages/student/Pagamentos.tsx',
 ];
 
 console.log('🚀 Iniciando deploy no Ambiente de Testes (STAGING)...');
@@ -136,7 +150,7 @@ conn.on('ready', () => {
       conn.sftp((err, sftp) => {
         if (err) throw err;
         
-        const mkdirCmd = `mkdir -p ${repoPath}/caddy ${repoPath}/client/src/pages/analytics ${repoPath}/client/src/pages/leads ${repoPath}/server/services ${repoPath}/server/services/signature ${repoPath}/client/src/lib ${repoPath}/client/src/components/integrations ${repoPath}/client/src/components/modals ${repoPath}/client/src/components/aulas ${repoPath}/client/src/components/metronome ${repoPath}/client/src/components/settings ${repoPath}/client/src/components/student ${repoPath}/shared`;
+        const mkdirCmd = `mkdir -p ${repoPath}/caddy ${repoPath}/client/src/pages/analytics ${repoPath}/client/src/pages/leads ${repoPath}/server/services ${repoPath}/server/services/signature ${repoPath}/client/src/lib ${repoPath}/client/src/components/integrations ${repoPath}/client/src/components/modals ${repoPath}/client/src/components/aulas ${repoPath}/client/src/components/metronome ${repoPath}/client/src/components/settings ${repoPath}/client/src/components/student ${repoPath}/client/src/components/planos ${repoPath}/shared`;
         conn.exec(mkdirCmd, () => {
           let uploads = 0;
           const finalize = () => {

@@ -7,7 +7,6 @@ import {
   LayoutList,
   Music,
   Users,
-  MoreVertical,
   Calendar,
   Maximize2,
   Minimize2,
@@ -1186,8 +1185,13 @@ export default function Aulas() {
                       </div>
                     </div>
                     <div className="flex items-center justify-between mt-6 pt-4 border-t border-black/5 dark:border-white/5">
-                       <button className="text-[11px] font-black text-blue-600 uppercase tracking-widest hover:underline flex items-center gap-1.5">Chamada / Detalhes <ChevronRight size={14} /></button>
-                       <button className="w-10 h-10 rounded-full hover:bg-muted flex items-center justify-center text-muted-foreground transition-colors"><MoreVertical size={20} /></button>
+                       <button
+                         type="button"
+                         onClick={(e) => { e.stopPropagation(); setDetailLessonId(lesson.id); }}
+                         className="text-[11px] font-black text-blue-600 uppercase tracking-widest hover:underline flex items-center gap-1.5"
+                       >
+                         Chamada / Detalhes <ChevronRight size={14} />
+                       </button>
                     </div>
                   </motion.div>
                 );

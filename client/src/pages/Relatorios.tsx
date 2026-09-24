@@ -154,6 +154,10 @@ const Relatorios: React.FC = () => {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [searchTerm, setSearchTerm] = useState('');
   const [includeAi, setIncludeAi] = useState(false);
+  const [chargingId, setChargingId] = useState<number | null>(null);
+  const utils = trpc.useUtils();
+  const generatePaymentReminders = trpc.reminders.generatePaymentReminders.useMutation();
+  const sendChargeReminder = trpc.reminders.sendViaBot.useMutation();
 
   // ── Previous month helpers ─────────────────────────────────────────────────
   const prevMonth = selectedMonth === 1 ? 12 : selectedMonth - 1;
@@ -806,6 +810,26 @@ const Relatorios: React.FC = () => {
     </div>
   );
 
+  const handleCharge = async (pay: { id: number; studentId: number; studentName?: string | null }) => {
+    setChargingId(pay.id);
+    try {
+      await generatePaymentReminders.mutateAsync();
+      const pending = await utils.reminders.list.fetch({ studentId: pay.studentId, status: "pendente" });
+      const match = pending.find((reminder) => reminder.paymentDueId === pay.id);
+      if (!match) {
+        toast.info("Nenhum lembrete pendente para esta cobrança. Veja em Lembretes se ela já foi enviada ou cancelada.");
+        return;
+      }
+      await sendChargeReminder.mutateAsync({ id: match.id });
+      toast.success(`Cobrança enviada no WhatsApp para ${pay.studentName || "o aluno"}.`);
+      utils.reminders.pendingCount.invalidate();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Não foi possível enviar a cobrança agora.");
+    } finally {
+      setChargingId(null);
+    }
+  };
+
   // ══════════════════════════════════════════════════════════════════════════
   //  RENDER: MENSALIDADES
   // ══════════════════════════════════════════════════════════════════════════
@@ -881,8 +905,19 @@ const Relatorios: React.FC = () => {
                         </span>
                       </td>
                       <td className="py-5 px-4 text-right">
-                        <button className="bg-primary/10 hover:bg-primary/20 text-primary px-4 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all hover:scale-105 active:scale-95">
-                          Cobrar
+                        <button
+                          type="button"
+                          onClick={() => handleCharge(pay)}
+                          disabled={chargingId === pay.id}
+                          className="bg-primary/10 hover:bg-primary/20 text-primary px-4 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all hover:scale-105 active:scale-95 disabled:opacity-60 disabled:hover:scale-100 inline-flex items-center gap-2"
+                        >
+                          {chargingId === pay.id ? (
+                            <>
+                              <Loader2 size={12} className="animate-spin" /> Enviando
+                            </>
+                          ) : (
+                            "Cobrar"
+                          )}
                         </button>
                       </td>
                     </motion.tr>

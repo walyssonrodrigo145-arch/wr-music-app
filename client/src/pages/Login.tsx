@@ -228,7 +228,17 @@ export default function Login() {
               <div className="space-y-2">
                 <div className="flex items-center justify-between ml-1">
                   <Label className="text-white/70 font-semibold uppercase tracking-wider text-xs">Sua Senha</Label>
-                  <button type="button" className="text-xs text-primary font-bold hover:text-primary/80 transition-colors">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      window.open(
+                        "https://wa.me/5533984055949?text=" +
+                          encodeURIComponent("Olá! Esqueci minha senha de acesso ao MusicPro e preciso de ajuda para redefini-la."),
+                        "_blank"
+                      )
+                    }
+                    className="text-xs text-primary font-bold hover:text-primary/80 transition-colors"
+                  >
                     Esqueceu?
                   </button>
                 </div>
@@ -297,9 +307,7 @@ export default function Login() {
                   <button 
                     type="button" 
                     onClick={() => {
-                      if (loginType === 'professor') {
-                        window.location.href = "/cadastro";
-                      }
+                      window.location.href = "/cadastro";
                     }} 
                     className="text-primary font-bold hover:underline transition-all"
                   >

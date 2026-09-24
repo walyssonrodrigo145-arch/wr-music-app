@@ -8,18 +8,41 @@ import {
   ChevronRight,
   Info,
   AlertTriangle,
-  Megaphone
+  Megaphone,
+  CheckCircle2
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useState } from "react";
+import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 import { format } from "date-fns";
 
 export default function StudentAnnouncements() {
+  const { user } = useAuth();
   const { data: announcements = [], isLoading: isLoadingAnnouncements } = trpc.studentPortal.getAnnouncements.useQuery();
   const { data: profile } = trpc.studentPortal.getProfile.useQuery();
   const [search, setSearch] = useState("");
+  const readStorageKey = `mp_read_announcements_${user?.id ?? "anon"}`;
+  const [readIds, setReadIds] = useState<Set<number>>(() => {
+    try {
+      const raw = localStorage.getItem(readStorageKey);
+      return new Set<number>(raw ? JSON.parse(raw) : []);
+    } catch {
+      return new Set<number>();
+    }
+  });
+
+  const markAsRead = (id: number) => {
+    setReadIds((previous) => {
+      const next = new Set(previous);
+      next.add(id);
+      try {
+        localStorage.setItem(readStorageKey, JSON.stringify(Array.from(next)));
+      } catch {}
+      return next;
+    });
+  };
 
   if (isLoadingAnnouncements) return <div>Carregando avisos...</div>;
 
@@ -49,14 +72,19 @@ export default function StudentAnnouncements() {
       </div>
 
       <div className="grid grid-cols-1 gap-4">
-        {filteredAnnouncements.map((aviso: any, idx: number) => (
+        {filteredAnnouncements.map((aviso: any, idx: number) => {
+          const isRead = readIds.has(aviso.id);
+          return (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: idx * 0.1 }}
             key={aviso.id}
           >
-            <Card className="border-none shadow-lg bg-card/50 backdrop-blur-sm group hover:shadow-xl transition-all overflow-hidden border-l-4 border-l-primary">
+            <Card className={cn(
+              "border-none shadow-lg bg-card/50 backdrop-blur-sm group hover:shadow-xl transition-all overflow-hidden border-l-4 border-l-primary",
+              isRead && "opacity-70"
+            )}>
               <CardContent className="p-6">
                 <div className="flex flex-col sm:flex-row items-start gap-6">
                   <div className={cn(
@@ -97,15 +125,26 @@ export default function StudentAnnouncements() {
                   </div>
                   
                   <div className="w-full sm:w-auto flex items-center justify-end">
-                    <button className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-primary hover:opacity-80 px-4 py-2 rounded-xl border border-primary/20 bg-primary/5 transition-all">
-                      Marcar como lido
-                    </button>
+                    {isRead ? (
+                      <span className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400 px-4 py-2 rounded-xl border border-emerald-500/20 bg-emerald-500/5">
+                        <CheckCircle2 size={13} /> Lido
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => markAsRead(aviso.id)}
+                        className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-primary hover:opacity-80 px-4 py-2 rounded-xl border border-primary/20 bg-primary/5 transition-all"
+                      >
+                        Marcar como lido
+                      </button>
+                    )}
                   </div>
                 </div>
               </CardContent>
             </Card>
           </motion.div>
-        ))}
+          );
+        })}
 
         {filteredAnnouncements.length === 0 && (
           <div className="text-center py-20 bg-muted/50 rounded-3xl border-2 border-dashed border-border">

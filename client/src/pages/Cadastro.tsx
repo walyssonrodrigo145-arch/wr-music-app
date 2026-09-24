@@ -22,12 +22,20 @@ export default function Cadastro() {
   // Todos os planos ativos pagos (inclusive os que não estão na vitrine da landing)
   const { data: plans, isError: plansError } = trpc.publicData.getSignupPlans.useQuery();
   const [selectedPlanId, setSelectedPlanId] = useState<string>("");
-  useEffect(() => {
-    if (!selectedPlanId && plans && plans.length > 0) {
-      const popular = plans.find((p) => p.isPopular);
-      setSelectedPlanId((popular || plans[0]).id);
+  const search = useSearch();
+  const planFromUrl = (() => {
+    try {
+      return (new URLSearchParams(search).get("plan") || "").trim();
+    } catch {
+      return "";
     }
-  }, [plans, selectedPlanId]);
+  })();
+  useEffect(() => {
+    if (selectedPlanId || !plans || plans.length === 0) return;
+    const fromUrl = planFromUrl ? plans.find((p) => p.id === planFromUrl) : undefined;
+    const popular = plans.find((p) => p.isPopular);
+    setSelectedPlanId((fromUrl || popular || plans[0]).id);
+  }, [plans, selectedPlanId, planFromUrl]);
   const selectedPlan = plans?.find(p => p.id === selectedPlanId) || plans?.[0];
   // No ciclo anual só aparecem planos com preço anual definido
   const visiblePlans = (plans ?? []).filter((p) => planType === "MONTHLY" || Number(p.priceYearly) > 0);
@@ -42,7 +50,6 @@ export default function Cadastro() {
   }, [planType, selectedPlan, visiblePlans]);
 
   // ── Programa Indique & Ganhe: preserva o código vindo do link (?ref=) ──────
-  const search = useSearch();
   const refFromUrl = (() => {
     try {
       return (new URLSearchParams(search).get("ref") || "").trim().toUpperCase();

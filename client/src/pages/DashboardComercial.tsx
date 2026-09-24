@@ -33,6 +33,7 @@ export default function DashboardComercial() {
   const [createLeadOpen, setCreateLeadOpen] = useState(false);
   const [reportsModalOpen, setReportsModalOpen] = useState(false);
   const [goalsModalOpen, setGoalsModalOpen] = useState(false);
+  const [showAllActivities, setShowAllActivities] = useState(false);
 
   const [leadForm, setLeadForm] = useState({
     name: "",
@@ -468,7 +469,7 @@ export default function DashboardComercial() {
             </div>
 
             <div className="space-y-3">
-              {activities.map((act: any) => (
+              {(showAllActivities ? activities : activities.slice(0, 3)).map((act: any) => (
                 <div key={act.id} className="flex items-start gap-3 p-2.5 rounded-xl hover:bg-muted/30 transition-colors">
                   <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center shrink-0 mt-0.5">
                     {act.type === "whatsapp" ? <MessageSquare size={14} /> : act.type === "call" ? <Phone size={14} /> : <Video size={14} />}
@@ -485,9 +486,15 @@ export default function DashboardComercial() {
               ))}
             </div>
 
-            <button className="w-full text-center text-xs font-bold text-violet-600 hover:underline pt-2">
-              Ver todas as atividades
-            </button>
+            {activities.length > 3 && (
+              <button
+                type="button"
+                onClick={() => setShowAllActivities((value) => !value)}
+                className="w-full text-center text-xs font-bold text-violet-600 hover:underline pt-2"
+              >
+                {showAllActivities ? "Ver menos" : "Ver todas as atividades"}
+              </button>
+            )}
           </div>
 
           {/* METAS DO MÊS */}

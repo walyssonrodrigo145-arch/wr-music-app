@@ -26,6 +26,20 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: "2026.09.24",
+    date: "2026-09-24",
+    title: "Simulador de planos na página Planos e Preços",
+    summary: "A página Planos agora mostra todos os planos com preço e um simulador: informe quantos alunos ativos pagantes a escola tem e veja o valor mensal, incluindo os alunos excedentes que passam do limite.",
+    items: [
+      { type: "novo", title: "Simulador de preço por número de alunos", description: "Arraste o número de alunos ou digite a quantidade: o valor do plano e a faixa recomendada se atualizam na hora." },
+      { type: "novo", title: "Cálculo explícito dos alunos excedentes", description: "Passou do limite do plano? O simulador mostra quantos alunos excedentes e quanto cada um custa por mês, com o total final." },
+      { type: "novo", title: "Sem taxa de implantação e sem contrato", description: "Os selos deixam claro: não cobramos implantação, adesão ou setup e não existe fidelidade — cancele quando quiser." },
+      { type: "melhoria", title: "Plano já vem selecionado no cadastro", description: "O botão do simulador leva para o cadastro com o plano simulado já escolhido." },
+      { type: "correcao", title: "Botões de criar conta funcionando nas páginas públicas", description: "Os links de Criar conta, Entrar, Termos e Privacidade saíam do site de conteúdo mas a página não trocava; agora a navegação entre as páginas públicas e o restante do app funciona." },
+      { type: "correcao", title: "Botões sem ação corrigidos", description: "No Login, “Esqueceu?” agora abre o suporte no WhatsApp e “Cadastre-se grátis” funciona em qualquer acesso; no Comercial, “Ver todas as atividades” expande a lista; no portal do aluno, “Download Todos” baixa os comprovantes e “Marcar como lido” marca os avisos; em Relatórios, “Cobrar” envia a cobrança pelo WhatsApp." },
+    ],
+  },
+  {
     version: "2026.09.22.5",
     date: "2026-09-22",
     title: "Fatura da assinatura sempre visível",

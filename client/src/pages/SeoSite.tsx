@@ -12,6 +12,7 @@ import {
 } from "@shared/seo";
 import { useSeo } from "@/hooks/useSeo";
 import { Button } from "@/components/ui/button";
+import PlanSimulator from "@/components/planos/PlanSimulator";
 import { MobileShowcase, DesktopShowcase, MediaGallery } from "@/components/seo/MobileShowcase";
 import { ArrowRight, CheckCircle2, FileSignature, Menu, X } from "lucide-react";
 import { useState } from "react";
@@ -232,6 +233,9 @@ function SeoPageView({ page }: { page: SeoPage }) {
             />
           </div>
         )}
+
+        {/* Simulador de preços — exclusivo da página Planos */}
+        {page.kind === "plans" && <PlanSimulator />}
 
         {/* Filhos (hubs) — capa usa a imagem cadastrada no Super Admin quando houver */}
         {children.length > 0 && (

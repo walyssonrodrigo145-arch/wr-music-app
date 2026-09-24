@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { lazy, Suspense } from "react";
 import { Loader2 } from "lucide-react";
-import { Route, Switch, Redirect } from "wouter";
+import { Route, Switch, Redirect, useLocation } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { MusicLayout } from "./components/MusicLayout";
@@ -85,8 +85,8 @@ const PublicEnrollmentPage = lazy(() => import("./pages/PublicEnrollment"));
 
 function Router() {
   const { user, isAuthenticated, loading } = useAuth();
+  const [currentPath] = useLocation();
   const host = typeof window !== "undefined" ? window.location.hostname : "";
-  const currentPath = typeof window !== "undefined" ? window.location.pathname : "";
 
   // Rota pública de matrícula — acessível independente de autenticação
   if (currentPath.startsWith("/matricula/")) {
@@ -297,7 +297,6 @@ import { WelcomeModal } from "./components/tour/WelcomeModal";
 import { WhatsNewProvider } from "./components/novidades/WhatsNewProvider";
 import { WhatsNewModal } from "./components/novidades/WhatsNewModal";
 import { initAnalytics, trackPageView } from "./lib/analytics";
-import { useLocation } from "wouter";
 import { useEffect } from "react";
 
 // Initialize analytics outside of the component tree to run once on load

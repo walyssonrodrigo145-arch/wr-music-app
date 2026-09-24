@@ -149,7 +149,25 @@ export default function StudentPayments() {
             <h2 className="text-lg font-black flex items-center gap-2">
               <History size={20} className="text-primary" /> Histórico de Faturas
             </h2>
-            <button className="text-[10px] font-black text-primary uppercase tracking-widest hover:underline">Download Todos</button>
+            <button
+              type="button"
+              onClick={async () => {
+                const withReceipt = (payments ?? []).filter((payment) => payment.status === "pago" && payment.receiptUrl);
+                if (withReceipt.length === 0) {
+                  toast.info("Nenhum comprovante disponível para download.");
+                  return;
+                }
+                for (const payment of withReceipt) {
+                  await downloadUrl(
+                    payment.receiptUrl as string,
+                    `comprovante-${format(new Date(payment.dueDate), "MM-yyyy")}.pdf`
+                  );
+                }
+              }}
+              className="text-[10px] font-black text-primary uppercase tracking-widest hover:underline"
+            >
+              Download Todos
+            </button>
           </div>
           
           <motion.div 
