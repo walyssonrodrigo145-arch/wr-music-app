@@ -126,6 +126,14 @@ const filesToUpload = [
   'client/src/pages/student/Aulas.tsx',
   'client/src/pages/student/Avisos.tsx',
   'client/src/pages/student/Pagamentos.tsx',
+  // ── Revisão 1.1: total por plano, teto de excedentes e indicação por sessão ──
+  'shared/planPricing.ts',
+  'shared/releases.ts',
+  'client/src/components/planos/PlanSimulator.tsx',
+  'client/src/pages/indicacao/PublicReferralPage.tsx',
+  'client/src/pages/Cadastro.tsx',
+  'server/planPricing.test.ts',
+  'PRD_SIMULADOR_PLANOS.md',
 ];
 
 console.log('🚀 Iniciando deploy no Ambiente de Testes (STAGING)...');

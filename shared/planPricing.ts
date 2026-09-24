@@ -1,5 +1,7 @@
 export const UNLIMITED_STUDENTS = 999999;
 export const MAX_SLIDER_STUDENTS = 5000;
+export const NEGOTIATION_STUDENTS_THRESHOLD = 1000;
+export const NEGOTIATION_MAX_EXCESS = 200;
 
 export interface SimPlan {
   id: string;
@@ -28,6 +30,8 @@ export interface Simulation {
   isUnlimited: boolean;
   exceedsLimit: boolean;
   isExcessAllowed: boolean;
+  maxAllowedStudents: number;
+  needsNegotiation: boolean;
 }
 
 export interface Recommendation {
@@ -45,6 +49,18 @@ function clamp(value: number, min: number, max: number): number {
 
 export function isUnlimitedPlan(plan: SimPlan): boolean {
   return plan.maxStudents >= UNLIMITED_STUDENTS;
+}
+
+export function planExcessCap(plan: SimPlan): number | null {
+  return Math.floor(plan.maxStudents) === NEGOTIATION_STUDENTS_THRESHOLD ? NEGOTIATION_MAX_EXCESS : null;
+}
+
+export function planMaxAllowedStudents(plan: SimPlan): number {
+  if (isUnlimitedPlan(plan)) return Number.POSITIVE_INFINITY;
+  const max = Math.floor(plan.maxStudents);
+  if (!plan.allowExtraStudents) return max;
+  const cap = planExcessCap(plan);
+  return cap === null ? Number.POSITIVE_INFINITY : max + cap;
 }
 
 export function sortPlans(plans: SimPlan[]): SimPlan[] {
@@ -82,6 +98,13 @@ export function simulateMonthly(plan: SimPlan, students: number): Simulation {
   const isExcessAllowed = exceedsLimit && plan.allowExtraStudents === true;
   const excessCents = isExcessAllowed ? excessCount * toCents(plan.extraStudentPrice) : 0;
   const baseCents = toCents(plan.priceMonthly);
+  const cap = planExcessCap(plan);
+  const maxAllowedStudents = planMaxAllowedStudents(plan);
+  const needsNegotiation =
+    cap !== null &&
+    plan.allowExtraStudents === true &&
+    !unlimited &&
+    safeStudents > maxAllowedStudents;
 
   return {
     students: safeStudents,
@@ -92,6 +115,8 @@ export function simulateMonthly(plan: SimPlan, students: number): Simulation {
     isUnlimited: unlimited,
     exceedsLimit,
     isExcessAllowed,
+    maxAllowedStudents,
+    needsNegotiation,
   };
 }
 
@@ -103,10 +128,19 @@ export function recommendPlan(plans: SimPlan[], students: number): Recommendatio
   const fitting = sorted.find((plan) => plan.maxStudents >= safeStudents);
   if (fitting) return { plan: fitting, needsCustomQuote: false };
 
-  const allowsExtra = sorted.filter((plan) => plan.allowExtraStudents);
-  if (allowsExtra.length > 0) {
-    return { plan: allowsExtra[allowsExtra.length - 1], needsCustomQuote: false };
+  const largest = sorted[sorted.length - 1];
+  const largestIsCapped =
+    planExcessCap(largest) !== null && largest.allowExtraStudents && !isUnlimitedPlan(largest);
+  if (largestIsCapped && safeStudents > planMaxAllowedStudents(largest)) {
+    return { plan: largest, needsCustomQuote: true };
   }
 
-  return { plan: sorted[sorted.length - 1], needsCustomQuote: true };
+  const excessCandidates = sorted.filter(
+    (plan) => plan.allowExtraStudents && planMaxAllowedStudents(plan) >= safeStudents
+  );
+  if (excessCandidates.length > 0) {
+    return { plan: excessCandidates[excessCandidates.length - 1], needsCustomQuote: false };
+  }
+
+  return { plan: largest, needsCustomQuote: true };
 }

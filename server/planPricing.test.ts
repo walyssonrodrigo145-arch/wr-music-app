@@ -2,6 +2,8 @@ import { describe, it, expect } from "vitest";
 import {
   computePlanRange,
   normalizeStudentCount,
+  planExcessCap,
+  planMaxAllowedStudents,
   recommendPlan,
   simulateMonthly,
   sortPlans,
@@ -173,5 +175,72 @@ describe("Simulador de planos (shared/planPricing)", () => {
       "20-sem-extra",
       "100",
     ]);
+  });
+});
+
+describe("Simulador — excedentes por plano e teto do plano de 1000", () => {
+  it("cada plano usa o próprio valor de excedente", () => {
+    const planoA = makePlan({ id: "a", maxStudents: 30, priceMonthly: 99, extraStudentPrice: 1.49 });
+    const planoB = makePlan({ id: "b", maxStudents: 30, priceMonthly: 99, extraStudentPrice: 0.99 });
+
+    expect(simulateMonthly(planoA, 35).total).toBe(106.45);
+    expect(simulateMonthly(planoB, 35).total).toBe(103.95);
+  });
+
+  it("permite excedentes até 200 alunos no plano de 1000 (1.200 no total)", () => {
+    const plano1000 = makePlan({ id: "mil", maxStudents: 1000, priceMonthly: 999, extraStudentPrice: 1.49 });
+    const sim = simulateMonthly(plano1000, 1200);
+
+    expect(planExcessCap(plano1000)).toBe(200);
+    expect(planMaxAllowedStudents(plano1000)).toBe(1200);
+    expect(sim.excessCount).toBe(200);
+    expect(sim.excessSubtotal).toBeCloseTo(298, 2);
+    expect(sim.total).toBeCloseTo(1297, 2);
+    expect(sim.needsNegotiation).toBe(false);
+  });
+
+  it("exige negociação acima de 1.200 alunos no plano de 1000", () => {
+    const plano1000 = makePlan({ id: "mil", maxStudents: 1000, priceMonthly: 999, extraStudentPrice: 1.49 });
+    const sim = simulateMonthly(plano1000, 1201);
+
+    expect(sim.needsNegotiation).toBe(true);
+    expect(recommendPlan([makePlan({ id: "30", maxStudents: 30 }), plano1000], 1201).needsCustomQuote).toBe(true);
+  });
+
+  it("recomenda o plano de 1000 com excedentes até 1.200", () => {
+    const rec = recommendPlan(
+      [makePlan({ id: "30", maxStudents: 30 }), makePlan({ id: "mil", maxStudents: 1000, priceMonthly: 999 })],
+      1100
+    );
+
+    expect(rec.plan?.id).toBe("mil");
+    expect(rec.needsCustomQuote).toBe(false);
+    expect(simulateMonthly(rec.plan!, 1100).excessCount).toBe(100);
+  });
+
+  it("plano de 1000 sem excedentes não entra em negociação", () => {
+    const noExtra = makePlan({ id: "mil-sem-extra", maxStudents: 1000, allowExtraStudents: false });
+    const sim = simulateMonthly(noExtra, 1100);
+
+    expect(sim.needsNegotiation).toBe(false);
+    expect(sim.isExcessAllowed).toBe(false);
+    expect(planMaxAllowedStudents(noExtra)).toBe(1000);
+  });
+
+  it("demais planos continuam com excedente livre", () => {
+    const escola = makePlan({ id: "escola", maxStudents: 30, extraStudentPrice: 1.49 });
+    const sim = simulateMonthly(escola, 500);
+
+    expect(sim.needsNegotiation).toBe(false);
+    expect(Number.isFinite(sim.total)).toBe(true);
+    expect(planMaxAllowedStudents(escola)).toBe(Number.POSITIVE_INFINITY);
+  });
+
+  it("plano ilimitado não entra em negociação", () => {
+    const ilimitado = makePlan({ id: "ilimitado", maxStudents: 999999, priceMonthly: 299 });
+    const sim = simulateMonthly(ilimitado, 5000);
+
+    expect(sim.needsNegotiation).toBe(false);
+    expect(planMaxAllowedStudents(ilimitado)).toBe(Number.POSITIVE_INFINITY);
   });
 });

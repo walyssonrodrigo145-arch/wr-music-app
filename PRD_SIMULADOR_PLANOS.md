@@ -1,6 +1,7 @@
 # PRD — Simulador de Planos e Preços (página pública `/planos`)
 
-> Versão: 1.0 · Data: 2026-09-24 · Status: Implementado (v1) em 2026-09-24
+> Versão: 1.1 · Data: 2026-09-24 · Status: Implementado (v1.1) em 2026-09-24
+> Revisão 1.1: total com N alunos em todos os cards (RN-011), teto de 200 excedentes no plano de 1.000 alunos com negociação acima de 1.200 (RN-012) e correção da "indicação fantasma" no cadastro (código de indicação agora é por sessão).
 > Implementação: `shared/planPricing.ts`, `server/planPricing.test.ts`, `client/src/components/planos/PlanSimulator.tsx`, integração em `client/src/pages/SeoSite.tsx`, deep link `?plan=` em `client/src/pages/Cadastro.tsx`, release em `shared/releases.ts`.
 > Autor: Skill `prdspec` (Análise de Sistemas / Product)
 > Referência visual: simulador da emusys (print enviado pelo solicitante) + página atual `/planos` do MusicPro.
@@ -339,6 +340,20 @@ valorInicial   = sliderMin
 **Justificativa registrada:** o backend, no ciclo anual, soma o excedente **uma única vez** (`priceYearly + excessFee`, `helpers.ts:162-163`) — decisão de produto pendente. Enquanto isso não for resolvido, exibir anual poderia gerar expectativa divergente da cobrança.
 **Consequência:** se um dia o toggle for adicionado, este PRD deve ser revisado junto com a regra de cobrança anual.
 
+### RN-011 — Total em todos os cards (revisão 1.1)
+
+**Regra:** todos os cards de plano exibem "Total com {N} alunos: R$ X/mês", somando o preço base com os excedentes calculados pelo `extraStudentPrice` **do próprio plano**. Quando o plano não cobre a quantidade, exibir "Não cobre {N} alunos" (âmbar); sem excedente, apenas "Total: R$ base/mês".
+**Exemplo válido:** planos com excedente de R$ 1,49 e R$ 0,99 mostram totais diferentes para os mesmos 35 alunos.
+**Exemplo inválido:** usar um valor de excedente único para todos os planos ou mostrar total só no card selecionado.
+**Consequência:** o visitante compara o custo real de cada plano para o tamanho da escola dele.
+
+### RN-012 — Teto de excedentes do plano de 1.000 alunos (revisão 1.1)
+
+**Regra:** o plano cujo limite é 1.000 alunos aceita no máximo 200 alunos excedentes (1.200 no total). Acima disso, o simulador não apresenta preço calculado: exibe "Sob medida" e direciona para negociação (WhatsApp), mesmo que existam planos menores que aceitariam excedentes.
+**Exemplo válido:** 1.100 alunos → 100 excedentes × valor do plano; 1.200 alunos → 200 excedentes (limite).
+**Exemplo inválido:** calcular total para 1.201+ alunos no plano de 1.000 ou recomendar um plano menor com centenas de excedentes.
+**Consequência:** `simulateMonthly` marca `needsNegotiation = true`; `recommendPlan` retorna `needsCustomQuote = true`; o CTA vira "Falar com um especialista". Planos diferentes de 1.000 alunos não têm teto.
+
 ---
 
 ## 6. Fluxos
@@ -656,6 +671,18 @@ recommendPlan(plans: SimPlan[], alunos: number): { plan: SimPlan | null; needsCu
 
 **Dado** o lançamento da funcionalidade,
 **Então** `shared/releases.ts` possui uma entrada no topo com `version`, `date`, `title`, `summary` e `items[]` contendo a novidade.
+
+### CA-016 — Total em todos os cards (revisão 1.1)
+
+**Dado** planos com valores de excedente diferentes,
+**Quando** o visitante informa 35 alunos,
+**Então** todos os cards exibem o total mensal com os alunos informados, cada um com o próprio valor de excedente; planos que não cobrem a quantidade exibem aviso âmbar em vez de total.
+
+### CA-017 — Teto de excedentes no plano de 1.000 (revisão 1.1)
+
+**Dado** o plano de 1.000 alunos que aceita excedentes,
+**Quando** o visitante informa 1.200 alunos, **Então** vê o total (base + 200 excedentes);
+**Quando** informa 1.201 alunos, **Então** vê "Sob medida" com CTA de negociação (WhatsApp) e nenhum preço calculado, e a recomendação não cai para outro plano com centenas de excedentes.
 
 ---
 

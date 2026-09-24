@@ -12,29 +12,32 @@ import {
 } from "lucide-react";
 
 export const REFERRAL_STORAGE_KEY = "mp_referral_code";
-export const REFERRAL_STORAGE_TTL_DAYS = 30;
+export const REFERRAL_STORAGE_TTL_DAYS = 1;
 
 export function saveReferralCode(code: string) {
   try {
-    localStorage.setItem(REFERRAL_STORAGE_KEY, JSON.stringify({ code, savedAt: Date.now() }));
+    sessionStorage.setItem(REFERRAL_STORAGE_KEY, JSON.stringify({ code, savedAt: Date.now() }));
+    localStorage.removeItem(REFERRAL_STORAGE_KEY);
   } catch { /* storage indisponível */ }
 }
 
 export function clearReferralCode() {
   try {
+    sessionStorage.removeItem(REFERRAL_STORAGE_KEY);
     localStorage.removeItem(REFERRAL_STORAGE_KEY);
   } catch { /* storage indisponível */ }
 }
 
 export function readReferralCode(): string | null {
   try {
-    const raw = localStorage.getItem(REFERRAL_STORAGE_KEY);
+    localStorage.removeItem(REFERRAL_STORAGE_KEY);
+    const raw = sessionStorage.getItem(REFERRAL_STORAGE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
     if (!parsed?.code || !parsed?.savedAt) return null;
     const ageMs = Date.now() - Number(parsed.savedAt);
     if (ageMs > REFERRAL_STORAGE_TTL_DAYS * 24 * 60 * 60 * 1000) {
-      localStorage.removeItem(REFERRAL_STORAGE_KEY);
+      sessionStorage.removeItem(REFERRAL_STORAGE_KEY);
       return null;
     }
     return String(parsed.code);

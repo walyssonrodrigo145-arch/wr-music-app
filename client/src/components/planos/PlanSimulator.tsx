@@ -7,6 +7,8 @@ import {
   UNLIMITED_STUDENTS,
   computePlanRange,
   normalizeStudentCount,
+  planExcessCap,
+  planMaxAllowedStudents,
   recommendPlan,
   simulateMonthly,
   type SimPlan,
@@ -21,8 +23,27 @@ import { AlertCircle, ArrowRight, CheckCircle2, Loader2, MessageCircle, Sparkles
 const WHATSAPP_URL =
   "https://wa.me/5533984055949?text=ola%20gostaria%20de%20um%20plano%20sob%20medida%20para%20minha%20escola";
 
+const studentNumberFormatter = new Intl.NumberFormat("pt-BR");
+
+function formatStudents(value: number): string {
+  return studentNumberFormatter.format(value);
+}
+
 function limitLabel(plan: SimPlan): string {
   return plan.maxStudents >= UNLIMITED_STUDENTS ? "Alunos ilimitados" : `Até ${plan.maxStudents} alunos`;
+}
+
+function cardTotalLabel(plan: SimPlan, simulation: ReturnType<typeof simulateMonthly>, students: number): string {
+  if (simulation.needsNegotiation) {
+    return `Acima de ${formatStudents(planMaxAllowedStudents(plan))} alunos: negociação`;
+  }
+  if (simulation.exceedsLimit && !simulation.isExcessAllowed) {
+    return `Não cobre ${formatStudents(students)} alunos`;
+  }
+  if (simulation.isUnlimited) {
+    return `Total: ${formatBRL(simulation.total)}/mês`;
+  }
+  return `Total com ${formatStudents(students)} alunos: ${formatBRL(simulation.total)}/mês`;
 }
 
 function excessLabel(plan: SimPlan): string {
@@ -94,7 +115,8 @@ export default function PlanSimulator() {
   const selectedPlan = pinnedPlan ?? recommendation.plan;
   const selectedSimulation = selectedPlan ? simulateMonthly(selectedPlan, studentCount) : null;
   const blocked = Boolean(selectedPlan && selectedSimulation?.exceedsLimit && !selectedSimulation.isExcessAllowed);
-  const needsCustomQuote = blocked && recommendation.needsCustomQuote;
+  const needsNegotiation = Boolean(selectedSimulation?.needsNegotiation);
+  const needsCustomQuote = needsNegotiation || (blocked && recommendation.needsCustomQuote);
   const ctaPlan = blocked ? recommendation.plan : selectedPlan;
   const inputValue = draft !== "" ? draft : String(studentCount);
 
@@ -208,17 +230,25 @@ export default function PlanSimulator() {
             <p className="mt-2 font-outfit text-xl font-extrabold tracking-tight">{selectedPlan.name}</p>
 
             <div className="mt-4 flex flex-wrap items-end gap-2">
-              <span className="font-outfit text-4xl font-black tracking-tight sm:text-5xl">
-                {formatBRL(selectedSimulation.total)}
-              </span>
-              <span className="pb-1.5 text-sm font-bold text-muted-foreground">/mês</span>
+              {needsNegotiation ? (
+                <span className="font-outfit text-4xl font-black tracking-tight sm:text-5xl">Sob medida</span>
+              ) : (
+                <>
+                  <span className="font-outfit text-4xl font-black tracking-tight sm:text-5xl">
+                    {formatBRL(selectedSimulation.total)}
+                  </span>
+                  <span className="pb-1.5 text-sm font-bold text-muted-foreground">/mês</span>
+                </>
+              )}
             </div>
 
             <div className="mt-4 space-y-1.5 text-xs text-muted-foreground">
               <p>
                 Plano: <strong className="text-foreground">{formatBRL(selectedSimulation.basePrice)}</strong>/mês
               </p>
-              {selectedSimulation.isUnlimited ? (
+              {needsNegotiation ? (
+                <p>Acima do limite de excedentes deste plano — proposta sob medida para a sua escola.</p>
+              ) : selectedSimulation.isUnlimited ? (
                 <p>Alunos ilimitados — sem cobrança por excedente.</p>
               ) : selectedSimulation.excessCount > 0 && selectedSimulation.isExcessAllowed ? (
                 <p>
@@ -227,12 +257,30 @@ export default function PlanSimulator() {
                   {formatBRL(selectedPlan.extraStudentPrice)} ={" "}
                   <strong className="text-foreground">{formatBRL(selectedSimulation.excessSubtotal)}</strong>/mês
                 </p>
+              ) : selectedSimulation.exceedsLimit && !selectedSimulation.isExcessAllowed ? (
+                <p>Este plano não cobre essa quantidade de alunos.</p>
               ) : (
                 <p>Dentro do limite do plano — sem alunos excedentes.</p>
               )}
+              {planExcessCap(selectedPlan) !== null && selectedPlan.allowExtraStudents ? (
+                <p>
+                  Limite de excedentes deste plano: {formatStudents(planExcessCap(selectedPlan) as number)} alunos (até{" "}
+                  {formatStudents(planMaxAllowedStudents(selectedPlan))} no total).
+                </p>
+              ) : null}
             </div>
 
-            {blocked ? (
+            {needsNegotiation ? (
+              <div className="mt-4 rounded-2xl border border-primary/30 bg-primary/5 p-3 text-xs">
+                <p className="font-black text-primary">
+                  Mais de {formatStudents(planMaxAllowedStudents(selectedPlan))} alunos neste plano
+                </p>
+                <p className="mt-1 text-muted-foreground">
+                  Para esse tamanho, montamos um plano sob medida com condições especiais. Fale com um especialista
+                  para negociar.
+                </p>
+              </div>
+            ) : blocked ? (
               <div className="mt-4 rounded-2xl border border-amber-500/40 bg-amber-500/10 p-3 text-xs">
                 <p className="font-black text-amber-700 dark:text-amber-400">
                   O plano {selectedPlan.name} não aceita alunos excedentes.
@@ -312,17 +360,30 @@ export default function PlanSimulator() {
               </div>
               <p className="mt-2 text-xs text-muted-foreground">{limitLabel(plan)}</p>
               <p className="mt-1 text-[11px] font-semibold text-muted-foreground">{excessLabel(plan)}</p>
-              {isSelected ? (
-                <p className="mt-3 text-[11px] font-black uppercase tracking-widest text-primary">
-                  {sim.excessCount > 0 && sim.isExcessAllowed
-                    ? `Total com ${studentCount} alunos: ${formatBRL(sim.total)}/mês`
-                    : "Selecionado"}
+              <p
+                className={cn(
+                  "mt-3 text-[11px] font-black uppercase tracking-widest",
+                  sim.needsNegotiation || (sim.exceedsLimit && !sim.isExcessAllowed)
+                    ? "text-amber-600 dark:text-amber-400"
+                    : "text-foreground"
+                )}
+              >
+                {cardTotalLabel(plan, sim, studentCount)}
+              </p>
+              {sim.excessCount > 0 && sim.isExcessAllowed && !sim.needsNegotiation ? (
+                <p className="mt-1 text-[10px] font-semibold text-muted-foreground">
+                  {sim.excessCount} {sim.excessCount === 1 ? "excedente" : "excedentes"} ×{" "}
+                  {formatBRL(plan.extraStudentPrice)}
                 </p>
-              ) : (
-                <p className="mt-3 text-[11px] font-black uppercase tracking-widest text-muted-foreground">
-                  Simular este plano
-                </p>
-              )}
+              ) : null}
+              <p
+                className={cn(
+                  "mt-2 text-[10px] font-black uppercase tracking-widest",
+                  isSelected ? "text-primary" : "text-muted-foreground"
+                )}
+              >
+                {isSelected ? "Selecionado" : "Simular este plano"}
+              </p>
             </button>
           );
         })}

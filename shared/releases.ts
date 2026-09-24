@@ -26,6 +26,17 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: "2026.09.24.1",
+    date: "2026-09-24",
+    title: "Simulador de planos: total em todos os planos + limite de excedentes",
+    summary: "Cada plano agora mostra o total mensal para a quantidade de alunos informada e o plano de 1.000 alunos tem limite de 200 excedentes — acima disso, falamos com você para uma proposta sob medida. Também corrigimos a indicação fantasma no cadastro.",
+    items: [
+      { type: "melhoria", title: "Total em todos os planos", description: "Todos os cards mostram “Total com N alunos: R$ X/mês”, já com os excedentes calculados pelo valor de cada plano — antes só o plano selecionado mostrava o total." },
+      { type: "novo", title: "Negociação acima de 1.200 alunos", description: "No plano de 1.000 alunos, os excedentes vão até 200 (1.200 no total). Passou disso, o simulador mostra “Sob medida” e direciona para falar com um especialista." },
+      { type: "correcao", title: "Indicação fantasma no cadastro", description: "O código de indicação não fica mais salvo por 30 dias no navegador: agora vale só para a sessão atual, o legado é limpo automaticamente e o aviso de indicação tem botão de remover." },
+    ],
+  },
+  {
     version: "2026.09.24",
     date: "2026-09-24",
     title: "Simulador de planos na página Planos e Preços",

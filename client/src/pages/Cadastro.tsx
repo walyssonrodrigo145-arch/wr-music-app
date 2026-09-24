@@ -5,7 +5,7 @@ import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Music, AlertCircle, ArrowRight, Loader2, Mail, CheckCircle2, Phone, Gift } from "lucide-react";
+import { Music, AlertCircle, ArrowRight, Loader2, Mail, CheckCircle2, Phone, Gift, X } from "lucide-react";
 import { clearReferralCode, readReferralCode, saveReferralCode } from "./indicacao/PublicReferralPage";
 
 export default function Cadastro() {
@@ -154,7 +154,7 @@ export default function Cadastro() {
                 className="p-4 bg-violet-500/10 border border-violet-500/20 rounded-2xl flex items-start gap-3"
               >
                 <Gift className="w-5 h-5 text-violet-400 shrink-0 mt-0.5" />
-                <div>
+                <div className="min-w-0">
                   <p className="text-sm text-violet-200 font-bold">
                     Você foi indicado por {referralInfo?.schoolName || "uma escola MusicPro"}!
                   </p>
@@ -162,6 +162,18 @@ export default function Cadastro() {
                     Comece com {referralInfo?.trialDays} dias grátis · Código {referralCode}
                   </p>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    clearReferralCode();
+                    setReferralCode("");
+                  }}
+                  aria-label="Remover indicação"
+                  title="Não fui indicado — remover"
+                  className="ml-auto shrink-0 text-violet-300/70 hover:text-white transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
               </motion.div>
             )}
 
