@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Search, Bell, Sun, Moon, ChevronDown, Settings, LogOut, User, Menu, X, ChevronRight, CreditCard, CheckCheck, Sparkles, Palette, LifeBuoy } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuSeparator, DropdownMenuTrigger,
@@ -73,6 +73,10 @@ export function AppHeader({ onMobileMenuOpen, onToggleSidebar, sidebarCollapsed 
   const userPermissions: string[] = (user as any)?.permissions || [];
   const canOpenSettings = user?.role !== "professor" || isPageAllowed(userPermissions, "/configuracoes");
   const isAdminUser = user?.role === "admin";
+  const { data: myProfile } = trpc.settings.getMyProfile.useQuery(undefined, {
+    enabled: user?.role !== "aluno",
+    staleTime: 5 * 60 * 1000,
+  });
 
   const { data: searchResults } = trpc.students.search.useQuery(
     { q: searchQuery },
@@ -335,6 +339,7 @@ export function AppHeader({ onMobileMenuOpen, onToggleSidebar, sidebarCollapsed 
             <button id="tour-mobile-user-menu" className="flex items-center gap-2 sm:gap-3 lg:gap-4 pl-1 pr-1 sm:pl-2 sm:pr-4 py-2 rounded-[1.5rem] bg-card/40 hover:bg-card transition-all group active:scale-95 border border-border/20 shadow-sm">
               <div className="relative">
                  <Avatar className="w-9 h-9 lg:w-10 lg:h-10 border-2 border-primary/20 shadow-lg group-hover:rotate-6 transition-all duration-500">
+                   <AvatarImage src={myProfile?.avatar || undefined} alt={user?.name || "Perfil"} />
                    <AvatarFallback className="bg-gradient-to-br from-primary via-indigo-600 to-violet-600 text-white text-[11px] lg:text-[12px] font-black tracking-tight">
                      {initials}
                    </AvatarFallback>
@@ -360,6 +365,7 @@ export function AppHeader({ onMobileMenuOpen, onToggleSidebar, sidebarCollapsed 
               className="gap-4 rounded-2xl p-4 cursor-pointer text-sm font-bold text-muted-foreground hover:text-primary transition-all focus:bg-primary/5 focus:text-primary group" 
               onClick={() => {
                 if (user?.role === "aluno") return navigate("/aluno/perfil");
+                if (user?.role === "professor") return navigate("/perfil");
                 if (canOpenSettings) return navigate("/configuracoes");
                 toast.info("Você não tem permissão para acessar as configurações. Fale com o administrador da escola.");
               }}

@@ -26,6 +26,18 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: "2026.09.25.1",
+    date: "2026-09-25",
+    title: "Perfil do professor (foto e senha) + busca de alunos visível no celular",
+    summary: "Professores agora têm a própria página Meu Perfil (no estilo da do aluno): foto de perfil, dados de contato e troca de senha com confirmação. E a busca de alunos no celular ficou em linha própria, com texto legível e botão de limpar.",
+    items: [
+      { type: "novo", title: "Meu Perfil do professor", description: "Página própria (diferente das Configurações do admin) com foto de perfil, nome, e-mail, WhatsApp, bio e troca de senha. Acessível pelo menu do usuário → Meu Perfil." },
+      { type: "melhoria", title: "Foto aparece no avatar do topo", description: "A foto cadastrada no perfil passa a aparecer no avatar do cabeçalho." },
+      { type: "melhoria", title: "Busca de alunos visível no mobile", description: "Campo em linha própria com altura de toque confortável, texto maior e botão X para limpar; os botões de ação deslizam na horizontal." },
+      { type: "correcao", title: "Troca de senha pede a senha atual", description: "Ao alterar a senha pelo perfil, é obrigatório confirmar a senha atual — mais segurança para a conta do professor." },
+    ],
+  },
+  {
     version: "2026.09.25",
     date: "2026-09-25",
     title: "Assinatura só para admin, horários reais da escola e ajustes no portal do aluno",

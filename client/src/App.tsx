@@ -59,6 +59,7 @@ const NotasFiscais = lazy(() => import("./pages/NotasFiscais"));
 const Tutoriais = lazy(() => import("./pages/Tutoriais"));
 const Novidades = lazy(() => import("./pages/Novidades"));
 const Professores = lazy(() => import("./pages/Professores"));
+const Perfil = lazy(() => import("./pages/Perfil"));
 
 // Student Portal Pages
 const StudentDashboard = lazy(() => import("./pages/student/Dashboard"));
@@ -255,6 +256,7 @@ function Router() {
           <Route path="/lembretes" component={Lembretes} />
           <Route path="/financeiro" component={Financeiro} />
           <Route path="/configuracoes" component={Configuracoes} />
+          <Route path="/perfil" component={Perfil} />
           <Route path="/assinatura" component={AssinaturaAdminOnly} />
           <Route path="/progresso" component={Progresso} />
           <Route path="/rankings" component={RankingsPage} />

@@ -190,6 +190,12 @@ const filesToUpload = [
   'client/src/pages/Aulas.tsx',
   'client/src/pages/Alunos.tsx',
   'server/routers/plataformaRouters.ts',
+  // ── Perfil do professor (foto/senha) + busca no mobile ──
+  'client/src/pages/Perfil.tsx',
+  'client/src/App.tsx',
+  'client/src/components/AppHeader.tsx',
+  'server/routers/authRouters.ts',
+  'shared/releases.ts',
 ];
 
 console.log('🚀 Iniciando deploy no Ambiente de Testes (STAGING)...');

@@ -231,21 +231,34 @@ export default function Alunos() {
             </div>
           </div>
 
-          <div className="flex items-center gap-3 w-full md:w-auto">
-             <div className="relative flex-1 md:w-64">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={14} />
-                <Input 
-                  placeholder="Buscar..." 
-                  className="pl-9 h-10 border-border bg-card rounded-xl shadow-sm text-xs"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                />
-             </div>
+          <div className="flex flex-col gap-3 w-full md:flex-row md:items-center md:w-auto">
+            {/* Busca: linha própria e campo alto no mobile; inline no desktop */}
+            <div className="relative w-full md:w-72">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
+              <Input
+                placeholder="Buscar aluno por nome ou instrumento..."
+                aria-label="Buscar aluno por nome ou instrumento"
+                className="pl-10 pr-9 h-12 md:h-10 rounded-2xl md:rounded-xl border-border bg-card shadow-sm text-sm md:text-xs"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+              {search && (
+                <button
+                  type="button"
+                  onClick={() => setSearch("")}
+                  aria-label="Limpar busca"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <X size={15} />
+                </button>
+              )}
+            </div>
 
+            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-0.5 w-full md:w-auto">
               <Button
                 variant="outline"
                 onClick={() => handleExportCSV(filtered)}
-                className="h-10 rounded-xl px-3 lg:px-4 text-xs font-bold gap-2 border-border/80 shadow-sm shrink-0"
+                className="h-12 md:h-10 rounded-2xl md:rounded-xl px-3 lg:px-4 text-xs font-bold gap-2 border-border/80 shadow-sm shrink-0"
                 title="Exportar lista atual para Excel/CSV"
               >
                 <Download size={16} />
@@ -256,7 +269,7 @@ export default function Alunos() {
                 <Button
                   variant="outline"
                   onClick={() => setIsImportModalOpen(true)}
-                  className="h-10 rounded-xl px-3 lg:px-4 text-xs font-bold gap-2 border-border/80 shadow-sm shrink-0"
+                  className="h-12 md:h-10 rounded-2xl md:rounded-xl px-3 lg:px-4 text-xs font-bold gap-2 border-border/80 shadow-sm shrink-0"
                   title="Importar lista de alunos em CSV"
                 >
                   <FileUp size={16} />
@@ -276,7 +289,7 @@ export default function Alunos() {
                      setIsEnrollmentModalOpen(true);
                    }}
                  variant="outline"
-                 className="h-10 rounded-xl px-3.5 lg:px-4 text-xs font-bold gap-2 border-primary/30 text-primary hover:bg-primary/10 shadow-sm shrink-0"
+                 className="h-12 md:h-10 rounded-2xl md:rounded-xl px-3.5 lg:px-4 text-xs font-bold gap-2 border-primary/30 text-primary hover:bg-primary/10 shadow-sm shrink-0"
                  title="Gerar link de auto-matrícula para enviar ao aluno"
                >
                  <LinkIcon size={16} className="text-primary" />
@@ -289,12 +302,13 @@ export default function Alunos() {
                <Button 
                 id="tour-new-student"
                 onClick={() => setLocation("/alunos/novo")}
-                className="h-10 rounded-xl px-4 lg:px-5 bg-primary hover:bg-primary/90 text-white text-xs font-bold gap-2 shadow-lg shadow-primary/20 transition-all active:scale-95 shrink-0"
+                className="h-12 md:h-10 rounded-2xl md:rounded-xl px-4 lg:px-5 bg-primary hover:bg-primary/90 text-white text-xs font-bold gap-2 shadow-lg shadow-primary/20 transition-all active:scale-95 shrink-0"
                >
                  <Plus size={18} />
                  <span className="hidden sm:inline">Novo aluno</span>
                </Button>
              )}
+            </div>
           </div>
         </div>
 
