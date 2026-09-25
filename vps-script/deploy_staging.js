@@ -175,6 +175,21 @@ const filesToUpload = [
   'server/publicStats.test.ts',
   'shared/releases.ts',
   'PLANO_LANDING_HERO_IMAGENS.md',
+  // ── Loading das imagens SEO + dark mode do aluno + permissões/assinatura/horários/gráfico ──
+  'client/src/components/seo/SeoImage.tsx',
+  'client/src/components/seo/MobileShowcase.tsx',
+  'client/src/components/seo/PhoneFrame.tsx',
+  'client/src/pages/student/Progresso.tsx',
+  'client/src/components/modals/EditStudyPlanModal.tsx',
+  'client/src/pages/student/Perfil.tsx',
+  'client/src/pages/student/Pagamentos.tsx',
+  'client/src/components/AppHeader.tsx',
+  'client/src/components/AppSidebar.tsx',
+  'client/src/components/MusicLayout.tsx',
+  'client/src/App.tsx',
+  'client/src/pages/Aulas.tsx',
+  'client/src/pages/Alunos.tsx',
+  'server/routers/plataformaRouters.ts',
 ];
 
 console.log('🚀 Iniciando deploy no Ambiente de Testes (STAGING)...');

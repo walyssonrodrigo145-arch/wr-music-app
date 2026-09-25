@@ -39,6 +39,7 @@ import { HeroSlider } from '@/components/HeroSlider';
 import ClientsMarquee from '@/components/ClientsMarquee';
 import { AsaasLogoMark, MercadoPagoLogoMark, InfinitePayLogoMark } from '@/components/logos/PaymentBrandLogos';
 import { trpc } from '@/lib/trpc';
+import { cn } from '@/lib/utils';
 import { clearReferralCode, readReferralCode } from './indicacao/PublicReferralPage';
 
 // ─── CONSTANTES ───────────────────────────────────────────────────────────────
@@ -770,7 +771,7 @@ const LandingPage = () => {
     refetchInterval: 60 * 1000,
   });
   const trialDays = publicStats?.trialDays ?? 7;
-  const { data: seoMedia } = trpc.publicData.getSeoMedia.useQuery();
+  const { data: seoMedia, isLoading: loadingSeoMedia } = trpc.publicData.getSeoMedia.useQuery();
   const homeCover = ((seoMedia as any)?.["/"]?.cover ?? [])[0];
   const heroImage = homeCover?.url || null;
   const heroImageAlt = homeCover?.alt || "Dashboard do Sistema MusicPro com agenda, alunos e financeiro";
@@ -1055,7 +1056,10 @@ const LandingPage = () => {
                     onError={() => setHeroImageError(true)}
                   />
                 ) : (
-                  <div className="relative rounded-[24px] shadow-2xl border border-border/50 bg-gradient-to-br from-primary/10 via-indigo-500/5 to-background flex flex-col items-center justify-center aspect-video">
+                  <div className={cn(
+                    "relative rounded-[24px] shadow-2xl border border-border/50 bg-gradient-to-br from-primary/10 via-indigo-500/5 to-background flex flex-col items-center justify-center aspect-video",
+                    loadingSeoMedia && "animate-pulse"
+                  )}>
                     <div className="text-center p-8">
                       <Music size={52} className="text-primary/40 mx-auto mb-4" />
                       <p className="text-foreground font-bold text-base">Dashboard MusicPro</p>

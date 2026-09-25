@@ -297,7 +297,7 @@ export default function StudentProfile() {
                      { icon: Trophy, label: "Nível Atual", value: profile?.level || "Iniciante" },
                   ].map((item, i) => (
                      <div key={i} className="text-center p-6 rounded-3xl bg-muted/30 border border-border group hover:border-primary/40 hover:bg-card transition-all cursor-default">
-                        <div className="w-10 h-10 rounded-2xl bg-white dark:bg-slate-800 flex items-center justify-center mx-auto mb-4 shadow-sm group-hover:scale-110 group-hover:rotate-6 transition-transform">
+                        <div className="w-10 h-10 rounded-2xl bg-card flex items-center justify-center mx-auto mb-4 shadow-sm group-hover:scale-110 group-hover:rotate-6 transition-transform">
                            <item.icon size={20} className="text-primary" />
                         </div>
                         <p className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground mb-1">{item.label}</p>

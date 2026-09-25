@@ -98,6 +98,23 @@ export const plataformaRouters = {
       return getSettingsByUserId(orgId, ctx.user.id);
     }),
 
+    // Horários de funcionamento da ESCOLA (organização) — professores leem o mesmo
+    // expediente configurado pelo admin, não o registro padrão do próprio usuário.
+    getSchoolHours: protectedProcedure.query(async ({ ctx }) => {
+      const orgId = ctx.user.organizationId!;
+      const db = await getDb();
+      if (!db) return { schoolHours: null as string | null, lessonDuration: 60 };
+      const rows = await db
+        .select({ schoolHours: settings.schoolHours, lessonDuration: settings.lessonDuration, schoolName: settings.schoolName })
+        .from(settings)
+        .where(eq(settings.organizationId, orgId));
+      const schoolSet = rows.find((row) => (row.schoolName || "").trim() !== "") || rows[0];
+      return {
+        schoolHours: schoolSet?.schoolHours ?? null,
+        lessonDuration: Math.max(5, schoolSet?.lessonDuration ?? 60),
+      };
+    }),
+
     updateProfile: protectedProcedure.input(z.object({
       name: z.string().min(2).optional(),
       email: z.string().email().optional(),

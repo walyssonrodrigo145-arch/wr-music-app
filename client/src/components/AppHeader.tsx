@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { SupportTicketModal } from "@/components/support/SupportTicketModal";
 import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
 import { useTheme } from "@/contexts/ThemeContext";
 import { trpc } from "@/lib/trpc";
 import { useLocation } from "wouter";
@@ -68,6 +69,10 @@ export function AppHeader({ onMobileMenuOpen, onToggleSidebar, sidebarCollapsed 
   const logoutMutation = trpc.auth.logout.useMutation({
     onSuccess: () => { window.location.href = "/"; },
   });
+
+  const userPermissions: string[] = (user as any)?.permissions || [];
+  const canOpenSettings = user?.role !== "professor" || isPageAllowed(userPermissions, "/configuracoes");
+  const isAdminUser = user?.role === "admin";
 
   const { data: searchResults } = trpc.students.search.useQuery(
     { q: searchQuery },
@@ -353,14 +358,18 @@ export function AppHeader({ onMobileMenuOpen, onToggleSidebar, sidebarCollapsed 
             <DropdownMenuSeparator className="bg-border/20 my-2" />
             <DropdownMenuItem 
               className="gap-4 rounded-2xl p-4 cursor-pointer text-sm font-bold text-muted-foreground hover:text-primary transition-all focus:bg-primary/5 focus:text-primary group" 
-              onClick={() => navigate(user?.role === 'aluno' ? "/aluno/perfil" : "/configuracoes")}
+              onClick={() => {
+                if (user?.role === "aluno") return navigate("/aluno/perfil");
+                if (canOpenSettings) return navigate("/configuracoes");
+                toast.info("Você não tem permissão para acessar as configurações. Fale com o administrador da escola.");
+              }}
             >
               <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center group-hover:scale-110 transition-all">
                 <User size={18} />
               </div>
               Meu Perfil
             </DropdownMenuItem>
-            {user?.role !== 'aluno' && (
+            {isAdminUser && (
               <DropdownMenuItem 
                 className="gap-4 rounded-2xl p-4 cursor-pointer text-sm font-bold text-muted-foreground hover:text-amber-500 transition-all focus:bg-amber-500/5 focus:text-amber-500 group" 
                 onClick={() => navigate("/assinatura")}
@@ -371,15 +380,17 @@ export function AppHeader({ onMobileMenuOpen, onToggleSidebar, sidebarCollapsed 
                 Assinatura
               </DropdownMenuItem>
             )}
-            <DropdownMenuItem 
-              className="gap-4 rounded-2xl p-4 cursor-pointer text-sm font-bold text-muted-foreground hover:text-primary transition-all focus:bg-primary/5 focus:text-primary group" 
-              onClick={() => navigate(user?.role === 'aluno' ? "/aluno/perfil" : "/configuracoes")}
-            >
-              <div className="w-9 h-9 rounded-xl bg-muted text-muted-foreground flex items-center justify-center group-hover:scale-110 transition-all">
-                <Settings size={18} />
-              </div>
-              Configurações
-            </DropdownMenuItem>
+            {canOpenSettings && (
+              <DropdownMenuItem 
+                className="gap-4 rounded-2xl p-4 cursor-pointer text-sm font-bold text-muted-foreground hover:text-primary transition-all focus:bg-primary/5 focus:text-primary group" 
+                onClick={() => navigate(user?.role === 'aluno' ? "/aluno/perfil" : "/configuracoes")}
+              >
+                <div className="w-9 h-9 rounded-xl bg-muted text-muted-foreground flex items-center justify-center group-hover:scale-110 transition-all">
+                  <Settings size={18} />
+                </div>
+                Configurações
+              </DropdownMenuItem>
+            )}
             <DropdownMenuSeparator className="bg-border/20 my-2" />
             <DropdownMenuItem 
                className="gap-4 rounded-2xl p-4 cursor-pointer text-sm font-black text-rose-500 hover:bg-rose-500/10 hover:text-rose-600 focus:text-rose-600 focus:bg-rose-500/10 transition-all group" 

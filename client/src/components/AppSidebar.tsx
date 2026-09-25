@@ -101,6 +101,7 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
   // Permissões de página do professor (admin vê tudo)
   const isProfessor = user?.role === "professor";
   const userPerms: string[] = (user as any)?.permissions || [];
+  const isAdmin = user?.role === "admin";
   const canSeePage = (href: string) => !isProfessor || isPageAllowed(userPerms, href);
 
   const logoutMutation = trpc.auth.logout.useMutation({
@@ -435,8 +436,8 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
           );
         })}
 
-        {/* BANNER PROMO: PLANO DA ESCOLA */}
-        {!collapsed && (
+        {/* BANNER PROMO: PLANO DA ESCOLA (somente admin — professor não gerencia assinatura) */}
+        {!collapsed && isAdmin && (
           <div className="mx-1 mt-4 p-4 rounded-2xl bg-gradient-to-br from-[#120F2E] to-[#18143C] border border-indigo-950/80 shadow-xl relative overflow-hidden group">
             <div className="flex items-start gap-3">
               <div className="w-9 h-9 rounded-xl bg-indigo-600/30 text-indigo-400 border border-indigo-500/30 flex items-center justify-center shrink-0">

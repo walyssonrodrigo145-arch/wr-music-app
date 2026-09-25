@@ -65,10 +65,12 @@ export function MobileShowcase({
   variant,
   prints,
   title,
+  isLoading,
 }: {
   variant: "hub" | "feature";
   prints: SeoMediaRow[];
   title?: string;
+  isLoading?: boolean;
 }) {
   const [index, setIndex] = useState(0);
   const shots = (Array.isArray(prints) ? prints : []).filter((p) => p?.url);
@@ -131,6 +133,14 @@ export function MobileShowcase({
             <PhoneScreenMock />
           </PhoneFrame>
 
+          {isLoading && shots.length === 0 && (
+            <div className="flex items-center justify-center gap-2" aria-hidden="true">
+              <div className="h-14 w-9 rounded-lg bg-muted animate-pulse" />
+              <div className="h-14 w-9 rounded-lg bg-muted animate-pulse" />
+              <div className="h-14 w-9 rounded-lg bg-muted animate-pulse" />
+            </div>
+          )}
+
           {/* Miniaturas para alternar entre os prints escolhidos no Super Admin */}
           {shots.length > 1 && (
             <div className="flex items-center justify-center gap-2 flex-wrap">
@@ -141,7 +151,7 @@ export function MobileShowcase({
                   onClick={() => setIndex(i)}
                   aria-label={`Ver print ${i + 1}`}
                   className={cn(
-                    "h-14 w-9 rounded-lg overflow-hidden border-2 transition-all",
+                    "h-14 w-9 rounded-lg overflow-hidden border-2 transition-all bg-muted",
                     i === index ? "border-primary shadow-md" : "border-border/60 opacity-60 hover:opacity-100"
                   )}
                 >
@@ -157,11 +167,11 @@ export function MobileShowcase({
 }
 
 /** Notebook: prints da versão web na moldura (escolhidos no Super Admin). */
-export function DesktopShowcase({ prints, title }: { prints: SeoMediaRow[]; title?: string }) {
+export function DesktopShowcase({ prints, title, isLoading }: { prints: SeoMediaRow[]; title?: string; isLoading?: boolean }) {
   const [index, setIndex] = useState(0);
   const shots = (Array.isArray(prints) ? prints : []).filter((p) => p?.url);
-  if (shots.length === 0) return null;
-  const current = shots[Math.min(index, Math.max(0, shots.length - 1))];
+  if (shots.length === 0 && !isLoading) return null;
+  const current = shots.length > 0 ? shots[Math.min(index, Math.max(0, shots.length - 1))] : undefined;
 
   return (
     <section className="mt-14 relative overflow-hidden rounded-[2rem] border border-border/60 bg-card/40 backdrop-blur-xl p-6 sm:p-10 shadow-2xl shadow-primary/5">
@@ -179,7 +189,9 @@ export function DesktopShowcase({ prints, title }: { prints: SeoMediaRow[]; titl
           </p>
         </div>
 
-        <LaptopFrame src={current?.url} alt={current?.alt || "MusicPro no computador"} />
+        <LaptopFrame src={current?.url} alt={current?.alt || "MusicPro no computador"}>
+          <div className="h-full w-full animate-pulse bg-gradient-to-r from-muted via-muted/50 to-muted" aria-hidden="true" />
+        </LaptopFrame>
 
         {shots.length > 1 && (
           <div className="flex items-center justify-center gap-2 flex-wrap">
@@ -204,28 +216,55 @@ export function DesktopShowcase({ prints, title }: { prints: SeoMediaRow[]; titl
   );
 }
 
-/** Galeria de prints do sistema (imagens adicionais por funcionalidade). */export function MediaGallery({ images }: { images: SeoMediaRow[] }) {
+/** Imagem da galeria com shimmer até carregar. */
+function GalleryImage({ src, alt }: { src: string; alt?: string }) {
+  const [loaded, setLoaded] = useState(false);
+  const [failed, setFailed] = useState(false);
+
+  if (failed) return <div className="aspect-video w-full rounded-xl bg-muted" />;
+
+  return (
+    <div className={cn("relative overflow-hidden rounded-xl border border-border/40", !loaded && "aspect-video")}>
+      {!loaded && (
+        <div className="absolute inset-0 animate-pulse bg-gradient-to-r from-muted via-muted/50 to-muted" aria-hidden="true" />
+      )}
+      <img
+        src={src}
+        alt={alt || "Tela do MusicPro"}
+        loading="lazy"
+        decoding="async"
+        onLoad={() => setLoaded(true)}
+        onError={() => setFailed(true)}
+        className={cn("w-full h-auto transition-opacity duration-500", loaded ? "opacity-100" : "opacity-0")}
+      />
+    </div>
+  );
+}
+
+/** Galeria de prints do sistema (imagens adicionais por funcionalidade). */
+export function MediaGallery({ images, isLoading }: { images: SeoMediaRow[]; isLoading?: boolean }) {
   const shots = (Array.isArray(images) ? images : []).filter((i) => i?.url);
-  if (shots.length === 0) return null;
+  if (shots.length === 0 && !isLoading) return null;
   return (
     <section className="mt-14">
       <h2 className="font-outfit text-xl sm:text-2xl font-extrabold tracking-tight mb-5">
         Por dentro do sistema
       </h2>
-      <div className={cn("grid gap-4", shots.length === 1 ? "grid-cols-1" : "grid-cols-1 sm:grid-cols-2")}>
-        {shots.map((img) => (
-          <figure key={img.id} className="rounded-2xl border border-border/60 bg-card/40 p-1.5 shadow-xl shadow-primary/5 backdrop-blur-xl">
-            <img
-              src={img.url}
-              alt={img.alt || "Tela do MusicPro"}
-              loading="lazy"
-              decoding="async"
-              className="w-full h-auto rounded-xl border border-border/40"
-            />
-            {img.alt && <figcaption className="px-2 py-1.5 text-[11px] text-muted-foreground">{img.alt}</figcaption>}
-          </figure>
-        ))}
-      </div>
+      {shots.length === 0 ? (
+        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2" aria-hidden="true">
+          <div className="aspect-video rounded-2xl bg-muted animate-pulse" />
+          <div className="aspect-video rounded-2xl bg-muted animate-pulse" />
+        </div>
+      ) : (
+        <div className={cn("grid gap-4", shots.length === 1 ? "grid-cols-1" : "grid-cols-1 sm:grid-cols-2")}>
+          {shots.map((img) => (
+            <figure key={img.id} className="rounded-2xl border border-border/60 bg-card/40 p-1.5 shadow-xl shadow-primary/5 backdrop-blur-xl">
+              <GalleryImage src={img.url} alt={img.alt || undefined} />
+              {img.alt && <figcaption className="px-2 py-1.5 text-[11px] text-muted-foreground">{img.alt}</figcaption>}
+            </figure>
+          ))}
+        </div>
+      )}
     </section>
   );
 }

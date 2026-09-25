@@ -78,7 +78,7 @@ export default function Aulas() {
   const { data: professoresList = [] } = trpc.professores.list.useQuery();
   const { data: studioRoomsList = [] } = trpc.studioRooms.list.useQuery(undefined, { refetchInterval: 10_000 });
   const { data: pendingReminders = [] } = trpc.reminders.list.useQuery({ status: "pendente" });
-  const { data: settings } = trpc.settings.get.useQuery();
+  const { data: schoolSettings } = trpc.settings.getSchoolHours.useQuery();
 
   // ─── LÓGICA DE HORÁRIOS LIVRES DO DIA ────────────────────────────────────────
   const todayAvailableSlots = useMemo(() => {
@@ -89,8 +89,8 @@ export default function Aulas() {
     // Parse das horas da escola
     let schoolHours: any = null;
     try {
-      if (settings?.schoolHours) {
-        schoolHours = typeof settings.schoolHours === 'string' ? JSON.parse(settings.schoolHours) : settings.schoolHours;
+      if (schoolSettings?.schoolHours) {
+        schoolHours = typeof schoolSettings.schoolHours === 'string' ? JSON.parse(schoolSettings.schoolHours) : schoolSettings.schoolHours;
       }
     } catch {
       schoolHours = null;
@@ -103,7 +103,7 @@ export default function Aulas() {
 
     const [startH, startM] = (todayConfig.start || "08:00").split(":").map(Number);
     const [endH, endM] = (todayConfig.end || "18:00").split(":").map(Number);
-    const duration = settings?.lessonDuration || 60; // minutos
+    const duration = schoolSettings?.lessonDuration || 60; // minutos
 
     // Monta todos os slots possíveis do dia
     const slots: { timeStr: string; dateObj: Date; isOccupied: boolean; freeRoomsCount: number }[] = [];
@@ -146,7 +146,7 @@ export default function Aulas() {
       total: availableSlots.length,
       config: todayConfig
     };
-  }, [settings, lessons, studioRoomsList]);
+  }, [schoolSettings, lessons, studioRoomsList]);
 
   const targetLessonForAction = useMemo(() => {
     if (!recurringAction) return null;

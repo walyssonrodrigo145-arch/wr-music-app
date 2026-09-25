@@ -76,6 +76,13 @@ const StudentResults = lazy(() => import("./pages/student/Resultados"));
 
 const PageLoader = () => <LoadingScreen />;
 
+function AssinaturaAdminOnly() {
+  const { user, loading } = useAuth();
+  if (loading) return <PageLoader />;
+  if (user && user.role !== "admin") return <Redirect to="/dashboard" />;
+  return <Assinatura />;
+}
+
 const PublicEnrollmentPage = lazy(() => import("./pages/PublicEnrollment"));
 
 function Router() {
@@ -248,7 +255,7 @@ function Router() {
           <Route path="/lembretes" component={Lembretes} />
           <Route path="/financeiro" component={Financeiro} />
           <Route path="/configuracoes" component={Configuracoes} />
-          <Route path="/assinatura" component={Assinatura} />
+          <Route path="/assinatura" component={AssinaturaAdminOnly} />
           <Route path="/progresso" component={Progresso} />
           <Route path="/rankings" component={RankingsPage} />
           <Route path="/comunicados" component={Comunicados} />

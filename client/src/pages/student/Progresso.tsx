@@ -89,7 +89,7 @@ function parseDaysTimeSpent(raw: any): number[] {
 }
 
 const ExerciseIcon = ({ icon, title }: { icon?: string; title?: string }) => {
-  const cls = "text-indigo-600";
+  const cls = "text-indigo-600 dark:text-indigo-400";
   const sz = 22;
   // RF-002 (PRD_OTIMIZACAO_PLANO_DIARIO): deriva o ícone pelo título do bloco
   const t = (title || "").toLowerCase();
@@ -171,19 +171,19 @@ function ExerciseDetailModal({ exercise, dayFocus, onClose }: ExerciseDetailModa
           {/* Instrução base */}
           {exercise.subtitle && (
             <div>
-              <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Instrução</p>
-              <p className="text-slate-700 font-medium leading-relaxed">{exercise.subtitle}</p>
+              <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Instrução</p>
+              <p className="text-foreground/90 font-medium leading-relaxed">{exercise.subtitle}</p>
             </div>
           )}
 
           {/* Pontos de atenção */}
           {exercise.points && exercise.points.length > 0 && (
             <div>
-              <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Pontos de atenção</p>
+              <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Pontos de atenção</p>
               <ul className="space-y-2">
                 {exercise.points.map((point, i) => (
-                  <li key={i} className="flex items-start gap-2 text-sm text-slate-700">
-                    <span className="w-5 h-5 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center text-xs font-black shrink-0 mt-0.5">
+                  <li key={i} className="flex items-start gap-2 text-sm text-foreground/90">
+                    <span className="w-5 h-5 bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 rounded-full flex items-center justify-center text-xs font-black shrink-0 mt-0.5">
                       {i + 1}
                     </span>
                     {point}
@@ -195,18 +195,18 @@ function ExerciseDetailModal({ exercise, dayFocus, onClose }: ExerciseDetailModa
 
           {/* Duração */}
           {exercise.duration && (
-            <div className="bg-indigo-50 rounded-xl p-3 flex items-center gap-3">
+            <div className="bg-indigo-500/10 rounded-xl p-3 flex items-center gap-3">
               <Timer size={18} className="text-indigo-500 shrink-0" />
-              <p className="text-sm font-bold text-indigo-700">
-                Tempo sugerido: <span className="text-indigo-600">{exercise.duration}</span>
+              <p className="text-sm font-bold text-indigo-700 dark:text-indigo-300">
+                Tempo sugerido: <span className="text-indigo-600 dark:text-indigo-400">{exercise.duration}</span>
               </p>
             </div>
           )}
 
           {/* PRD 03 — BPM recomendado do exercício (§46) */}
           {typeof exercise.bpm === "number" && exercise.bpm > 0 && (
-            <div className="bg-violet-50 rounded-xl p-3 flex items-center gap-3 flex-wrap">
-              <span className="text-xs font-black text-violet-700 flex items-center gap-2">
+            <div className="bg-violet-500/10 rounded-xl p-3 flex items-center gap-3 flex-wrap">
+              <span className="text-xs font-black text-violet-700 dark:text-violet-300 flex items-center gap-2">
                 <Music2 size={16} className="text-violet-500" /> BPM recomendado: {exercise.bpm}
               </span>
               <button
@@ -234,10 +234,10 @@ function ExerciseDetailModal({ exercise, dayFocus, onClose }: ExerciseDetailModa
                   <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-violet-600 to-indigo-500 flex items-center justify-center shadow-md">
                     <Sparkles size={14} className="text-white" />
                   </div>
-                  <p className="text-xs font-black text-slate-500 uppercase tracking-widest">Professor IA</p>
+                  <p className="text-xs font-black text-muted-foreground uppercase tracking-widest">Professor IA</p>
                 </div>
-                <div className="bg-white border border-slate-200/60 shadow-lg shadow-slate-200/20 rounded-[2rem] rounded-tl-sm p-6 relative">
-                  <p className="text-slate-600 leading-relaxed whitespace-pre-wrap text-[15px]">
+                <div className="bg-card border border-border/60 shadow-lg shadow-black/5 rounded-[2rem] rounded-tl-sm p-6 relative">
+                  <p className="text-muted-foreground leading-relaxed whitespace-pre-wrap text-[15px]">
                     {aiExplanation.replace(/\*\*/g, '').replace(/\*/g, '')}
                   </p>
                 </div>
@@ -271,7 +271,7 @@ function WakeLockBadge({ state }: { state: WakeLockState }) {
   if (!state.supported) {
     return (
       <span
-        className={cn(base, "bg-slate-100 text-slate-500")}
+        className={cn(base, "bg-muted text-muted-foreground")}
         title="Este navegador não suporta manter a tela ligada. O tempo continua sendo medido corretamente."
       >
         <Info size={11} /> Tela ativa não disponível
@@ -281,7 +281,7 @@ function WakeLockBadge({ state }: { state: WakeLockState }) {
   if (state.status === "acquired") {
     return (
       <span
-        className={cn(base, "bg-emerald-50 text-emerald-600")}
+        className={cn(base, "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400")}
         title="A tela permanecerá ligada enquanto o estudo estiver em andamento."
       >
         <Lock size={11} /> Tela ativa
@@ -291,7 +291,7 @@ function WakeLockBadge({ state }: { state: WakeLockState }) {
   if (state.status === "error") {
     return (
       <span
-        className={cn(base, "bg-amber-50 text-amber-600")}
+        className={cn(base, "bg-amber-500/10 text-amber-600 dark:text-amber-400")}
         title="Não foi possível manter a tela ligada. O tempo continua sendo medido corretamente."
       >
         <AlertTriangle size={11} /> Não foi possível manter a tela ativa
@@ -300,7 +300,7 @@ function WakeLockBadge({ state }: { state: WakeLockState }) {
   }
   return (
     <span
-      className={cn(base, "bg-slate-100 text-slate-500")}
+      className={cn(base, "bg-muted text-muted-foreground")}
       title="A tela pode apagar. O tempo continua sendo medido corretamente."
     >
       <Info size={11} /> Tela pode apagar
@@ -346,20 +346,20 @@ function StudySessionRecoveryModal({ session, isBusy, onContinue, onFinish }: St
         </div>
 
         <div className="p-6 space-y-4">
-          <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+          <p className="text-sm text-muted-foreground leading-relaxed">
             O MusicPro encontrou uma sessão que continuou contando enquanto o app esteve fechado
             ou em segundo plano. Escolha como deseja continuar.
           </p>
 
-          <div className="bg-slate-50 dark:bg-slate-800/60 rounded-2xl p-4 flex items-center justify-between">
+          <div className="bg-muted/60 rounded-2xl p-4 flex items-center justify-between">
             <div>
-              <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-400">Tempo acumulado</p>
-              <p className="text-2xl font-black text-slate-800 dark:text-slate-100 tabular-nums">{mm}:{ss}</p>
+              <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Tempo acumulado</p>
+              <p className="text-2xl font-black text-foreground tabular-nums">{mm}:{ss}</p>
             </div>
             {session && (
               <div className="text-right">
-                <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-400">Atividade</p>
-                <p className="text-sm font-black text-indigo-600 dark:text-indigo-400">Dia {session.dayIndex + 1}</p>
+                <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Atividade</p>
+                <p className="text-sm font-black text-indigo-600 dark:text-indigo-400 dark:text-indigo-400">Dia {session.dayIndex + 1}</p>
               </div>
             )}
           </div>
@@ -375,7 +375,7 @@ function StudySessionRecoveryModal({ session, isBusy, onContinue, onFinish }: St
             <Button
               onClick={onFinish}
               disabled={isBusy}
-              className="w-full h-12 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white font-black text-[11px] uppercase tracking-widest flex items-center justify-center gap-2"
+              className="w-full h-12 rounded-2xl bg-emerald-500/100 hover:bg-emerald-600 text-white font-black text-[11px] uppercase tracking-widest flex items-center justify-center gap-2"
             >
               <CheckCircle2 size={15} /> Encerrar sessão
             </Button>
@@ -548,7 +548,7 @@ export default function StudentProgress() {
   };
 
   return (
-    <div className="bg-slate-50 min-h-screen pb-24 font-sans text-slate-800 subtle-scrollbar overflow-x-hidden">
+    <div className="bg-background min-h-screen pb-24 font-sans text-foreground subtle-scrollbar overflow-x-hidden">
       {/* PRD 03 — Metrônomo flutuante disponível durante todo o estudo */}
       <FloatingMetronome />
 
@@ -578,10 +578,10 @@ export default function StudentProgress() {
       {/* Header Minimal */}
       <div className="pt-6 px-6">
         <div className="flex items-center justify-between">
-          <Button variant="ghost" size="icon" className="w-10 h-10 rounded-full bg-white shadow-sm hover:bg-slate-100" onClick={() => window.history.back()}>
-            <ChevronLeft size={20} className="text-slate-600" />
+          <Button variant="ghost" size="icon" className="w-10 h-10 rounded-full bg-card shadow-sm hover:bg-muted" onClick={() => window.history.back()}>
+            <ChevronLeft size={20} className="text-muted-foreground" />
           </Button>
-          <h1 className="text-lg font-black tracking-widest text-slate-800 uppercase">Meu Progresso</h1>
+          <h1 className="text-lg font-black tracking-widest text-foreground uppercase">Meu Progresso</h1>
           <div className="w-10" />
         </div>
       </div>
@@ -589,12 +589,12 @@ export default function StudentProgress() {
       {/* Content */}
       <div className="px-6 mt-6">
         {!activePlan || !planData ? (
-          <div className="flex flex-col items-center justify-center text-center p-8 bg-white border border-slate-100 rounded-3xl shadow-sm mt-4">
-             <div className="w-16 h-16 rounded-[1.5rem] bg-indigo-50 flex items-center justify-center mb-4">
+          <div className="flex flex-col items-center justify-center text-center p-8 bg-card border border-border/60 rounded-3xl shadow-sm mt-4">
+             <div className="w-16 h-16 rounded-[1.5rem] bg-indigo-500/10 flex items-center justify-center mb-4">
                <BookOpen size={28} className="text-indigo-400" />
              </div>
-             <h3 className="text-sm font-black tracking-tight text-slate-800 mb-2 uppercase">Nenhum plano ativo</h3>
-             <p className="text-[11px] text-slate-500 leading-relaxed mb-6">
+             <h3 className="text-sm font-black tracking-tight text-foreground mb-2 uppercase">Nenhum plano ativo</h3>
+             <p className="text-[11px] text-muted-foreground leading-relaxed mb-6">
                O seu professor ainda não gerou o seu plano de estudos para esta semana.
              </p>
           </div>
@@ -604,84 +604,84 @@ export default function StudentProgress() {
             <div className="flex items-center justify-between mb-5">
               <div className="flex items-center gap-2.5">
                 <div className="w-1.5 h-4 bg-orange-500 rounded-full" />
-                <h3 className="text-xs font-black text-slate-900 tracking-widest uppercase">Plano Diário Ativo</h3>
+                <h3 className="text-xs font-black text-foreground tracking-widest uppercase">Plano Diário Ativo</h3>
               </div>
               <div className="flex items-center gap-2">
-                <Button variant="ghost" size="sm" className="h-6 px-2 text-[9px] font-black tracking-widest text-indigo-600 uppercase hover:bg-indigo-50 rounded-md" onClick={() => setIsEditModalOpen(true)}>
+                <Button variant="ghost" size="sm" className="h-6 px-2 text-[9px] font-black tracking-widest text-indigo-600 dark:text-indigo-400 uppercase hover:bg-indigo-500/10 rounded-md" onClick={() => setIsEditModalOpen(true)}>
                   Editar Plano
                 </Button>
-                <div className="bg-emerald-100 text-emerald-700 px-2 py-1 rounded-md text-[9px] font-black tracking-widest uppercase">
+                <div className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 px-2 py-1 rounded-md text-[9px] font-black tracking-widest uppercase">
                   PUBLICADO
                 </div>
               </div>
             </div>
 
             {/* Target Card */}
-            <div className="bg-indigo-50/50 rounded-3xl p-5 border border-indigo-100 flex items-start gap-4 mb-4 relative overflow-hidden shadow-sm">
+            <div className="bg-indigo-500/10 rounded-3xl p-5 border border-indigo-500/20 flex items-start gap-4 mb-4 relative overflow-hidden shadow-sm">
                <Target className="absolute -right-4 -bottom-4 w-28 h-28 text-indigo-500/10 stroke-[1]" />
                <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-600 to-purple-500 flex items-center justify-center shrink-0 shadow-md">
                   <Target size={18} className="text-white" />
                </div>
                <div className="relative z-10">
-                  <h4 className="text-[10px] font-black text-indigo-600 tracking-widest uppercase mb-1">OBJETIVO DA SEMANA</h4>
-                  <p className="text-[11px] text-slate-700 font-bold leading-relaxed">
+                  <h4 className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 tracking-widest uppercase mb-1">OBJETIVO DA SEMANA</h4>
+                  <p className="text-[11px] text-foreground/90 font-bold leading-relaxed">
                     {planData.weeklyGoal || "Treinar com foco e dedicação!"}
                   </p>
                </div>
             </div>
 
             {/* Dia Selector */}
-            <div className="bg-white border border-slate-100 rounded-3xl p-4 flex items-center justify-between shadow-sm mb-4">
+            <div className="bg-card border border-border/60 rounded-3xl p-4 flex items-center justify-between shadow-sm mb-4">
                <div className="flex items-center gap-2">
-                 <CalendarDays size={16} className="text-indigo-600" />
-                 <span className="text-[11px] font-black uppercase text-slate-800 tracking-widest">
+                 <CalendarDays size={16} className="text-indigo-600 dark:text-indigo-400" />
+                 <span className="text-[11px] font-black uppercase text-foreground tracking-widest">
                    {currentDayData?.dayName || `Dia ${safeDayIndex + 1}`}
                  </span>
                </div>
                
                <div className="flex items-center gap-1.5">
-                 <Button variant="ghost" size="icon" className="w-8 h-8 rounded-xl bg-slate-50 border border-slate-100 shadow-sm" onClick={() => setSelectedDay(Math.max(0, selectedDay-1))}>
-                   <ChevronLeft size={16} className="text-slate-600" />
+                 <Button variant="ghost" size="icon" className="w-8 h-8 rounded-xl bg-muted/60 border border-border/60 shadow-sm" onClick={() => setSelectedDay(Math.max(0, selectedDay-1))}>
+                   <ChevronLeft size={16} className="text-muted-foreground" />
                  </Button>
-                 <Button variant="ghost" size="icon" className="w-8 h-8 rounded-xl bg-slate-50 border border-slate-100 shadow-sm" onClick={() => setSelectedDay(Math.min(planData.days.length-1, selectedDay+1))}>
-                   <ChevronRight size={16} className="text-slate-600" />
+                 <Button variant="ghost" size="icon" className="w-8 h-8 rounded-xl bg-muted/60 border border-border/60 shadow-sm" onClick={() => setSelectedDay(Math.min(planData.days.length-1, selectedDay+1))}>
+                   <ChevronRight size={16} className="text-muted-foreground" />
                  </Button>
                </div>
 
                <div className="flex flex-col gap-1 w-24">
                  <div className="flex justify-between">
-                   <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Progresso</span>
-                   <span className="text-[9px] font-black text-indigo-600">{Math.round((daysCompleted.filter(Boolean).length / planData.days.length) * 100)}%</span>
+                   <span className="text-[8px] font-bold text-muted-foreground/80 uppercase tracking-widest">Progresso</span>
+                   <span className="text-[9px] font-black text-indigo-600 dark:text-indigo-400">{Math.round((daysCompleted.filter(Boolean).length / planData.days.length) * 100)}%</span>
                  </div>
-                 <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                 <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
                    <div className="h-full bg-indigo-600 rounded-full" style={{ width: `${Math.round((daysCompleted.filter(Boolean).length / planData.days.length) * 100)}%` }} />
                  </div>
                </div>
             </div>
 
             {/* Foco do dia */}
-            <div className="bg-white border border-slate-100 rounded-3xl p-5 shadow-sm mb-6">
+            <div className="bg-card border border-border/60 rounded-3xl p-5 shadow-sm mb-6">
                <div className="flex items-start justify-between gap-4 mb-5">
                   <div className="flex gap-4 items-center">
-                    <div className="w-12 h-12 rounded-[1rem] bg-indigo-50 flex items-center justify-center shrink-0">
-                       <Music size={20} className="text-indigo-600" />
+                    <div className="w-12 h-12 rounded-[1rem] bg-indigo-500/10 flex items-center justify-center shrink-0">
+                       <Music size={20} className="text-indigo-600 dark:text-indigo-400" />
                     </div>
                     <div className="flex flex-col">
-                      <p className="text-[9px] font-black text-indigo-600 uppercase tracking-widest mb-0.5">FOCO DO DIA</p>
-                      <h2 className="text-sm font-black text-slate-800 leading-tight">
+                      <p className="text-[9px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mb-0.5">FOCO DO DIA</p>
+                      <h2 className="text-sm font-black text-foreground leading-tight">
                         {currentDayData?.focus?.title || "Praticar"}
                       </h2>
                     </div>
                   </div>
                   
                   <div className="flex flex-col gap-1.5 shrink-0 items-end">
-                    <div className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-slate-500 bg-slate-50 px-2 py-1 rounded-md">
+                    <div className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-muted-foreground bg-muted/60 px-2 py-1 rounded-md">
                       <Timer size={10} /> 20 MIN
                     </div>
-                    <div className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md">
+                    <div className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-md">
                       <div className="flex gap-0.5 items-end h-2.5">
-                        <div className="w-1 h-1.5 bg-emerald-500 rounded-full" />
-                        <div className="w-1 h-2 bg-emerald-500 rounded-full" />
+                        <div className="w-1 h-1.5 bg-emerald-500/100 rounded-full" />
+                        <div className="w-1 h-2 bg-emerald-500/100 rounded-full" />
                         <div className="w-1 h-2.5 bg-emerald-300 rounded-full" />
                       </div>
                       AVANÇADO
@@ -692,17 +692,17 @@ export default function StudentProgress() {
                 {/* Cronômetro: o tempo exibido vem SEMPRE de timestamps reais; o
                     Wake Lock apenas mantém a tela ligada durante o estudo. */}
                 {(timer.isActive || (timer.isPaused && timer.hasTime)) && (
-                  <div className="mb-4 rounded-2xl bg-slate-50 border border-slate-100 p-4">
+                  <div className="mb-4 rounded-2xl bg-muted/60 border border-border/60 p-4">
                     <div className="flex items-center justify-between gap-3 flex-wrap">
                       <div className="flex items-center gap-2">
-                        <span className={cn("w-2 h-2 rounded-full", timer.isActive ? "bg-emerald-500 animate-pulse" : "bg-amber-500")} />
-                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                        <span className={cn("w-2 h-2 rounded-full", timer.isActive ? "bg-emerald-500/100 animate-pulse" : "bg-amber-500/100")} />
+                        <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
                           {timer.isActive ? "Estudo em andamento" : "Estudo pausado"}
                         </span>
                       </div>
                       <WakeLockBadge state={timer.wakeLockState} />
                     </div>
-                    <p className="mt-3 text-4xl font-black tabular-nums tracking-tight text-slate-800">
+                    <p className="mt-3 text-4xl font-black tabular-nums tracking-tight text-foreground">
                       {formatTime(timer.elapsedSeconds)}
                     </p>
                   </div>
@@ -713,7 +713,7 @@ export default function StudentProgress() {
                     <Button
                       onClick={timer.pause}
                       title="Pausar treino"
-                      className="w-14 h-12 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white font-black flex items-center justify-center shadow-lg shadow-amber-500/20 transition-all active:scale-95"
+                      className="w-14 h-12 rounded-2xl bg-amber-500/100 hover:bg-amber-600 text-white font-black flex items-center justify-center shadow-lg shadow-amber-500/20 transition-all active:scale-95"
                     >
                       <Pause size={16} />
                     </Button>
@@ -727,7 +727,7 @@ export default function StudentProgress() {
                   </div>
                 ) : isCurrentDayCompleted ? (
                   <Button 
-                     className="w-full h-12 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all shadow-lg bg-emerald-500 hover:bg-emerald-600 shadow-emerald-500/20"
+                     className="w-full h-12 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all shadow-lg bg-emerald-500/100 hover:bg-emerald-600 shadow-emerald-500/20"
                      disabled
                   >
                     <><CheckCircle2 size={16} className="fill-emerald-100" /> TREINO CONCLUÍDO ({formatTime(daysTimeSpent[safeDayIndex])})</>
@@ -746,7 +746,7 @@ export default function StudentProgress() {
                         onClick={handleFinishTraining}
                         disabled={toggleDayMutation.isPending}
                         title="Concluir treino com o tempo acumulado"
-                        className="h-12 px-4 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-1.5 shadow-lg shadow-emerald-500/20 transition-all active:scale-95"
+                        className="h-12 px-4 rounded-2xl bg-emerald-500/100 hover:bg-emerald-600 text-white font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-1.5 shadow-lg shadow-emerald-500/20 transition-all active:scale-95"
                       >
                         <CheckCircle2 size={15} /> CONCLUIR
                       </Button>
@@ -758,19 +758,19 @@ export default function StudentProgress() {
             {/* Exercícios List */}
             {currentDayData?.exercises && currentDayData.exercises.length > 0 && (
               <div className="mt-6 flex flex-col gap-3">
-                 <h4 className="text-[10px] font-black tracking-widest uppercase text-slate-400 mb-2">Exercícios de hoje</h4>
+                 <h4 className="text-[10px] font-black tracking-widest uppercase text-muted-foreground/80 mb-2">Exercícios de hoje</h4>
                  {currentDayData.exercises.map((ex, idx) => (
-                    <div key={idx} className="bg-white border border-slate-100 rounded-3xl p-4 flex flex-col md:flex-row gap-4 shadow-sm items-start md:items-center">
+                    <div key={idx} className="bg-card border border-border/60 rounded-3xl p-4 flex flex-col md:flex-row gap-4 shadow-sm items-start md:items-center">
                       <div className="flex gap-4 items-center flex-1">
-                        <div className="w-12 h-12 bg-indigo-50 rounded-[1rem] flex items-center justify-center shrink-0">
+                        <div className="w-12 h-12 bg-indigo-500/10 rounded-[1rem] flex items-center justify-center shrink-0">
                           <ExerciseIcon icon={ex.icon} title={ex.title} />
                         </div>
                         <div className="flex-1">
-                          <h3 className="font-bold text-sm text-slate-800">{ex.title}</h3>
-                          {ex.subtitle && <p className="text-[11px] text-slate-500 font-medium mt-0.5">{ex.subtitle}</p>}
+                          <h3 className="font-bold text-sm text-foreground">{ex.title}</h3>
+                          {ex.subtitle && <p className="text-[11px] text-muted-foreground font-medium mt-0.5">{ex.subtitle}</p>}
                           <div className="flex items-center gap-1.5 mt-2 flex-wrap">
                             {ex.duration && (
-                              <div className="flex items-center gap-1.5 text-[9px] font-bold text-slate-400 bg-slate-50 w-fit px-2 py-0.5 rounded-md uppercase tracking-widest">
+                              <div className="flex items-center gap-1.5 text-[9px] font-bold text-muted-foreground/80 bg-muted/60 w-fit px-2 py-0.5 rounded-md uppercase tracking-widest">
                                 <Timer size={10} /> {ex.duration}
                               </div>
                             )}
@@ -783,7 +783,7 @@ export default function StudentProgress() {
                                   toast.success(`Metrônomo iniciado em ${ex.bpm} BPM`);
                                 }}
                                 title={`Iniciar metrônomo em ${ex.bpm} BPM`}
-                                className="flex items-center gap-1.5 text-[9px] font-black text-violet-600 bg-violet-50 hover:bg-violet-100 px-2 py-0.5 rounded-md uppercase tracking-widest transition-all active:scale-95 cursor-pointer"
+                                className="flex items-center gap-1.5 text-[9px] font-black text-violet-600 dark:text-violet-400 bg-violet-500/10 hover:bg-violet-500/20 px-2 py-0.5 rounded-md uppercase tracking-widest transition-all active:scale-95 cursor-pointer"
                               >
                                 <Play size={10} className="fill-current" /> {ex.bpm} BPM
                               </button>
@@ -794,7 +794,7 @@ export default function StudentProgress() {
                       
                       <Button
                         variant="ghost"
-                        className="w-full md:w-auto h-10 text-[10px] text-indigo-600 hover:text-indigo-700 font-black hover:bg-indigo-50 rounded-xl uppercase tracking-widest"
+                        className="w-full md:w-auto h-10 text-[10px] text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:text-indigo-300 font-black hover:bg-indigo-500/10 rounded-xl uppercase tracking-widest"
                         onClick={() => setSelectedExercise(ex)}
                       >
                         Ver detalhes &gt;
@@ -806,14 +806,14 @@ export default function StudentProgress() {
 
             {/* Banner Importante */}
             {planData?.importantMessage && (
-              <div className="mt-8 bg-violet-50/50 border border-violet-100 p-5 rounded-3xl flex flex-col md:flex-row items-center justify-between gap-4">
+              <div className="mt-8 bg-violet-500/10 border border-violet-500/20 p-5 rounded-3xl flex flex-col md:flex-row items-center justify-between gap-4">
                 <div className="flex gap-4 items-center">
-                  <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-violet-500 shadow-sm shrink-0">
+                  <div className="w-10 h-10 bg-card rounded-full flex items-center justify-center text-violet-500 shadow-sm shrink-0">
                     <Award size={18} />
                   </div>
                   <div>
                     <h4 className="font-bold text-[11px] uppercase tracking-widest text-violet-900 mb-0.5">Importante</h4>
-                    <p className="text-[11px] text-violet-700/80 font-medium">{planData.importantMessage}</p>
+                    <p className="text-[11px] text-violet-700 dark:text-violet-300/80 font-medium">{planData.importantMessage}</p>
                   </div>
                 </div>
               </div>

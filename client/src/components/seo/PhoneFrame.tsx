@@ -1,7 +1,35 @@
 // ─── Moldura de celular (iPhone-style) para os prints do sistema ─────────────
 // Usada nas páginas públicas de funcionalidades; o print é escolhido no Super Admin.
+import { useState } from "react";
 import { cn } from "@/lib/utils";
 import type React from "react";
+
+/** Imagem com shimmer até carregar (e placeholder se falhar). */
+function FrameImage({ src, alt, imgClassName }: { src: string; alt: string; imgClassName: string }) {
+  const [loaded, setLoaded] = useState(false);
+  const [failed, setFailed] = useState(false);
+
+  if (failed) {
+    return <div className="h-full w-full animate-pulse bg-gradient-to-r from-muted via-muted/50 to-muted" aria-hidden="true" />;
+  }
+
+  return (
+    <>
+      {!loaded && (
+        <div className="absolute inset-0 z-10 animate-pulse bg-gradient-to-r from-muted via-muted/50 to-muted" aria-hidden="true" />
+      )}
+      <img
+        src={src}
+        alt={alt}
+        loading="lazy"
+        decoding="async"
+        onLoad={() => setLoaded(true)}
+        onError={() => setFailed(true)}
+        className={cn(imgClassName, "transition-opacity duration-500", loaded ? "opacity-100" : "opacity-0")}
+      />
+    </>
+  );
+}
 
 export function PhoneFrame({
   src,
@@ -26,13 +54,7 @@ export function PhoneFrame({
       <div className="relative aspect-[9/19.2] rounded-[2.75rem] bg-slate-950 p-[9px] shadow-2xl ring-1 ring-white/10">
         <div className="relative h-full w-full overflow-hidden rounded-[2.25rem] bg-background">
           {src ? (
-            <img
-              src={src}
-              alt={alt || "MusicPro no celular"}
-              loading="lazy"
-              decoding="async"
-              className="h-full w-full object-cover"
-            />
+            <FrameImage src={src} alt={alt || "MusicPro no celular"} imgClassName="h-full w-full object-cover" />
           ) : (
             children
           )}
@@ -62,13 +84,7 @@ export function LaptopFrame({
       <div className="relative rounded-t-[1.4rem] bg-slate-950 p-[10px] pb-[12px] shadow-2xl ring-1 ring-white/10">
         <div className="relative aspect-[16/10] overflow-hidden rounded-[0.6rem] bg-background">
           {src ? (
-            <img
-              src={src}
-              alt={alt || "MusicPro no computador"}
-              loading="lazy"
-              decoding="async"
-              className="h-full w-full object-cover object-top"
-            />
+            <FrameImage src={src} alt={alt || "MusicPro no computador"} imgClassName="h-full w-full object-cover object-top" />
           ) : (
             children
           )}

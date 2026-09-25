@@ -139,6 +139,40 @@ export default function Alunos() {
     return students.filter((s: any) => s.startDate && new Date(s.startDate) >= thirtyDaysAgo).length;
   }, [students]);
 
+  // Série real do gráfico: novos alunos por semana nas últimas 6 semanas (por startDate)
+  const growthSeries = useMemo(() => {
+    const weeks = 6;
+    const buckets = new Array<number>(weeks).fill(0);
+    const now = new Date();
+    students.forEach((s: any) => {
+      if (!s.startDate) return;
+      const started = new Date(s.startDate);
+      if (isNaN(started.getTime())) return;
+      const diffDays = Math.floor((now.getTime() - started.getTime()) / 86400000);
+      if (diffDays < 0 || diffDays >= weeks * 7) return;
+      const idx = weeks - 1 - Math.floor(diffDays / 7);
+      if (idx >= 0 && idx < weeks) buckets[idx]++;
+    });
+    return buckets;
+  }, [students]);
+
+  const growthPath = useMemo(() => {
+    const width = 200;
+    const height = 60;
+    const pad = 6;
+    const max = Math.max(...growthSeries, 1);
+    const step = growthSeries.length > 1 ? width / (growthSeries.length - 1) : width;
+    const points = growthSeries.map((value, i) => {
+      const x = i * step;
+      const y = height - pad - (value / max) * (height - pad * 2);
+      return [x, y] as const;
+    });
+    const line = points.map(([x, y], i) => `${i === 0 ? "M" : "L"}${x.toFixed(1)} ${y.toFixed(1)}`).join(" ");
+    return { line, area: `${line} L ${width} ${height} L 0 ${height} Z` };
+  }, [growthSeries]);
+
+  const hasGrowthData = growthSeries.some((value) => value > 0);
+
   const lessonsToday = useMemo(() => {
     const today = startOfDay(new Date());
     return upcomingLessons.filter(l => isSameDay(new Date(l.scheduledAt), today)).length;
@@ -596,10 +630,27 @@ export default function Alunos() {
                 </h3>
                 <div className="space-y-6 relative z-10">
                    <div className="h-16 w-full relative">
-                      <svg viewBox="0 0 200 60" className="w-full h-full text-primary" preserveAspectRatio="none">
-                        <path d="M0 60 C 20 50, 40 40, 60 45 S 80 20, 100 30 S 140 10, 160 15 S 180 30, 200 20 V 60 H 0 Z" fill="currentColor" fillOpacity="0.05" />
-                        <path d="M0 60 C 20 50, 40 40, 60 45 S 80 20, 100 30 S 140 10, 160 15 S 180 30, 200 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                      <svg
+                        viewBox="0 0 200 60"
+                        className={cn("w-full h-full", hasGrowthData ? "text-primary" : "text-muted-foreground/40")}
+                        preserveAspectRatio="none"
+                        role={hasGrowthData ? "img" : "presentation"}
+                        aria-label={hasGrowthData ? "Novos alunos por semana nas últimas 6 semanas" : undefined}
+                      >
+                        {hasGrowthData ? (
+                          <>
+                            <path d={growthPath.area} fill="currentColor" fillOpacity="0.05" />
+                            <path d={growthPath.line} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                          </>
+                        ) : (
+                          <path d="M0 45 H200" fill="none" stroke="currentColor" strokeWidth="2" strokeDasharray="6 6" strokeLinecap="round" />
+                        )}
                       </svg>
+                      {!hasGrowthData && (
+                        <p className="absolute inset-0 flex items-center justify-center text-[9px] font-black uppercase tracking-widest text-muted-foreground">
+                          Sem novos alunos (6 semanas)
+                        </p>
+                      )}
                    </div>
                    
                    <div className="grid grid-cols-2 xl:grid-cols-1 gap-4 pt-2">

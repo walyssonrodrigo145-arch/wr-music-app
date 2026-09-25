@@ -14,6 +14,7 @@ import { useSeo } from "@/hooks/useSeo";
 import { Button } from "@/components/ui/button";
 import PlanSimulator from "@/components/planos/PlanSimulator";
 import { MobileShowcase, DesktopShowcase, MediaGallery } from "@/components/seo/MobileShowcase";
+import { SeoImage } from "@/components/seo/SeoImage";
 import { ArrowRight, CheckCircle2, FileSignature, Menu, X } from "lucide-react";
 import { useState } from "react";
 
@@ -161,7 +162,7 @@ function KindBadge({ kind }: { kind: SeoPageKind }) {
 
 function SeoPageView({ page }: { page: SeoPage }) {
   useSeo(page);
-  const { data: seoMedia } = trpc.publicData.getSeoMedia.useQuery();
+  const { data: seoMedia, isLoading: isLoadingSeoMedia } = trpc.publicData.getSeoMedia.useQuery();
   // A API já devolve as mídias agrupadas por rota e tipo (capa/galeria/celular/notebook)
   const pageMedia = (seoMedia as any)?.[page.path] as
     | { cover?: any[]; gallery?: any[]; mobile?: any[]; desktop?: any[] }
@@ -220,17 +221,24 @@ function SeoPageView({ page }: { page: SeoPage }) {
         </header>
 
         {/* Imagem real do sistema (capa configurável no Super Admin) */}
-        {coverSrc && (
+        {(coverSrc || isLoadingSeoMedia) && (
           <div className="mt-10 rounded-3xl border border-border/60 bg-card/40 p-1.5 sm:p-2 shadow-2xl shadow-primary/10 backdrop-blur-xl">
-            <img
-              src={coverSrc}
-              alt={coverAlt}
-              width={1024}
-              height={494}
-              loading="lazy"
-              decoding="async"
-              className="w-full h-auto rounded-[1.25rem] border border-border/40"
-            />
+            {coverSrc ? (
+              <SeoImage
+                src={coverSrc}
+                alt={coverAlt}
+                width={1024}
+                height={494}
+                eager
+                className="rounded-[1.25rem] border border-border/40"
+                imgClassName="w-full h-auto"
+              />
+            ) : (
+              <div
+                className="w-full aspect-[1024/494] rounded-[1.25rem] animate-pulse bg-gradient-to-r from-muted via-muted/50 to-muted"
+                aria-hidden="true"
+              />
+            )}
           </div>
         )}
 
@@ -248,19 +256,18 @@ function SeoPageView({ page }: { page: SeoPage }) {
                   href={child.path}
                   className="group rounded-2xl border border-border/70 bg-card/60 overflow-hidden transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-xl hover:shadow-primary/5 flex flex-col"
                 >
-                  {childCover.src && (
-                    <div className="aspect-video overflow-hidden border-b border-border/50 bg-muted/30">
-                      <img
-                        src={childCover.src}
-                        alt={childCover.alt || child.h1}
-                        width={1024}
-                        height={494}
-                        loading="lazy"
-                        decoding="async"
-                        className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-500"
-                      />
-                    </div>
-                  )}
+                  {childCover.src ? (
+                    <SeoImage
+                      src={childCover.src}
+                      alt={childCover.alt || child.h1}
+                      width={1024}
+                      height={494}
+                      className="aspect-video border-b border-border/50 bg-muted/30"
+                      imgClassName="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-500"
+                    />
+                  ) : isLoadingSeoMedia ? (
+                    <div className="aspect-video border-b border-border/50 bg-muted animate-pulse" aria-hidden="true" />
+                  ) : null}
                   <div className="p-5 flex flex-col flex-1">
                     <p className="font-outfit text-base font-extrabold leading-snug group-hover:text-primary transition-colors">{child.h1}</p>
                     {child.intro && <p className="mt-2 text-xs text-muted-foreground line-clamp-3 leading-relaxed flex-1">{child.intro}</p>}
@@ -275,16 +282,16 @@ function SeoPageView({ page }: { page: SeoPage }) {
         )}
 
         {/* Sistema no celular: hub e cada funcionalidade (prints do Super Admin) */}
-        {page.path === "/funcionalidades" && <MobileShowcase variant="hub" prints={mobilePrints} />}
-        {page.kind === "feature" && <MobileShowcase variant="feature" prints={mobilePrints} title={page.h1} />}
+        {page.path === "/funcionalidades" && <MobileShowcase variant="hub" prints={mobilePrints} isLoading={isLoadingSeoMedia} />}
+        {page.kind === "feature" && <MobileShowcase variant="feature" prints={mobilePrints} title={page.h1} isLoading={isLoadingSeoMedia} />}
 
         {/* Sistema no notebook (moldura) — quando houver prints configurados */}
-        {(page.path === "/funcionalidades" || page.kind === "feature") && desktopPrints.length > 0 && (
-          <DesktopShowcase prints={desktopPrints} title={page.h1} />
+        {(page.path === "/funcionalidades" || page.kind === "feature") && (desktopPrints.length > 0 || isLoadingSeoMedia) && (
+          <DesktopShowcase prints={desktopPrints} title={page.h1} isLoading={isLoadingSeoMedia} />
         )}
 
         {/* Galeria de imagens adicionais por funcionalidade */}
-        {gallery.length > 0 && <MediaGallery images={gallery} />}
+        {(gallery.length > 0 || isLoadingSeoMedia) && <MediaGallery images={gallery} isLoading={isLoadingSeoMedia} />}
 
         {/* Conteúdo */}
         <div className="mt-12 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_20rem] gap-10 items-start">

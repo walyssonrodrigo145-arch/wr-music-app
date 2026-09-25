@@ -26,6 +26,18 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: "2026.09.25",
+    date: "2026-09-25",
+    title: "Assinatura só para admin, horários reais da escola e ajustes no portal do aluno",
+    summary: "O professor deixou de ver a área de Assinatura (agora exclusiva do admin), os Horários Livres passam a usar o expediente cadastrado pela escola, o gráfico de alunos usa dados reais (com estado vazio) e o Plano Diário do aluno respeita o tema.",
+    items: [
+      { type: "correcao", title: "Assinatura exclusiva do admin", description: "O item Assinatura saiu do menu do professor, o banner de plano do menu lateral e os avisos de renovação também; a rota /assinatura redireciona professor para o dashboard." },
+      { type: "correcao", title: "Horários Livres com o expediente da escola", description: "O painel em Aulas usa os horários configurados em Configurações → Escola (mesmo para professores), sem cair no padrão 08:00–18:00." },
+      { type: "correcao", title: "Gráfico de novos alunos com dados reais", description: "O 'Resumo rápido' em Alunos mostra a evolução real das últimas 6 semanas (por data de início) e exibe 'Sem novos alunos' quando não há dados." },
+      { type: "correcao", title: "Plano Diário do aluno respeita o tema", description: "A aba Plano Diário (e o modal de edição) deixou de ficar branca em temas escuros — as cores agora usam os tokens do sistema." },
+    ],
+  },
+  {
     version: "2026.09.24.5",
     date: "2026-09-24",
     title: "Imagens das páginas públicas sem a “piscada” da imagem antiga + botão voltar ao topo",
@@ -35,6 +47,7 @@ export const RELEASES: Release[] = [
       { type: "novo", title: "Botão “Voltar ao topo” na landing", description: "Botão flutuante aparece ao rolar a página e sobe suavemente para o início." },
       { type: "melhoria", title: "Logos oficiais das integrações", description: "Os cartões de Asaas, Mercado Pago e InfinitePay agora usam os ícones oficiais das próprias marcas, no lugar de desenhos genéricos." },
       { type: "melhoria", title: "Números da landing sempre atualizados", description: "Escolas, alunos ativos e aulas são contados direto do banco a cada acesso (e a cada minuto com a página aberta); os dias de teste grátis vêm da configuração do Super Admin." },
+      { type: "melhoria", title: "Loading nas imagens das páginas públicas", description: "Capa, molduras de celular/notebook e galeria agora mostram um efeito de carregamento no lugar certo até a imagem aparecer — sem espaço vazio nem “pulo” de layout." },
     ],
   },
   {

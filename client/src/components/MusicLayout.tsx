@@ -170,8 +170,8 @@ export function MusicLayout({ children }: MusicLayoutProps) {
       {/* Anúncio do Indique & Ganhe — 2x ao dia (manhã e tarde) */}
       <ReferralPromoModal />
 
-      {/* Lembrete amigável da mensalidade do MusicPro (≤ 3 dias, 1x/dia) */}
-      <SubscriptionRenewalModal />
+      {/* Lembrete amigável da mensalidade do MusicPro (≤ 3 dias, 1x/dia) — só admin gerencia a assinatura */}
+      {user?.role === "admin" && <SubscriptionRenewalModal />}
     </div>
   );
 }

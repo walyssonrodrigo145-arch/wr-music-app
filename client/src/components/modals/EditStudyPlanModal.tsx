@@ -43,17 +43,17 @@ export function EditStudyPlanModal({ planId, initialText, isOpen, onClose, onSuc
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-hidden flex flex-col bg-white border-slate-100 rounded-3xl p-0">
-        <DialogHeader className="p-6 pb-4 border-b border-slate-100">
-          <DialogTitle className="text-xl font-black text-slate-800">
+      <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-hidden flex flex-col bg-card border-border rounded-3xl p-0">
+        <DialogHeader className="p-6 pb-4 border-b border-border">
+          <DialogTitle className="text-xl font-black text-foreground">
             Editar Plano de Estudo
           </DialogTitle>
-          <p className="text-sm text-slate-500 font-medium">
+          <p className="text-sm text-muted-foreground font-medium">
             Altere os exercícios ou detalhes do plano de estudos gerado.
           </p>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto p-6 bg-slate-50">
+        <div className="flex-1 overflow-y-auto p-6 bg-muted/40">
           <Textarea 
             value={planText}
             onChange={(e) => setPlanText(e.target.value)}
@@ -62,7 +62,7 @@ export function EditStudyPlanModal({ planId, initialText, isOpen, onClose, onSuc
           />
         </div>
 
-        <div className="p-4 border-t border-slate-100 flex justify-end gap-3 bg-white">
+        <div className="p-4 border-t border-border flex justify-end gap-3 bg-card">
           <Button variant="ghost" onClick={onClose} disabled={editMutation.isPending}>
             Cancelar
           </Button>

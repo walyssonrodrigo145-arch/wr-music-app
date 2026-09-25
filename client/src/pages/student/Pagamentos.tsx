@@ -509,7 +509,7 @@ export default function StudentPayments() {
                       className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                     />
                     <div className="flex flex-col items-center justify-center p-8 bg-primary/5 hover:bg-primary/10 border-2 border-dashed border-primary/30 rounded-3xl transition-all group-hover:border-primary/60">
-                       <div className="w-16 h-16 bg-white dark:bg-black rounded-full flex items-center justify-center shadow-lg mb-4 text-primary group-hover:scale-110 transition-transform">
+                       <div className="w-16 h-16 bg-card rounded-full flex items-center justify-center shadow-lg mb-4 text-primary group-hover:scale-110 transition-transform">
                           <UploadCloud size={28} />
                        </div>
                        <p className="text-sm font-black text-foreground text-center">Arraste seu comprovante aqui</p>
