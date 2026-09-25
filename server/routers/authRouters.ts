@@ -75,7 +75,7 @@ export const authRouters = {
      */
     getPublicStats: publicProcedure.query(async () => {
       const db = await getDb();
-      if (!db) return { schools: 0, students: 0, lessons: 0 };
+      if (!db) return { schools: 0, students: 0, lessons: 0, trialDays: 7 };
       const { organizations, students, lessons } = await import("../../drizzle/schema");
       const { eq, sql } = await import("drizzle-orm");
 
@@ -90,10 +90,15 @@ export const authRouters = {
         .select({ value: sql<number>`COUNT(*)::int` })
         .from(lessons);
 
+      // Dias de teste grátis configuráveis no Super Admin (Programa Indique & Ganhe)
+      const { getTrialDays } = await import("../services/ReferralEngine");
+      const trialDays = await getTrialDays(db).catch(() => 7);
+
       return {
         schools: Number(schoolsRow?.value) || 0,
         students: Number(studentsRow?.value) || 0,
         lessons: Number(lessonsRow?.value) || 0,
+        trialDays: Number.isFinite(trialDays) ? trialDays : 7,
       };
     }),
     /**

@@ -161,6 +161,20 @@ const filesToUpload = [
   'server/dates.test.ts',
   'server/schedulePreview.test.ts',
   'PRD_AGENDAMENTO_VISIVEL.md',
+  // ── Imagens SEO sem estáticas + voltar ao topo + logos oficiais + stats automáticos ──
+  'shared/seo/features.ts',
+  'shared/seo/types.ts',
+  'client/src/pages/SeoSite.tsx',
+  'client/src/pages/LandingPage.tsx',
+  'client/src/components/logos/PaymentBrandLogos.tsx',
+  'client/public/logos/asaas.png',
+  'client/public/logos/mercadopago.png',
+  'client/public/logos/infinitepay.png',
+  'server/routers/authRouters.ts',
+  'server/seo.test.ts',
+  'server/publicStats.test.ts',
+  'shared/releases.ts',
+  'PLANO_LANDING_HERO_IMAGENS.md',
 ];
 
 console.log('🚀 Iniciando deploy no Ambiente de Testes (STAGING)...');

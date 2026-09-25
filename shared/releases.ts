@@ -26,6 +26,18 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: "2026.09.24.5",
+    date: "2026-09-24",
+    title: "Imagens das páginas públicas sem a “piscada” da imagem antiga + botão voltar ao topo",
+    summary: "As capas estáticas antigas das páginas públicas foram removidas: agora valem só as imagens cadastradas no Super Admin, sem aparecer a antiga antes da nova. Na landing, um botão flutuante volta ao topo da página.",
+    items: [
+      { type: "correcao", title: "Fim da imagem antiga antes da nova", description: "O HTML pré-renderizado não injeta mais capas estáticas; ao atualizar a página, a imagem exibida já é a cadastrada em Imagens das Páginas Públicas." },
+      { type: "novo", title: "Botão “Voltar ao topo” na landing", description: "Botão flutuante aparece ao rolar a página e sobe suavemente para o início." },
+      { type: "melhoria", title: "Logos oficiais das integrações", description: "Os cartões de Asaas, Mercado Pago e InfinitePay agora usam os ícones oficiais das próprias marcas, no lugar de desenhos genéricos." },
+      { type: "melhoria", title: "Números da landing sempre atualizados", description: "Escolas, alunos ativos e aulas são contados direto do banco a cada acesso (e a cada minuto com a página aberta); os dias de teste grátis vêm da configuração do Super Admin." },
+    ],
+  },
+  {
     version: "2026.09.24.4",
     date: "2026-09-24",
     title: "Agendamento visível: veja exatamente quais aulas foram marcadas",

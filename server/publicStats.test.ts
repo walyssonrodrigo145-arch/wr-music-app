@@ -20,13 +20,13 @@ describe("publicData.getPublicStats (números da landing)", () => {
   it("é público e devolve contagens zeradas sem banco (landing não quebra)", async () => {
     const caller = appRouter.createCaller(createCtx());
     const stats = await caller.publicData.getPublicStats();
-    expect(stats).toEqual({ schools: 0, students: 0, lessons: 0 });
+    expect(stats).toEqual({ schools: 0, students: 0, lessons: 0, trialDays: 7 });
   });
 
   it("nunca expõe dados de escola/aluno — apenas números", async () => {
     const caller = appRouter.createCaller(createCtx());
     const stats = await caller.publicData.getPublicStats();
-    expect(Object.keys(stats).sort()).toEqual(["lessons", "schools", "students"]);
+    expect(Object.keys(stats).sort()).toEqual(["lessons", "schools", "students", "trialDays"]);
     for (const value of Object.values(stats)) {
       expect(typeof value).toBe("number");
       expect(value).toBeGreaterThanOrEqual(0);

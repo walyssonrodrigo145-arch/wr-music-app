@@ -171,15 +171,15 @@ function SeoPageView({ page }: { page: SeoPage }) {
   const mobilePrints = asArray(pageMedia?.mobile);
   const desktopPrints = asArray(pageMedia?.desktop);
 
-  /** Capa efetiva de uma página: imagem do Super Admin > capa estática. */
-  const coverFor = (path: string, fallback?: { src: string; alt: string }) => {
+  /** Capa efetiva de uma página: somente imagem cadastrada no Super Admin. */
+  const coverFor = (path: string) => {
     const adminCover = asArray((seoMedia as any)?.[path]?.cover)[0];
     return {
-      src: adminCover?.url || fallback?.src || "",
-      alt: adminCover?.alt || fallback?.alt || "",
+      src: adminCover?.url || "",
+      alt: adminCover?.alt || "",
     };
   };
-  const pageCover = coverFor(page.path, page.cover);
+  const pageCover = coverFor(page.path);
   const coverSrc = pageCover.src;
   const coverAlt = pageCover.alt || page.h1;
   const related = SEO_PAGES.filter((p) => p.path !== page.path && !p.noindex && p.kind === page.kind).slice(0, 6);
@@ -241,7 +241,7 @@ function SeoPageView({ page }: { page: SeoPage }) {
         {children.length > 0 && (
           <section className="mt-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {children.map((child) => {
-              const childCover = coverFor(child.path, child.cover);
+              const childCover = coverFor(child.path);
               return (
                 <Link
                   key={child.path}

@@ -10,6 +10,7 @@ import {
   Guitar, 
   Check, 
   ArrowRight, 
+  ArrowUp,
   Menu, 
   X,
   Star,
@@ -692,6 +693,7 @@ const LandingPage = () => {
   // Progresso de leitura + seção ativa no menu (scrollspy)
   const [scrollProgress, setScrollProgress] = useState(0);
   const [activeSection, setActiveSection] = useState("");
+  const [heroImageError, setHeroImageError] = useState(false);
   const [, setLocation] = useLocation();
   const { isAuthenticated, loading, user } = useAuth();
 
@@ -761,11 +763,18 @@ const LandingPage = () => {
   }, [signupPlan, showAllPlans]);
 
   const { data: dbPlans, isLoading: loadingPlans } = trpc.publicData.getPlans.useQuery();
-  const { data: publicStats } = trpc.publicData.getPublicStats.useQuery(undefined, { staleTime: 10 * 60 * 1000 });
+  const { data: publicStats } = trpc.publicData.getPublicStats.useQuery(undefined, {
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
+    refetchInterval: 60 * 1000,
+  });
+  const trialDays = publicStats?.trialDays ?? 7;
   const { data: seoMedia } = trpc.publicData.getSeoMedia.useQuery();
   const homeCover = ((seoMedia as any)?.["/"]?.cover ?? [])[0];
-  const heroImage = homeCover?.url || "/images/dashboard-preview.png";
+  const heroImage = homeCover?.url || null;
   const heroImageAlt = homeCover?.alt || "Dashboard do Sistema MusicPro com agenda, alunos e financeiro";
+  const showHeroImage = Boolean(heroImage) && !heroImageError;
 
   const parseFeatures = (fStr: any) => {
     if (Array.isArray(fStr)) return fStr;
@@ -1034,27 +1043,26 @@ const LandingPage = () => {
             >
               <div className="relative w-full">
                 <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-indigo-500/20 rounded-[48px] blur-2xl"></div>
-                <img
-                  src={heroImage}
-                  alt={heroImageAlt}
-                  width={1024}
-                  height={494}
-                  fetchPriority="high"
-                  decoding="async"
-                  className="relative rounded-[24px] shadow-2xl border border-border w-full h-auto object-cover"
-                  onError={(e) => {
-                    e.currentTarget.classList.add('hidden');
-                    const fallback = e.currentTarget.nextElementSibling as HTMLElement;
-                    if (fallback) fallback.classList.remove('hidden');
-                  }}
-                />
-                <div className="hidden relative rounded-[24px] shadow-2xl border border-border/50 bg-gradient-to-br from-primary/10 via-indigo-500/5 to-background flex flex-col items-center justify-center aspect-video">
-                  <div className="text-center p-8">
-                    <Music size={52} className="text-primary/40 mx-auto mb-4" />
-                    <p className="text-foreground font-bold text-base">Dashboard MusicPro</p>
-                    <p className="text-muted-foreground/60 text-xs mt-1">Visualização do painel administrativo</p>
+                {showHeroImage ? (
+                  <img
+                    src={heroImage!}
+                    alt={heroImageAlt}
+                    width={1024}
+                    height={494}
+                    fetchPriority="high"
+                    decoding="async"
+                    className="relative rounded-[24px] shadow-2xl border border-border w-full h-auto object-cover"
+                    onError={() => setHeroImageError(true)}
+                  />
+                ) : (
+                  <div className="relative rounded-[24px] shadow-2xl border border-border/50 bg-gradient-to-br from-primary/10 via-indigo-500/5 to-background flex flex-col items-center justify-center aspect-video">
+                    <div className="text-center p-8">
+                      <Music size={52} className="text-primary/40 mx-auto mb-4" />
+                      <p className="text-foreground font-bold text-base">Dashboard MusicPro</p>
+                      <p className="text-muted-foreground/60 text-xs mt-1">Visualização do painel administrativo</p>
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             </motion.div>
           </div>
@@ -1075,14 +1083,28 @@ const LandingPage = () => {
               { value: publicStats?.lessons || 0, label: "aulas organizadas na plataforma" },
             ].filter((s) => s.value > 0).map((stat) => (
               <div key={stat.label} className="text-center sm:text-left">
-                <p className="font-outfit text-3xl sm:text-4xl font-black text-foreground tracking-tight">
+                <motion.p
+                  key={stat.value}
+                  initial={{ opacity: 0.3, y: -6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.35 }}
+                  className="font-outfit text-3xl sm:text-4xl font-black text-foreground tracking-tight"
+                >
                   +{new Intl.NumberFormat("pt-BR").format(stat.value)}
-                </p>
+                </motion.p>
                 <p className="text-[11px] sm:text-xs font-bold uppercase tracking-widest text-muted-foreground mt-1">{stat.label}</p>
               </div>
             ))}
             <div className="text-center sm:text-left">
-              <p className="font-outfit text-3xl sm:text-4xl font-black text-emerald-500 tracking-tight">7 dias</p>
+              <motion.p
+                key={trialDays}
+                initial={{ opacity: 0.3, y: -6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.35 }}
+                className="font-outfit text-3xl sm:text-4xl font-black text-emerald-500 tracking-tight"
+              >
+                {trialDays} dias
+              </motion.p>
               <p className="text-[11px] sm:text-xs font-bold uppercase tracking-widest text-muted-foreground mt-1">grátis para testar, sem cartão</p>
             </div>
           </div>
@@ -1650,6 +1672,19 @@ const LandingPage = () => {
           </div>
         </div>
       </footer>
+
+      {/* Voltar ao topo */}
+      {scrollProgress > 8 && (
+        <button
+          type="button"
+          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+          aria-label="Voltar ao topo da página"
+          title="Voltar ao topo"
+          className="fixed bottom-6 right-5 sm:bottom-8 sm:right-8 z-50 h-12 w-12 rounded-full bg-primary text-primary-foreground shadow-xl shadow-primary/30 hover:bg-primary/90 hover:-translate-y-1 active:scale-95 transition-all flex items-center justify-center"
+        >
+          <ArrowUp size={20} strokeWidth={2.5} />
+        </button>
+      )}
     </div>
   );
 };

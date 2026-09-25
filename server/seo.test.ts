@@ -94,15 +94,14 @@ describe("SEO — páginas públicas", () => {
     expect(html).not.toContain("<script");
   });
 
-  it("páginas de funcionalidade têm imagem real do sistema (cover)", () => {
+  it("imagens das páginas públicas vêm do Super Admin (sem capas estáticas no código)", () => {
     const features = SEO_PAGES.filter((p) => p.kind === "feature");
     expect(features.length).toBeGreaterThanOrEqual(5);
-    for (const p of features) {
-      expect(p.cover?.src, `cover ausente: ${p.path}`).toMatch(/^\/images\//);
-      expect((p.cover?.alt || "").length, `alt curto: ${p.path}`).toBeGreaterThan(15);
+    for (const page of SEO_PAGES) {
+      expect(page.cover, `capa estática reintroduzida em ${page.path}`).toBeUndefined();
     }
     const html = renderSeoContentHtml(getSeoPage("/funcionalidades/financeiro", SEO_PAGES)!, SEO_PAGES);
-    expect(html).toContain("<img");
+    expect(html).not.toContain("<img");
   });
 
   it("isSeoContentPath reconhece o site público e ignora o app", () => {

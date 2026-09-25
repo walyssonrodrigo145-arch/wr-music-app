@@ -1,53 +1,56 @@
 // ─── Logos reais das plataformas de pagamento (integrações oficiais) ─────────
-// Marcas reproduzidas de forma fiel: Asaas (quadrado azul + "a" branco),
-// Mercado Pago (oval azul + aperto de mãos) e InfinitePay (quadrado escuro +
-// infinito verde/lima).
-import { Handshake, Infinity as InfinityIcon } from "lucide-react";
+// Ícones oficiais baixados dos próprios sites:
+//   Asaas        → asaas.com (web-app-manifest-512x512.png)
+//   Mercado Pago → mercadopago.com.br (ícone oficial)
+//   InfinitePay  → infinitepay.io (ícone oficial)
 import { cn } from "@/lib/utils";
 
 interface LogoProps {
   className?: string;
 }
 
-/** Asaas — quadrado azul com o "a" branco da marca. */
+/** Asaas — ícone oficial. */
 export function AsaasLogoMark({ className }: LogoProps) {
   return (
-    <svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg" className={cn("w-9 h-9", className)} role="img" aria-label="Asaas">
-      <rect width="40" height="40" rx="10" fill="#0B3EE3" />
-      <path
-        d="M12.6 30.5c.9-4.6 3.3-13.6 7.4-19.3 4.1 5.7 6.5 14.7 7.4 19.3"
-        fill="none"
-        stroke="#FFFFFF"
-        strokeWidth="3.4"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path d="M17.1 24.6h5.8" stroke="#FFFFFF" strokeWidth="3.4" strokeLinecap="round" />
-    </svg>
+    <img
+      src="/logos/asaas.png"
+      alt="Asaas"
+      width={512}
+      height={512}
+      loading="lazy"
+      decoding="async"
+      className={cn("w-9 h-9 object-contain", className)}
+    />
   );
 }
 
-/** Mercado Pago — oval azul com o aperto de mãos da marca. */
+/** Mercado Pago — ícone oficial. */
 export function MercadoPagoLogoMark({ className }: LogoProps) {
   return (
-    <span className={cn("relative inline-flex items-center justify-center w-9 h-9", className)} role="img" aria-label="Mercado Pago">
-      <svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
-        <ellipse cx="20" cy="20" rx="18.5" ry="13" fill="#0FB6EE" stroke="#0B4A9E" strokeWidth="1.6" />
-      </svg>
-      <Handshake className="absolute w-[46%] h-[46%] text-white" strokeWidth={2.6} />
-    </span>
+    <img
+      src="/logos/mercadopago.png"
+      alt="Mercado Pago"
+      width={128}
+      height={128}
+      loading="lazy"
+      decoding="async"
+      className={cn("w-9 h-9 object-contain", className)}
+    />
   );
 }
 
-/** InfinitePay — quadrado escuro com o infinito verde/lima da marca. */
+/** InfinitePay — ícone oficial. */
 export function InfinitePayLogoMark({ className }: LogoProps) {
   return (
-    <span className={cn("relative inline-flex items-center justify-center w-9 h-9", className)} role="img" aria-label="InfinitePay">
-      <svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
-        <rect width="40" height="40" rx="10" fill="#0E0E10" />
-      </svg>
-      <InfinityIcon className="absolute w-[54%] h-[54%] text-lime-300" strokeWidth={2.8} />
-    </span>
+    <img
+      src="/logos/infinitepay.png"
+      alt="InfinitePay"
+      width={128}
+      height={128}
+      loading="lazy"
+      decoding="async"
+      className={cn("w-9 h-9 object-contain", className)}
+    />
   );
 }
 
