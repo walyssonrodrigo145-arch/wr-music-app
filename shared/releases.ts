@@ -26,6 +26,19 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: "2026.09.28",
+    date: "2026-09-28",
+    title: "Agenda mobile renovada + Histórico de alunos (arquivar, reativar e reconquistar)",
+    summary: "A agenda no celular ficou completa: visão de mês, semana e dia com bolinhas de status, filtros e agendamento rápido. E excluir aluno agora é Arquivar: o ex-aluno vai para o Histórico com o motivo da saída, podendo ser reativado ou reconquistado pelo WhatsApp.",
+    items: [
+      { type: "novo", title: "Agenda mobile com mês, semana e dia", description: "No celular: calêndario com bolinhas coloridas por status, listas do dia, deslize para trocar de período, legenda clicável e botão flutuante para agendar. No computador nada mudou." },
+      { type: "novo", title: "Filtros da agenda no celular", description: "Filtre por professor, tipo de aula, instrumento/modalidade e sala, com atalho de limpar e contador de filtros ativos." },
+      { type: "novo", title: "Histórico de alunos", description: "Ao Arquivar, o aluno sai da lista de ativos e vai para o Histórico (só admin vê), com motivo da saída, observações e data. De lá dá para reativar ou chamar no WhatsApp com mensagem pronta." },
+      { type: "melhoria", title: "Arquivar preserva tudo e limpa o futuro", description: "Pagamentos, contratos e histórico pedagógico são preservados; opcionalmente cancelamos aulas futuras agendadas e faturas pendentes do aluno." },
+      { type: "correcao", title: "Exclusão definitiva protegida", description: "Só o admin pode excluir de vez, digitando o nome do aluno para confirmar (LGPD). Alunos com NFS-e emitida são bloqueados por obrigação fiscal." },
+    ],
+  },
+  {
     version: "2026.09.25.1",
     date: "2026-09-25",
     title: "Perfil do professor (foto e senha) + busca de alunos visível no celular",

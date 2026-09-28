@@ -6,7 +6,7 @@ import { isSameDay, startOfDay } from "date-fns";
 import {
   Users, Search, Plus, Pencil, Trash2,
   CheckCircle2, X, Loader2, Clock, MoreVertical, Bell, TrendingUp, Activity, Eye, Edit, Download, Send, FileUp,
-  Link as LinkIcon, Copy, ExternalLink, Sparkles
+  Link as LinkIcon, Copy, ExternalLink, Sparkles, Archive
 } from "lucide-react";
 import { exportToCSV } from "@/lib/exportUtils";
 import { formatBRL } from "@/lib/money";
@@ -42,7 +42,8 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { StudentModal } from "@/components/alunos/StudentModal";
 import { ImportStudentsModal } from "@/components/alunos/ImportStudentsModal";
-import { DeleteConfirm } from "@/components/alunos/DeleteConfirm";
+import { ArchiveStudentDialog } from "@/components/alunos/ArchiveStudentDialog";
+import StudentHistory from "@/components/alunos/StudentHistory";
 import { StatusBadge, LevelBadge } from "@/components/alunos/StatusBadge";
 import { StudentRow } from "@/components/alunos/types";
 
@@ -60,6 +61,7 @@ export default function Alunos() {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [editStudent, setEditStudent] = useState<StudentRow | null>(null);
   const [deleteStudent, setDeleteStudent] = useState<StudentRow | null>(null);
+  const [showHistory, setShowHistory] = useState(false);
 
   // ── Auto-Matrícula Modal State ──────────────────────────────────────────────
   const [isEnrollmentModalOpen, setIsEnrollmentModalOpen] = useState(false);
@@ -104,10 +106,12 @@ export default function Alunos() {
     onError: (e) => toast.error("Erro: " + e.message),
   });
 
-  const deleteMutation = trpc.students.delete.useMutation({
+  const archiveMutation = trpc.students.archive.useMutation({
     onSuccess: () => {
-      toast.success("Aluno removido!");
-      utils.students.list.invalidate();
+      toast.success("Aluno arquivado! Ele está no Histórico e pode ser reativado.");
+      utils.students.invalidate();
+      utils.dashboard.invalidate();
+      utils.reports.invalidate();
       setDeleteStudent(null);
     },
     onError: (e) => toast.error("Erro: " + e.message),
@@ -214,6 +218,10 @@ export default function Alunos() {
     );
   };
 
+  if (showHistory && !isProfessor) {
+    return <StudentHistory onBack={() => setShowHistory(false)} />;
+  }
+
   return (
     <div className="flex flex-col h-full bg-background relative">
       <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-6 lg:space-y-8 scrollbar-thin no-scrollbar">
@@ -255,6 +263,17 @@ export default function Alunos() {
             </div>
 
             <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-0.5 w-full md:w-auto">
+              {!isProfessor && (
+                <Button
+                  variant="outline"
+                  onClick={() => setShowHistory(true)}
+                  className="h-12 md:h-10 rounded-2xl md:rounded-xl px-3 lg:px-4 text-xs font-bold gap-2 border-amber-500/40 text-amber-600 hover:bg-amber-500/10 shadow-sm shrink-0"
+                  title="Histórico de alunos arquivados"
+                >
+                  <Archive size={16} />
+                  <span className="hidden sm:inline">Histórico</span>
+                </Button>
+              )}
               <Button
                 variant="outline"
                 onClick={() => handleExportCSV(filtered)}
@@ -797,11 +816,12 @@ export default function Alunos() {
       />
       <ImportStudentsModal open={isImportModalOpen} onOpenChange={setIsImportModalOpen} />
       {deleteStudent && (
-        <DeleteConfirm
-          name={deleteStudent.name}
-          onConfirm={() => deleteMutation.mutate({ id: deleteStudent.id })}
+        <ArchiveStudentDialog
+          open={!!deleteStudent}
+          studentName={deleteStudent.name}
+          onConfirm={(payload) => archiveMutation.mutate({ id: deleteStudent.id, ...payload })}
           onCancel={() => setDeleteStudent(null)}
-          isPending={deleteMutation.isPending}
+          isPending={archiveMutation.isPending}
         />
       )}
 

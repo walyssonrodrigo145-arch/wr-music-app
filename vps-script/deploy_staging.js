@@ -196,6 +196,24 @@ const filesToUpload = [
   'client/src/components/AppHeader.tsx',
   'server/routers/authRouters.ts',
   'shared/releases.ts',
+  // ── Agenda mobile (PRD_AGENDA_MOBILE) + Histórico de alunos (PRD_HISTORICO_ALUNOS) ──
+  'shared/agenda.ts',
+  'shared/studentExitReasons.ts',
+  'shared/releases.ts',
+  'server/agenda.test.ts',
+  'server/studentExitReasons.test.ts',
+  'server/music.test.ts',
+  'server/db.ts',
+  'server/routers/studentsRouters.ts',
+  'server/routers/reportsRouters.ts',
+  'drizzle/schema.ts',
+  'client/src/components/aulas/MobileAgenda.tsx',
+  'client/src/components/alunos/ArchiveStudentDialog.tsx',
+  'client/src/components/alunos/StudentHistory.tsx',
+  'client/src/pages/Aulas.tsx',
+  'client/src/pages/Alunos.tsx',
+  'PRD_AGENDA_MOBILE.md',
+  'PRD_HISTORICO_ALUNOS.md',
 ];
 
 console.log('🚀 Iniciando deploy no Ambiente de Testes (STAGING)...');

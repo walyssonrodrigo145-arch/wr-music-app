@@ -275,6 +275,7 @@ export const reportsRouters = {
         .leftJoin(instruments, eq(students.instrumentId, instruments.id))
         .where(and(
           eq(students.organizationId, orgId),
+          isNull(students.deletedAt),
           userId ? eq(students.professorId, userId) : undefined
         ))
         .orderBy(students.name);

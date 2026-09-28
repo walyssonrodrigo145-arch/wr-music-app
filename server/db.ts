@@ -1,5 +1,5 @@
 import { debugLog } from "./_core/logger";
-import { eq, desc, asc, sql, and, gte, lte, lt, isNotNull, inArray, aliasedTable } from "drizzle-orm";
+import { eq, desc, asc, sql, and, gte, lte, lt, isNotNull, isNull, inArray, aliasedTable } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 
@@ -147,6 +147,14 @@ async function ensureSchemaConsistency(db: any) {
     // system_plans: allow_extra_students e extra_student_price
     await db.execute(sql`ALTER TABLE "system_plans" ADD COLUMN IF NOT EXISTS "allow_extra_students" boolean DEFAULT true NOT NULL`);
     await db.execute(sql`ALTER TABLE "system_plans" ADD COLUMN IF NOT EXISTS "extra_student_price" numeric DEFAULT 1.49 NOT NULL`);
+
+    // students: arquivamento com motivo de saída e reativação (PRD_HISTORICO_ALUNOS)
+    await db.execute(sql`ALTER TABLE "students" ADD COLUMN IF NOT EXISTS "deletedAt" timestamp`);
+    await db.execute(sql`ALTER TABLE "students" ADD COLUMN IF NOT EXISTS "deletedBy" integer`);
+    await db.execute(sql`ALTER TABLE "students" ADD COLUMN IF NOT EXISTS "exitReason" varchar(60)`);
+    await db.execute(sql`ALTER TABLE "students" ADD COLUMN IF NOT EXISTS "exitNotes" text`);
+    await db.execute(sql`ALTER TABLE "students" ADD COLUMN IF NOT EXISTS "reactivatedAt" timestamp`);
+    await db.execute(sql`CREATE INDEX IF NOT EXISTS "idx_students_org_deleted" ON "students" ("organizationId", "deletedAt")`);
 
     // lessons.studentId (nullable)
     await db.execute(sql`ALTER TABLE "lessons" ALTER COLUMN "studentId" DROP NOT NULL`);
@@ -1751,6 +1759,7 @@ export async function getStudentsWithInstrument(organizationId: number, userId?:
     .leftJoin(users, eq(users.studentId, students.id))
     .where(and(
         eq(students.organizationId, organizationId),
+        isNull(students.deletedAt),
         userId ? eq(students.professorId, userId) : undefined
     ))
     .orderBy(desc(students.createdAt));

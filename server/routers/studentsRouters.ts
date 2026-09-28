@@ -20,7 +20,7 @@ import {
   getExperimentalStats,
 } from "../db";
 import { organizations, users, students, lessons, instruments, reminders, reminderTemplates, paymentDues, asaasCustomers, settings, studentGoals, studentTimeline, studentFiles, announcements, chatMessages, rescheduleRequests, schoolPlans, studentEvolution, aiConversations, aiMessages, aiDocuments, expenses, dailyStudyPlans, notifications, professores, professorPayments, attendanceTokens, attendanceLogs, contracts, fileComments, studioRooms, schoolIntegrations, contractTemplates, contractEvents, crmLeads, crmGoals, crmActivities, fiscalCompanies, fiscalInvoices, fiscalServices, fiscalJobs, fiscalLogs } from "../../drizzle/schema";
-import { eq, desc, sql, and, gte, lt, lte, asc, ne, or, inArray, aliasedTable, ilike, isNull } from "drizzle-orm";
+import { eq, desc, sql, and, gte, lt, lte, asc, ne, or, inArray, aliasedTable, ilike, isNull, isNotNull } from "drizzle-orm";
 import { notifyOwner, notifyUser } from "../_core/notification";
 import { handleDbError } from "../utils/error_handler";
 import { TRPCError } from "@trpc/server";
@@ -77,6 +77,125 @@ async function assertCanImportStudents(db: any, ctx: any) {
       role: ctx.user.role,
     });
     throw new TRPCError({ code: "FORBIDDEN", message: "Você não tem permissão para importar alunos." });
+  }
+}
+
+/**
+ * Exclusão definitiva (LGPD) — cascata completa do aluno, transacional.
+ * Reutilizada por `students.delete` (legado, admin) e `students.permanentlyDelete`.
+ */
+async function purgeStudentData(db: any, orgId: number, student: any): Promise<void> {
+  const studentId = student.id;
+
+  try {
+    const [asaasCust] = await db.select().from(asaasCustomers).where(and(eq(asaasCustomers.studentId, studentId), eq(asaasCustomers.organizationId, orgId))).limit(1);
+    if (asaasCust) {
+      const [settingsData] = await db.select({ asaasApiKey: settings.asaasApiKey })
+        .from(settings).where(eq(settings.userId, student.professorId ?? student.userId)).limit(1);
+      const apiKey = (settingsData?.asaasApiKey ? decryptSecret(settingsData.asaasApiKey) : null) || ENV.asaasApiKey;
+      if (apiKey) {
+        await fetch(`${ENV.asaasBaseUrl}/customers/${asaasCust.asaasCustomerId}`, {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json", "access_token": apiKey }
+        });
+      }
+    }
+  } catch (e) {
+    console.error("Erro ao deletar cliente no Asaas:", e);
+  }
+
+  const paymentIds = (await db.select({ id: paymentDues.id }).from(paymentDues)
+    .where(and(eq(paymentDues.studentId, studentId), eq(paymentDues.organizationId, orgId))))
+    .map((r: any) => r.id);
+  const lessonIds = (await db.select({ id: lessons.id }).from(lessons)
+    .where(and(eq(lessons.studentId, studentId), eq(lessons.organizationId, orgId))))
+    .map((r: any) => r.id);
+  const fileIds = (await db.select({ id: studentFiles.id }).from(studentFiles)
+    .where(and(eq(studentFiles.studentId, studentId), eq(studentFiles.organizationId, orgId))))
+    .map((r: any) => r.id);
+  const contractIds = (await db.select({ id: contracts.id }).from(contracts)
+    .where(and(eq(contracts.studentId, studentId), eq(contracts.organizationId, orgId))))
+    .map((r: any) => r.id);
+
+  await db.transaction(async (tx: any) => {
+    if (paymentIds.length > 0 || lessonIds.length > 0) {
+      const orphanConditions = [eq(reminders.studentId, studentId)];
+      if (paymentIds.length > 0) orphanConditions.push(inArray(reminders.paymentDueId, paymentIds));
+      if (lessonIds.length > 0) orphanConditions.push(inArray(reminders.lessonId, lessonIds));
+      await tx.delete(reminders).where(and(eq(reminders.organizationId, orgId), or(...orphanConditions)));
+    }
+    if (fileIds.length > 0) {
+      await tx.delete(fileComments).where(and(eq(fileComments.organizationId, orgId), inArray(fileComments.fileId, fileIds)));
+    }
+    if (contractIds.length > 0) {
+      const { contractEvents } = await import("../../drizzle/schema");
+      await tx.delete(contractEvents).where(inArray(contractEvents.contractId, contractIds));
+    }
+    if (lessonIds.length > 0) {
+      const { attendanceLogs } = await import("../../drizzle/schema");
+      await tx.delete(attendanceLogs).where(and(eq(attendanceLogs.organizationId, orgId), inArray(attendanceLogs.lessonId, lessonIds)));
+    }
+    const { slotOffers } = await import("../../drizzle/schema");
+    await tx.delete(slotOffers).where(and(eq(slotOffers.organizationId, orgId), eq(slotOffers.acceptedByStudentId, studentId)));
+
+    await tx.delete(asaasCustomers).where(and(eq(asaasCustomers.studentId, studentId), eq(asaasCustomers.organizationId, orgId)));
+    await tx.delete(paymentDues).where(and(eq(paymentDues.studentId, studentId), eq(paymentDues.organizationId, orgId)));
+    await tx.delete(rescheduleRequests).where(and(eq(rescheduleRequests.studentId, studentId), eq(rescheduleRequests.organizationId, orgId)));
+    await tx.delete(studentEvolution).where(and(eq(studentEvolution.studentId, studentId), eq(studentEvolution.organizationId, orgId)));
+    await tx.delete(dailyStudyPlans).where(and(eq(dailyStudyPlans.studentId, studentId), eq(dailyStudyPlans.organizationId, orgId)));
+    await tx.delete(studentGoals).where(and(eq(studentGoals.studentId, studentId), eq(studentGoals.organizationId, orgId)));
+    await tx.delete(studentTimeline).where(and(eq(studentTimeline.studentId, studentId), eq(studentTimeline.organizationId, orgId)));
+    await tx.delete(studentFiles).where(and(eq(studentFiles.studentId, studentId), eq(studentFiles.organizationId, orgId)));
+
+    const { lessonRepositions, repositionEvents } = await import("../../drizzle/schema");
+    const repRows = await tx
+      .select({ id: lessonRepositions.id })
+      .from(lessonRepositions)
+      .where(and(eq(lessonRepositions.organizationId, orgId), eq(lessonRepositions.studentId, studentId)));
+    if (repRows.length > 0) {
+      await tx.delete(repositionEvents).where(inArray(repositionEvents.repositionId, repRows.map((r: any) => r.id)));
+      await tx.delete(lessonRepositions).where(and(eq(lessonRepositions.organizationId, orgId), eq(lessonRepositions.studentId, studentId)));
+    }
+
+    const { studentRepertoire } = await import("../../drizzle/schema");
+    await tx.delete(studentRepertoire).where(and(eq(studentRepertoire.organizationId, orgId), eq(studentRepertoire.studentId, studentId)));
+
+    // Órfãos que o delete antigo deixava (PRD_HISTORICO_ALUNOS RF-005)
+    const {
+      studentEnrollments,
+      studySessions,
+      challengeResponses,
+      studentPedagogicalMemory,
+      rankingParticipants,
+      rankingScores,
+      studentAchievements,
+      professorEvaluations,
+      crmLeads,
+    } = await import("../../drizzle/schema");
+    await tx.delete(studentEnrollments).where(and(eq(studentEnrollments.organizationId, orgId), eq(studentEnrollments.studentId, studentId)));
+    await tx.delete(studySessions).where(and(eq(studySessions.organizationId, orgId), eq(studySessions.studentId, studentId)));
+    await tx.delete(challengeResponses).where(and(eq(challengeResponses.organizationId, orgId), eq(challengeResponses.studentId, studentId)));
+    await tx.delete(studentPedagogicalMemory).where(and(eq(studentPedagogicalMemory.organizationId, orgId), eq(studentPedagogicalMemory.studentId, studentId)));
+    await tx.delete(rankingParticipants).where(and(eq(rankingParticipants.organizationId, orgId), eq(rankingParticipants.studentId, studentId)));
+    await tx.delete(rankingScores).where(and(eq(rankingScores.organizationId, orgId), eq(rankingScores.studentId, studentId)));
+    await tx.delete(studentAchievements).where(and(eq(studentAchievements.organizationId, orgId), eq(studentAchievements.studentId, studentId)));
+    await tx.delete(professorEvaluations).where(and(eq(professorEvaluations.organizationId, orgId), eq(professorEvaluations.studentId, studentId)));
+    await tx.update(crmLeads).set({ convertedStudentId: null }).where(and(eq(crmLeads.organizationId, orgId), eq(crmLeads.convertedStudentId, studentId)));
+
+    await tx.delete(contracts).where(and(eq(contracts.studentId, studentId), eq(contracts.organizationId, orgId)));
+    await tx.delete(announcements).where(and(eq(announcements.targetStudentId, studentId), eq(announcements.organizationId, orgId)));
+
+    if (student.studentUserId) {
+      await tx.delete(chatMessages).where(and(or(eq(chatMessages.senderId, student.studentUserId), eq(chatMessages.receiverId, student.studentUserId)), eq(chatMessages.organizationId, orgId)));
+      await tx.delete(notifications).where(and(eq(notifications.userId, student.studentUserId), eq(notifications.organizationId, orgId)));
+    }
+
+    await tx.delete(lessons).where(and(eq(lessons.studentId, studentId), eq(lessons.organizationId, orgId)));
+    await tx.delete(students).where(and(eq(students.id, studentId), eq(students.organizationId, orgId)));
+  });
+
+  if (student.studentUserId) {
+    await db.delete(users).where(and(eq(users.id, student.studentUserId), eq(users.organizationId, orgId)));
   }
 }
 
@@ -510,6 +629,23 @@ export const studentsRouters = {
         }
         // ---------------------------------------
 
+        // PRD_HISTORICO_ALUNOS (RN-011): e-mail de aluno arquivado deve ser reativado, não duplicado
+        if (input.email) {
+          const [archivedWithEmail] = await db.select({ id: students.id }).from(students)
+            .where(and(
+              eq(students.organizationId, orgId),
+              eq(students.email, input.email),
+              isNotNull(students.deletedAt)
+            ))
+            .limit(1);
+          if (archivedWithEmail) {
+            throw new TRPCError({
+              code: 'CONFLICT',
+              message: `Já existe um aluno arquivado com este e-mail (${input.email}). Reative-o em Alunos → Histórico ou use outro e-mail.`
+            });
+          }
+        }
+
         // 1. Criar o Aluno primeiro para ter o ID
         const newStudentId = await db.transaction(async (tx) => {
           // PLANOS & BOLSAS: valida que o plano pertence à organização (integridade)
@@ -860,120 +996,241 @@ export const studentsRouters = {
         return handleDbError(error, "atualizar o status do aluno");
       }
     }),
+    // ── PRD_HISTORICO_ALUNOS: arquivar aluno (soft delete reversível) ─────────
+    archive: protectedProcedure.input(z.object({
+      id: z.number(),
+      exitReason: z.string().max(60).optional(),
+      exitNotes: z.string().max(2000).optional(),
+      removePending: z.boolean().optional(),
+    })).mutation(async ({ ctx, input }) => {
+      try {
+        const db = await getDb();
+        if (!db) throw new Error("Banco de dados não disponível");
+        const orgId = ctx.user.organizationId!;
+        const isAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
+
+        const [student] = await db.select().from(students)
+          .where(and(eq(students.id, input.id), eq(students.organizationId, orgId))).limit(1);
+        if (!student) throw new Error("Aluno não encontrado");
+        if (!isAdmin && student.professorId !== ctx.user.id) {
+          throw new Error("Você não tem permissão para arquivar este aluno");
+        }
+        if (student.deletedAt) return { success: true, alreadyArchived: true };
+
+        const reason = input.exitReason?.trim() || "outro";
+        const notes = input.exitNotes?.trim() || null;
+
+        await db.transaction(async (tx) => {
+          if (input.removePending) {
+            await tx.delete(lessons).where(and(
+              eq(lessons.studentId, input.id),
+              eq(lessons.organizationId, orgId),
+              eq(lessons.status, 'agendada'),
+              gte(lessons.scheduledAt, new Date())
+            ));
+            await tx.delete(paymentDues).where(and(
+              eq(paymentDues.studentId, input.id),
+              eq(paymentDues.organizationId, orgId),
+              eq(paymentDues.status, 'pendente')
+            ));
+          }
+
+          await tx.update(students).set({
+            status: 'inativo',
+            deletedAt: new Date(),
+            deletedBy: ctx.user.id,
+            exitReason: reason,
+            exitNotes: notes,
+            updatedAt: new Date(),
+          }).where(and(eq(students.id, input.id), eq(students.organizationId, orgId)));
+
+          try {
+            await tx.insert(studentTimeline).values({
+              organizationId: orgId,
+              userId: ctx.user.id,
+              studentId: input.id,
+              title: "Aluno arquivado",
+              description: `Motivo: ${reason}${notes ? ` — ${notes}` : ""}`,
+              category: "geral",
+              achievedAt: new Date(),
+            });
+          } catch (e) {
+            console.warn("[Histórico] Falha ao registrar timeline do arquivamento (não impeditivo):", e);
+          }
+        });
+
+        await syncOrgAsaasSubscription(db, orgId).catch(console.error);
+        return { success: true };
+      } catch (error) {
+        return handleDbError(error, "arquivar o aluno");
+      }
+    }),
+
+    // ── PRD_HISTORICO_ALUNOS: histórico (somente admin) ───────────────────────
+    listArchived: protectedProcedure.input(z.object({
+      search: z.string().trim().max(120).optional(),
+      limit: z.number().int().min(1).max(200).optional(),
+    }).optional()).query(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) return [];
+      const orgId = ctx.user.organizationId!;
+      const isAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
+      if (!isAdmin) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Apenas administradores acessam o histórico de alunos." });
+      }
+
+      const term = input?.search?.trim().toLowerCase();
+      return db.select({
+        id: students.id,
+        name: students.name,
+        phone: students.phone,
+        guardianPhone: students.guardianPhone,
+        email: students.email,
+        monthlyFee: students.monthlyFee,
+        exitReason: students.exitReason,
+        exitNotes: students.exitNotes,
+        deletedAt: students.deletedAt,
+        status: students.status,
+        instrumentName: instruments.name,
+      }).from(students)
+        .leftJoin(instruments, and(eq(students.instrumentId, instruments.id), eq(instruments.organizationId, orgId)))
+        .where(and(
+          eq(students.organizationId, orgId),
+          isNotNull(students.deletedAt),
+          term
+            ? or(
+                ilike(students.name, `%${term}%`),
+                ilike(students.phone, `%${term}%`),
+                ilike(students.guardianPhone, `%${term}%`)
+              )
+            : undefined
+        ))
+        .orderBy(desc(students.deletedAt))
+        .limit(input?.limit ?? 100);
+    }),
+
+    // ── PRD_HISTORICO_ALUNOS: reativar (somente admin; valida plano) ──────────
+    reactivate: protectedProcedure.input(z.object({ id: z.number() })).mutation(async ({ ctx, input }) => {
+      try {
+        const db = await getDb();
+        if (!db) throw new Error("Banco de dados não disponível");
+        const orgId = ctx.user.organizationId!;
+        const isAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
+        if (!isAdmin) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Apenas administradores podem reativar alunos." });
+        }
+
+        const [student] = await db.select().from(students)
+          .where(and(eq(students.id, input.id), eq(students.organizationId, orgId))).limit(1);
+        if (!student) throw new Error("Aluno não encontrado");
+        if (!student.deletedAt) return { success: true, alreadyActive: true };
+
+        const planInfo = await getOrgPlanLimits(db, orgId);
+        const [{ count: activeStudentsCount }] = await db.select({ count: sql<number>`count(*)` })
+          .from(students)
+          .where(and(eq(students.organizationId, orgId), eq(students.status, 'ativo')));
+        if (activeStudentsCount >= planInfo.maxStudents && !planInfo.allowExtraStudents) {
+          throw new TRPCError({
+            code: 'FORBIDDEN',
+            message: `Limite de alunos atingido (${planInfo.maxStudents} alunos). Faça upgrade do seu plano para reativar.`
+          });
+        }
+
+        const previousReason = student.exitReason;
+
+        await db.transaction(async (tx) => {
+          await tx.update(students).set({
+            status: 'ativo',
+            deletedAt: null,
+            deletedBy: null,
+            exitReason: null,
+            exitNotes: null,
+            reactivatedAt: new Date(),
+            updatedAt: new Date(),
+          }).where(and(eq(students.id, input.id), eq(students.organizationId, orgId)));
+
+          try {
+            await tx.insert(studentTimeline).values({
+              organizationId: orgId,
+              userId: ctx.user.id,
+              studentId: input.id,
+              title: "Aluno reativado",
+              description: previousReason ? `Motivo do arquivamento anterior: ${previousReason}` : "Reativado via histórico de alunos",
+              category: "geral",
+              achievedAt: new Date(),
+            });
+          } catch (e) {
+            console.warn("[Histórico] Falha ao registrar timeline da reativação (não impeditivo):", e);
+          }
+        });
+
+        await syncOrgAsaasSubscription(db, orgId).catch(console.error);
+        return { success: true };
+      } catch (error) {
+        return handleDbError(error, "reativar o aluno");
+      }
+    }),
+
+    // ── PRD_HISTORICO_ALUNOS: exclusão definitiva (LGPD, admin + nome) ────────
+    permanentlyDelete: protectedProcedure.input(z.object({
+      id: z.number(),
+      confirmName: z.string(),
+    })).mutation(async ({ ctx, input }) => {
+      try {
+        const db = await getDb();
+        if (!db) throw new Error("Banco de dados não disponível");
+        const orgId = ctx.user.organizationId!;
+        const isAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
+        if (!isAdmin) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Apenas administradores podem excluir definitivamente." });
+        }
+
+        const [student] = await db.select().from(students)
+          .where(and(eq(students.id, input.id), eq(students.organizationId, orgId))).limit(1);
+        if (!student) throw new Error("Aluno não encontrado");
+        if (!student.deletedAt) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Arquive o aluno antes de excluir definitivamente." });
+        }
+        if (student.name.trim().toLowerCase() !== input.confirmName.trim().toLowerCase()) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "O nome digitado não confere com o nome do aluno." });
+        }
+
+        // RN-009: obrigação fiscal impede a exclusão definitiva
+        const [invoice] = await db.select({ id: fiscalInvoices.id }).from(fiscalInvoices)
+          .where(and(eq(fiscalInvoices.studentId, input.id), eq(fiscalInvoices.organizationId, orgId)))
+          .limit(1);
+        if (invoice) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "Existem notas fiscais emitidas para este aluno — obrigação fiscal impede a exclusão definitiva."
+          });
+        }
+
+        await purgeStudentData(db, orgId, student);
+        await syncOrgAsaasSubscription(db, orgId).catch(console.error);
+        return { success: true };
+      } catch (error) {
+        return handleDbError(error, "excluir definitivamente o aluno");
+      }
+    }),
+
+    // Legado: exclusão permanente direta (agora restrita ao admin; a UI usa archive/permanentlyDelete)
     delete: protectedProcedure.input(z.object({
       id: z.number(),
     })).mutation(async ({ ctx, input }) => {
       try {
         const db = await getDb();
         if (!db) throw new Error("Banco de dados não disponível");
-        
         const orgId = ctx.user.organizationId!;
         const isAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
+        if (!isAdmin) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Apenas administradores podem excluir permanentemente. Use Arquivar." });
+        }
 
-        // Fetch student first to check permissions and get studentUserId
         const [student] = await db.select().from(students).where(and(eq(students.id, input.id), eq(students.organizationId, orgId))).limit(1);
         if (!student) throw new Error("Aluno não encontrado");
-        
-        // Only admin or the assigned professor can delete the student
-        if (!isAdmin && student.professorId !== ctx.user.id) {
-          throw new Error("Você não tem permissão para remover este aluno");
-        }
 
-        // DELETAR ASAAS CUSTOMER
-        try {
-          const [asaasCust] = await db.select().from(asaasCustomers).where(and(eq(asaasCustomers.studentId, input.id), eq(asaasCustomers.organizationId, orgId))).limit(1);
-          if (asaasCust) {
-            const [settingsData] = await db.select({ asaasApiKey: settings.asaasApiKey })
-              .from(settings).where(eq(settings.userId, student.professorId ?? ctx.user.id)).limit(1);
-            // BUG FIX: chave BYOK vem cifrada (v1:...) no select cru — decifrar antes de usar na API
-            const apiKey = (settingsData?.asaasApiKey ? decryptSecret(settingsData.asaasApiKey) : null) || ENV.asaasApiKey;
-            if (apiKey) {
-              await fetch(`${ENV.asaasBaseUrl}/customers/${asaasCust.asaasCustomerId}`, {
-                method: "DELETE",
-                headers: { "Content-Type": "application/json", "access_token": apiKey }
-              });
-            }
-          }
-        } catch (e) {
-          console.error("Erro ao deletar cliente no Asaas:", e);
-        }
-
-        // AUDIT-P1 FIX: exclusão transacional + limpeza de órfãos.
-        // Antes: 15 DELETEs sequenciais sem transação (falha no meio = tenant
-        // inconsistente) e deixava órfãos: reminders (por paymentDueId), attendanceLogs,
-        // fileComments, contractEvents e slotOffers.
-        const paymentIds = (await db.select({ id: paymentDues.id }).from(paymentDues)
-          .where(and(eq(paymentDues.studentId, input.id), eq(paymentDues.organizationId, orgId))))
-          .map(r => r.id);
-        const lessonIds = (await db.select({ id: lessons.id }).from(lessons)
-          .where(and(eq(lessons.studentId, input.id), eq(lessons.organizationId, orgId))))
-          .map(r => r.id);
-        const fileIds = (await db.select({ id: studentFiles.id }).from(studentFiles)
-          .where(and(eq(studentFiles.studentId, input.id), eq(studentFiles.organizationId, orgId))))
-          .map(r => r.id);
-        const contractIds = (await db.select({ id: contracts.id }).from(contracts)
-          .where(and(eq(contracts.studentId, input.id), eq(contracts.organizationId, orgId))))
-          .map(r => r.id);
-
-        await db.transaction(async (tx) => {
-          // Lembretes órfãos: por paymentDueId/lessonId das dependências que serão apagadas
-          if (paymentIds.length > 0 || lessonIds.length > 0) {
-            const orphanConditions = [eq(reminders.studentId, input.id)];
-            if (paymentIds.length > 0) orphanConditions.push(inArray(reminders.paymentDueId, paymentIds));
-            if (lessonIds.length > 0) orphanConditions.push(inArray(reminders.lessonId, lessonIds));
-            await tx.delete(reminders).where(and(eq(reminders.organizationId, orgId), or(...orphanConditions)));
-          }
-          if (fileIds.length > 0) {
-            await tx.delete(fileComments).where(and(eq(fileComments.organizationId, orgId), inArray(fileComments.fileId, fileIds)));
-          }
-          if (contractIds.length > 0) {
-            const { contractEvents } = await import("../../drizzle/schema");
-            await tx.delete(contractEvents).where(inArray(contractEvents.contractId, contractIds));
-          }
-          if (lessonIds.length > 0) {
-            const { attendanceLogs } = await import("../../drizzle/schema");
-            await tx.delete(attendanceLogs).where(and(eq(attendanceLogs.organizationId, orgId), inArray(attendanceLogs.lessonId, lessonIds)));
-          }
-          const { slotOffers } = await import("../../drizzle/schema");
-          await tx.delete(slotOffers).where(and(eq(slotOffers.organizationId, orgId), eq(slotOffers.acceptedByStudentId, input.id)));
-
-          await tx.delete(asaasCustomers).where(and(eq(asaasCustomers.studentId, input.id), eq(asaasCustomers.organizationId, orgId)));
-          await tx.delete(paymentDues).where(and(eq(paymentDues.studentId, input.id), eq(paymentDues.organizationId, orgId)));
-          await tx.delete(rescheduleRequests).where(and(eq(rescheduleRequests.studentId, input.id), eq(rescheduleRequests.organizationId, orgId)));
-          await tx.delete(studentEvolution).where(and(eq(studentEvolution.studentId, input.id), eq(studentEvolution.organizationId, orgId)));
-          await tx.delete(dailyStudyPlans).where(and(eq(dailyStudyPlans.studentId, input.id), eq(dailyStudyPlans.organizationId, orgId)));
-          await tx.delete(studentGoals).where(and(eq(studentGoals.studentId, input.id), eq(studentGoals.organizationId, orgId)));
-          await tx.delete(studentTimeline).where(and(eq(studentTimeline.studentId, input.id), eq(studentTimeline.organizationId, orgId)));
-          await tx.delete(studentFiles).where(and(eq(studentFiles.studentId, input.id), eq(studentFiles.organizationId, orgId)));
-          // PRD Reposição (Caça-Bug): limpar créditos/eventos de reposição do aluno
-          const { lessonRepositions, repositionEvents } = await import("../../drizzle/schema");
-          const repRows = await tx
-            .select({ id: lessonRepositions.id })
-            .from(lessonRepositions)
-            .where(and(eq(lessonRepositions.organizationId, orgId), eq(lessonRepositions.studentId, input.id)));
-          if (repRows.length > 0) {
-            await tx.delete(repositionEvents).where(inArray(repositionEvents.repositionId, repRows.map((r) => r.id)));
-            await tx.delete(lessonRepositions).where(and(eq(lessonRepositions.organizationId, orgId), eq(lessonRepositions.studentId, input.id)));
-          }
-          // PRD Repertório: limpar músicas do repertório do aluno
-          const { studentRepertoire } = await import("../../drizzle/schema");
-          await tx.delete(studentRepertoire).where(and(eq(studentRepertoire.organizationId, orgId), eq(studentRepertoire.studentId, input.id)));
-          // BUG-009: Também limpar contracts e announcements específicos do aluno
-          await tx.delete(contracts).where(and(eq(contracts.studentId, input.id), eq(contracts.organizationId, orgId)));
-          await tx.delete(announcements).where(and(eq(announcements.targetStudentId, input.id), eq(announcements.organizationId, orgId)));
-
-          if (student.studentUserId) {
-            await tx.delete(chatMessages).where(and(or(eq(chatMessages.senderId, student.studentUserId), eq(chatMessages.receiverId, student.studentUserId)), eq(chatMessages.organizationId, orgId)));
-          }
-
-          await tx.delete(lessons).where(and(eq(lessons.studentId, input.id), eq(lessons.organizationId, orgId)));
-          await tx.delete(students).where(and(eq(students.id, input.id), eq(students.organizationId, orgId)));
-        });
-
-        if (student.studentUserId) {
-          await db.delete(users).where(and(eq(users.id, student.studentUserId), eq(users.organizationId, orgId)));
-        }
-        
+        await purgeStudentData(db, orgId, student);
         await syncOrgAsaasSubscription(db, orgId).catch(console.error);
         return { success: true };
       } catch (error) {
@@ -994,6 +1251,7 @@ export const studentsRouters = {
       }).from(students).where(and(
         eq(students.organizationId, orgId),
         eq(students.professorId, ctx.user.id),
+        isNull(students.deletedAt),
         sql`LOWER(name) LIKE ${term} OR LOWER(email) LIKE ${term}`
       )).limit(8);
     }),

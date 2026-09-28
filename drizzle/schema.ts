@@ -183,6 +183,12 @@ export const students = pgTable("students", {
   fiscalNeighborhood: varchar("fiscalNeighborhood", { length: 100 }),
   fiscalCity: varchar("fiscalCity", { length: 100 }),
   fiscalState: varchar("fiscalState", { length: 10 }),
+  // Arquivamento (PRD_HISTORICO_ALUNOS): soft delete reversível com motivo de saída
+  deletedAt: timestamp("deletedAt"),
+  deletedBy: integer("deletedBy"),
+  exitReason: varchar("exitReason", { length: 60 }),
+  exitNotes: text("exitNotes"),
+  reactivatedAt: timestamp("reactivatedAt"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
 }, (table) => [

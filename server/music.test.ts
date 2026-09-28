@@ -252,6 +252,68 @@ describe("students CRUD", () => {
     const result = await caller.students.delete({ id: 99 });
     expect(result).toHaveProperty("success", true);
   });
+
+  it("arquiva aluno (soft delete) preservando o histórico", async () => {
+    const ctx = createAuthContext();
+    const caller = appRouter.createCaller(ctx);
+    enqueueSelectResult([{ id: 99, professorId: 1, studentUserId: null, organizationId: 1, name: "Archive Me", deletedAt: null, status: "ativo" }]);
+    const result = await caller.students.archive({ id: 99, exitReason: "financeiro", exitNotes: "mudou de cidade", removePending: true });
+    expect(result).toHaveProperty("success", true);
+  });
+
+  it("reativa aluno arquivado quando o plano permite", async () => {
+    const ctx = createAuthContext();
+    const caller = appRouter.createCaller(ctx);
+    // Fila: [aluno arquivado], [org], [plano], [count de ativos]
+    enqueueSelectResult([{ id: 99, professorId: 1, studentUserId: null, organizationId: 1, name: "Back", deletedAt: new Date(), exitReason: "financeiro", status: "inativo" }]);
+    enqueueSelectResult([{ planId: "premium" }]);
+    enqueueSelectResult([{ maxStudents: 100, allowExtraStudents: true, extraStudentPrice: "1.49", name: "Premium", priceMonthly: "99", priceYearly: "999" }]);
+    enqueueSelectResult([{ count: 5 }]);
+    const result = await caller.students.reactivate({ id: 99 });
+    expect(result).toHaveProperty("success", true);
+  });
+
+  it("bloqueia reativação quando o plano está lotado", async () => {
+    const ctx = createAuthContext();
+    const caller = appRouter.createCaller(ctx);
+    enqueueSelectResult([{ id: 99, professorId: 1, studentUserId: null, organizationId: 1, name: "Full", deletedAt: new Date(), exitReason: "financeiro", status: "inativo" }]);
+    enqueueSelectResult([{ planId: "basico" }]);
+    enqueueSelectResult([{ maxStudents: 10, allowExtraStudents: false, extraStudentPrice: "1.49", name: "Básico", priceMonthly: "49" }]);
+    enqueueSelectResult([{ count: 10 }]);
+    await expect(caller.students.reactivate({ id: 99 })).rejects.toThrow(/Limite de alunos/);
+  });
+
+  it("não exclui definitivamente aluno que não está arquivado", async () => {
+    const ctx = createAuthContext();
+    const caller = appRouter.createCaller(ctx);
+    enqueueSelectResult([{ id: 99, professorId: 1, studentUserId: null, organizationId: 1, name: "Ativo", deletedAt: null }]);
+    await expect(caller.students.permanentlyDelete({ id: 99, confirmName: "Ativo" })).rejects.toThrow(/Arquive o aluno/);
+  });
+
+  it("exige o nome correto na exclusão definitiva", async () => {
+    const ctx = createAuthContext();
+    const caller = appRouter.createCaller(ctx);
+    enqueueSelectResult([{ id: 99, professorId: 1, studentUserId: null, organizationId: 1, name: "Maria Silva", deletedAt: new Date() }]);
+    await expect(caller.students.permanentlyDelete({ id: 99, confirmName: "Maria" })).rejects.toThrow(/nome digitado/);
+  });
+
+  it("bloqueia exclusão definitiva com NFS-e emitida (RN-009)", async () => {
+    const ctx = createAuthContext();
+    const caller = appRouter.createCaller(ctx);
+    enqueueSelectResult([{ id: 99, professorId: 1, studentUserId: null, organizationId: 1, name: "Maria Silva", deletedAt: new Date() }]);
+    enqueueSelectResult([{ id: 7 }]);
+    await expect(caller.students.permanentlyDelete({ id: 99, confirmName: "Maria Silva" })).rejects.toThrow(/notas fiscais/);
+  });
+
+  it("exclui definitivamente aluno arquivado com o nome confirmado", async () => {
+    const ctx = createAuthContext();
+    const caller = appRouter.createCaller(ctx);
+    // Fila: [aluno arquivado], [fiscalInvoices vazio] — demais selects resolvem []
+    enqueueSelectResult([{ id: 99, professorId: 1, studentUserId: null, organizationId: 1, name: "Maria Silva", deletedAt: new Date() }]);
+    enqueueSelectResult([]);
+    const result = await caller.students.permanentlyDelete({ id: 99, confirmName: "maria silva" });
+    expect(result).toHaveProperty("success", true);
+  });
 });
 
 describe("lessons CRUD", () => {
