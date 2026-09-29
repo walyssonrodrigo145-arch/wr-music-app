@@ -35,3 +35,21 @@ staging.wrmusicpro.com.br {
 dancepro.wrmusicpro.com.br {
     reverse_proxy dance-app:5000
 }
+
+wrvsystems.com.br {
+    encode zstd gzip
+    request_body {
+        max_size 64KB
+    }
+    reverse_proxy wrv-site:3000 {
+        header_up X-Forwarded-For {remote_host}
+    }
+}
+
+www.wrvsystems.com.br {
+    redir https://wrvsystems.com.br{uri} permanent
+}
+
+dancepro.wrvsystems.com.br {
+    reverse_proxy dance-app:5000
+}
