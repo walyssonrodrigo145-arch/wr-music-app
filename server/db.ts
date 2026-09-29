@@ -1,5 +1,5 @@
 import { debugLog } from "./_core/logger";
-import { eq, desc, asc, sql, and, gte, lte, lt, isNotNull, isNull, inArray, aliasedTable } from "drizzle-orm";
+import { eq, desc, asc, sql, and, gte, lte, lt, isNotNull, isNull, inArray, aliasedTable, or } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 
@@ -1693,7 +1693,10 @@ export async function getMonthlyStats(organizationId: number, userId?: number, l
           .where(and(
             eq(students.organizationId, organizationId),
             userId ? eq(students.professorId, userId) : undefined,
-            eq(students.status, 'ativo'),
+            or(
+              eq(students.status, 'ativo'),
+              and(isNotNull(students.deletedAt), gte(students.deletedAt, startOfMonth))
+            ),
             lt(students.createdAt, startOfNextMonth)
           )),
         db.select({ count: sql<number>`CAST(count(*) AS INT)` })

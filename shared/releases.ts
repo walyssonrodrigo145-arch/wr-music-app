@@ -34,7 +34,7 @@ export const RELEASES: Release[] = [
       { type: "novo", title: "Agenda mobile com mês, semana e dia", description: "No celular: calêndario com bolinhas coloridas por status, listas do dia, deslize para trocar de período, legenda clicável e botão flutuante para agendar. No computador nada mudou." },
       { type: "novo", title: "Filtros da agenda no celular", description: "Filtre por professor, tipo de aula, instrumento/modalidade e sala, com atalho de limpar e contador de filtros ativos." },
       { type: "novo", title: "Histórico de alunos", description: "Ao Arquivar, o aluno sai da lista de ativos e vai para o Histórico (só admin vê), com motivo da saída, observações e data. De lá dá para reativar ou chamar no WhatsApp com mensagem pronta." },
-      { type: "melhoria", title: "Arquivar preserva tudo e limpa o futuro", description: "Pagamentos, contratos e histórico pedagógico são preservados; opcionalmente cancelamos aulas futuras agendadas e faturas pendentes do aluno." },
+      { type: "melhoria", title: "Arquivar preserva tudo e limpa o futuro", description: "Pagamentos, contratos, relatórios e histórico pedagógico são preservados (o aluno continua aparecendo nos relatórios dos períodos em que esteve ativo); opcionalmente cancelamos aulas futuras agendadas e faturas pendentes do aluno." },
       { type: "correcao", title: "Exclusão definitiva protegida", description: "Só o admin pode excluir de vez, digitando o nome do aluno para confirmar (LGPD). Alunos com NFS-e emitida são bloqueados por obrigação fiscal." },
     ],
   },

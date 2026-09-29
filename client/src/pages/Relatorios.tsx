@@ -240,8 +240,8 @@ const Relatorios: React.FC = () => {
         columns = ["Mês", "Receita Projetada", "Despesa Projetada", "Lucro Projetado"];
         projecaoQuery.data?.projection?.forEach(p => rows.push([p.monthName, Number(p.receita), Number(p.despesa), Number(p.lucro)]));
       } else if (activeTab === 'alunos') {
-        columns = ["ID", "Nome", "Professor", "Instrumento", "Mensalidade", "Status"];
-        alunosReportQuery.data?.forEach(s => rows.push([s.id, s.name, s.professorName || '', s.instrumentName || '', Number(s.monthlyFee), s.status]));
+        columns = ["ID", "Nome", "Professor", "Instrumento", "Mensalidade", "Status", "Arquivado em"];
+        alunosReportQuery.data?.forEach(s => rows.push([s.id, s.name, s.professorName || '', s.instrumentName || '', Number(s.monthlyFee), s.deletedAt ? 'arquivado' : s.status, s.deletedAt ? safeFormat(s.deletedAt, 'dd/MM/yyyy') : '']));
       } else if (activeTab === 'aulas') {
         columns = ["Data", "Aluno", "Professor", "Status", "Observação"];
         frequencyQuery.data?.forEach(f => {

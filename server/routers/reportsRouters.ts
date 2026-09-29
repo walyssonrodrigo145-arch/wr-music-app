@@ -20,7 +20,7 @@ import {
   getExperimentalStats,
 } from "../db";
 import { organizations, users, students, lessons, instruments, reminders, reminderTemplates, paymentDues, asaasCustomers, settings, studentGoals, studentTimeline, studentFiles, announcements, chatMessages, rescheduleRequests, studentEvolution, aiConversations, aiMessages, aiDocuments, expenses, dailyStudyPlans, notifications, professores, professorPayments, attendanceTokens, attendanceLogs, contracts, fileComments, studioRooms, schoolIntegrations, contractTemplates, contractEvents, crmLeads, crmGoals, crmActivities, fiscalCompanies, fiscalInvoices, fiscalServices, fiscalJobs, fiscalLogs } from "../../drizzle/schema";
-import { eq, desc, sql, and, gte, lt, lte, asc, ne, or, inArray, aliasedTable, ilike, isNull } from "drizzle-orm";
+import { eq, desc, sql, and, gte, lt, lte, asc, ne, or, inArray, aliasedTable, ilike, isNotNull } from "drizzle-orm";
 import { notifyOwner, notifyUser } from "../_core/notification";
 import { handleDbError } from "../utils/error_handler";
 import { TRPCError } from "@trpc/server";
@@ -269,13 +269,14 @@ export const reportsRouters = {
           instrumentName: instruments.name,
           monthlyFee: students.monthlyFee,
           status: students.status,
+          deletedAt: students.deletedAt,
+          exitReason: students.exitReason,
         })
         .from(students)
         .leftJoin(users, eq(students.professorId, users.id))
         .leftJoin(instruments, eq(students.instrumentId, instruments.id))
         .where(and(
           eq(students.organizationId, orgId),
-          isNull(students.deletedAt),
           userId ? eq(students.professorId, userId) : undefined
         ))
         .orderBy(students.name);
@@ -289,7 +290,10 @@ export const reportsRouters = {
         const orgId = ctx.user.organizationId!;
         const userId = (ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId) ? undefined : ctx.user.id;
 
-        // 1. Distribuição de alunos por modalidade (ativos)
+        // Aluno arquivado continua contando no mês do arquivamento e em todos os anteriores (histórico de relatórios).
+        const monthStart = new Date(input.year, input.month - 1, 1);
+
+        // 1. Distribuição de alunos por modalidade (ativos + arquivados a partir do mês consultado)
         const studentStats = await db.select({
           lessonType: students.lessonType,
           count: sql<number>`CAST(count(*) AS INT)`,
@@ -298,7 +302,10 @@ export const reportsRouters = {
         .where(and(
           eq(students.organizationId, orgId),
           userId ? eq(students.professorId, userId) : undefined,
-          eq(students.status, 'ativo')
+          or(
+            eq(students.status, 'ativo'),
+            and(isNotNull(students.deletedAt), gte(students.deletedAt, monthStart))
+          )
         ))
         .groupBy(students.lessonType);
 

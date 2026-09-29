@@ -212,6 +212,7 @@ const filesToUpload = [
   'client/src/components/alunos/StudentHistory.tsx',
   'client/src/pages/Aulas.tsx',
   'client/src/pages/Alunos.tsx',
+  'client/src/pages/Relatorios.tsx',
   'PRD_AGENDA_MOBILE.md',
   'PRD_HISTORICO_ALUNOS.md',
 ];
