@@ -26,6 +26,16 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: "2026.10.01.5",
+    date: "2026-10-01",
+    title: "Cadastro de alunos em passos, com resumo antes de salvar",
+    summary: "O cadastro de alunos ficou no estilo passo a passo do Emusys: Cursos e Aulas → Financeiro → Dados Pessoais → Resumo, com barra de progresso e botões Voltar/Continuar. No último passo você confere tudo (cursos e professores, agenda, valores e dados) antes de concluir. Nenhum campo mudou — apenas a organização da tela.",
+    items: [
+      { type: "melhoria", title: "Cadastro em 4 passos", description: "Cursos e Aulas (instrumento, professor, cursos extras e agendamento), Financeiro (mensalidade, plano, periodicidade e vencimento), Dados Pessoais (aluno, contato e responsável) e Resumo." },
+      { type: "novo", title: "Resumo antes de salvar", description: "No passo final aparece o retrato do cadastro: cursos com professores, aulas que serão agendadas, valores e dados do aluno/responsável — com o botão Salvar logo abaixo." },
+    ],
+  },
+  {
     version: "2026.10.01.4",
     date: "2026-10-01",
     title: "Auditoria: segurança de permissões, portal protegido e ajustes do cadastro",

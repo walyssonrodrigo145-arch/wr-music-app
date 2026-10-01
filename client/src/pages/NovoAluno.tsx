@@ -4,7 +4,7 @@ import { buildSchedulePreview } from "@shared/schedulePreview";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { validateCPF } from "@/lib/cpf";
-import { parseBRL } from "@/lib/money";
+import { formatBRL, parseBRL } from "@/lib/money";
 import { maskCPF, maskPhone } from "@/lib/masks";
 import { parseDueDaysOptions } from "@/lib/settings";
 import { 
@@ -57,6 +57,8 @@ import { PortalAccessCard } from "@/components/alunos/PortalAccessCard";
 import AgendarModal from "@/components/modals/AgendarModal";
 
 const nameRegex = /^[a-zA-ZáàâãéêíóôõúüçÁÀÂÃÉÊÍÓÔÕÚÜÇ\s]+$/;
+
+const weekDayLabels = ["Domingo", "Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado"];
 
 export default function NovoAluno() {
   const [location, setLocation] = useLocation();
@@ -125,6 +127,8 @@ export default function NovoAluno() {
   const searchParams = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
   const initialTab = searchParams?.get("tab") === "agendar" ? "agendar" : "dados";
   const [activeTab, setActiveTab] = useState<"dados" | "agendar">(initialTab);
+
+  const [wizardStep, setWizardStep] = useState(1);
 
   // ─── Estado do formulário de agendamento ──────────────────────────────────────
   const getSmartNovoAlunoTime = () => {
@@ -462,6 +466,16 @@ export default function NovoAluno() {
       .sort((a: any, b: any) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime());
   }, [studentLessons, panelStudentId]);
   const panelPreviewLessons = studentUpcomingLessons.slice(0, 5);
+
+  const summaryCourses = useMemo(() => {
+    if (isEditMode) {
+      return (((studentData as any)?.courses || []) as any[]);
+    }
+    return [
+      { instrumentId: form.instrumentId, teacherUserId: form.professorId },
+      ...extraCourses.slice(0, Math.max(0, courseCount - 1)).map((c) => ({ instrumentId: c.instrumentId, teacherUserId: c.teacherUserId })),
+    ];
+  }, [isEditMode, studentData, form.instrumentId, form.professorId, extraCourses, courseCount]);
 
   // BUG #1/#2/#8 FIX: checkConflicts agora é useMutation para poder receber slots dinâmicos
   // Antes: useQuery com IIFE estático enviava campo "scheduledAt" inexistente no schema,
@@ -993,836 +1007,730 @@ export default function NovoAluno() {
       </header>
 
       <main className="max-w-7xl mx-auto px-6 py-8">
-        <motion.div 
-          variants={containerVariants}
-          initial="hidden"
-          animate="visible"
-          className="grid grid-cols-1 lg:grid-cols-2 gap-8"
-        >
-          {/* Coluna 1 */}
-          <div className="space-y-8">
-            {/* CARD 1 — Dados Pessoais */}
-            <motion.div variants={cardVariants} className="bg-card rounded-[2rem] p-8 shadow-sm border border-border/50 relative overflow-hidden group">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full -translate-y-16 translate-x-16 group-hover:scale-110 transition-transform duration-700 blur-3xl opacity-50" />
-              
-              <div className="flex items-center gap-4 mb-8 relative z-10">
-                <div className="relative shrink-0">
-                  <Avatar className="w-16 h-16 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-lg shadow-indigo-500/10 border-2 border-background">
-                    <AvatarImage src={form.avatar} className="object-cover" />
-                    <AvatarFallback className="bg-indigo-600 text-white font-bold uppercase text-xl">
-                      {form.name ? form.name.substring(0, 2) : <User size={24} />}
-                    </AvatarFallback>
-                  </Avatar>
-                  <input 
-                    type="file" 
-                    ref={avatarInputRef} 
-                    className="hidden" 
-                    accept="image/*" 
-                    onChange={handleAvatarChange} 
-                  />
-                  <button 
-                    onClick={() => avatarInputRef.current?.click()}
-                    className="absolute -bottom-2 -right-2 w-8 h-8 rounded-full bg-card border-2 border-border shadow-sm flex items-center justify-center text-indigo-600 cursor-pointer z-10 hover:bg-indigo-50 transition-colors"
-                  >
-                    {uploadAvatarMutation.isPending ? (
-                      <Loader2 size={12} className="animate-spin" />
-                    ) : (
-                      <Pencil size={12} />
+        <div className="mb-10">
+          <div className="flex items-center max-w-3xl mx-auto">
+            {[
+              { step: 1, label: "Cursos e Aulas" },
+              { step: 2, label: "Financeiro" },
+              { step: 3, label: "Dados Pessoais" },
+              { step: 4, label: "Resumo" },
+            ].map((s, index) => (
+              <div key={s.step} className={cn("flex items-center", index < 3 && "flex-1")}>
+                <button
+                  type="button"
+                  onClick={() => setWizardStep(s.step)}
+                  className="flex flex-col items-center gap-1.5 shrink-0 cursor-pointer"
+                >
+                  <span
+                    className={cn(
+                      "w-10 h-10 rounded-full flex items-center justify-center text-sm font-black border-2 transition-all",
+                      wizardStep === s.step
+                        ? "bg-primary text-primary-foreground border-primary shadow-lg shadow-primary/20"
+                        : "bg-muted text-muted-foreground border-border"
                     )}
-                  </button>
-                </div>
-                <div>
-                  <h3 className="text-lg font-black text-foreground tracking-tight">Dados Pessoais</h3>
-                  <p className="text-xs text-muted-foreground font-medium uppercase tracking-widest">Informações básicas do aluno</p>
-                </div>
+                  >
+                    {wizardStep > s.step ? <Check size={18} /> : s.step}
+                  </span>
+                  <span
+                    className={cn(
+                      "text-[10px] font-black uppercase tracking-widest text-center leading-tight max-w-[72px] sm:max-w-none",
+                      wizardStep === s.step ? "text-primary" : "text-muted-foreground"
+                    )}
+                  >
+                    {s.label}
+                  </span>
+                </button>
+                {index < 3 && (
+                  <div className={cn("flex-1 h-0.5 mx-2 sm:mx-4 rounded-full", wizardStep > s.step ? "bg-muted-foreground/40" : "bg-border")} />
+                )}
               </div>
-
-              <div className="space-y-6 relative z-10">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] flex items-center gap-1.5 ml-1">
-                      Nome completo <span className="text-rose-500">*</span>
-                    </label>
-                    <div className="relative group/input">
-                      <Input 
-                        placeholder="Ex: walysson Rodrigo" 
-                        value={form.name}
-                        onChange={(e) => handleInputChange('name', e.target.value)}
-                        className={cn(
-                          "h-12 rounded-xl border-border bg-muted/30 focus:bg-background focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-sm font-semibold pl-11",
-                          errors.name && "border-rose-300 bg-rose-50/30 focus:ring-rose-500/10 focus:border-rose-500"
-                        )}
-                      />
-                      <User className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground/70 group-focus-within/input:text-indigo-500 transition-colors" size={18} />
-                    </div>
-                    {errors.name && <p className="text-[10px] text-rose-500 font-bold flex items-center gap-1 ml-1"><AlertCircle size={10} /> {errors.name}</p>}
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Nome social (opcional)</label>
-                    <div className="relative group/input">
-                      <Input 
-                        placeholder="Como prefere ser chamado" 
-                        value={form.socialName}
-                        onChange={(e) => handleInputChange('socialName', e.target.value)}
-                        className="h-12 rounded-xl border-border bg-muted/30 focus:bg-background focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-sm font-semibold pl-11"
-                      />
-                      <UserCheck className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground/70 group-focus-within/input:text-indigo-500 transition-colors" size={18} />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] flex items-center gap-1.5 ml-1">
-                      Data de nascimento
-                    </label>
-                    <div className="relative group/input">
-                      <Input 
-                        type="date" 
-                        value={form.birthDate}
-                        onChange={(e) => handleInputChange('birthDate', e.target.value)}
-                        className={cn(
-                          "h-12 rounded-xl border-border bg-muted/30 focus:bg-background focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-sm font-semibold pl-11 pr-4",
-                          errors.birthDate && "border-rose-300 bg-rose-50/30 focus:ring-rose-500/10 focus:border-rose-500"
-                        )}
-                      />
-                      <CalendarIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground/70 group-focus-within/input:text-indigo-500 transition-colors" size={18} />
-                    </div>
-                    {errors.birthDate && <p className="text-[10px] text-rose-500 font-bold flex items-center gap-1 ml-1"><AlertCircle size={10} /> {errors.birthDate}</p>}
-                    <p className="text-[10px] font-semibold text-amber-600/90 dark:text-amber-400/90 flex items-center gap-1 ml-1 pt-0.5">
-                      <Info size={12} className="shrink-0 text-amber-500" />
-                      Ao informar a data de nascimento de um aluno menor de idade (-18 anos), os campos do responsável financeiro serão exibidos automaticamente.
-                    </p>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Gênero</label>
-                    <Select value={form.gender} onValueChange={(v) => handleInputChange('gender', v)}>
-                      <SelectTrigger className="h-12 rounded-xl border-border bg-muted/30 focus:ring-4 focus:ring-indigo-500/10 transition-all text-sm font-semibold px-4">
-                        <SelectValue placeholder="Selecione" />
-                      </SelectTrigger>
-                      <SelectContent className="rounded-xl border-border shadow-2xl p-1">
-                        <SelectItem value="masculino" className="rounded-lg font-medium">Masculino</SelectItem>
-                        <SelectItem value="feminino" className="rounded-lg font-medium">Feminino</SelectItem>
-                        <SelectItem value="outro" className="rounded-lg font-medium">Outro / Prefiro não dizer</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">CPF</label>
-                    <div className="relative group/input">
-                      <Input 
-                        placeholder="000.000.000-00" 
-                        value={form.cpf}
-                        onChange={(e) => handleInputChange('cpf', e.target.value)}
-                        className={cn(
-                          "h-12 rounded-xl border-border bg-muted/30 focus:bg-background focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-sm font-semibold pl-11",
-                          errors.cpf && "border-rose-300 bg-rose-50/30 focus:ring-rose-500/10 focus:border-rose-500"
-                        )}
-                      />
-                      <FileText className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground/70 group-focus-within/input:text-indigo-500 transition-colors" size={18} />
-                    </div>
-                    {errors.cpf && <p className="text-[10px] text-rose-500 font-bold flex items-center gap-1 ml-1"><AlertCircle size={10} /> {errors.cpf}</p>}
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">RG</label>
-                    <div className="relative group/input">
-                      <Input 
-                        placeholder="00.000.000-0" 
-                        value={form.rg}
-                        onChange={(e) => handleInputChange('rg', e.target.value)}
-                        className={cn(
-                          "h-12 rounded-xl border-border bg-muted/30 focus:bg-background focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-sm font-semibold pl-11",
-                          errors.rg && "border-rose-300 bg-rose-50/30 focus:ring-rose-500/10 focus:border-rose-500"
-                        )}
-                      />
-                      <FileText className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground/70 group-focus-within/input:text-indigo-500 transition-colors" size={18} />
-                    </div>
-                    {errors.rg && <p className="text-[10px] text-rose-500 font-bold flex items-center gap-1 ml-1"><AlertCircle size={10} /> {errors.rg}</p>}
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-
-            {/* CARD 3 — Contato */}
-            <motion.div variants={cardVariants} className="bg-card rounded-[2rem] p-8 shadow-sm border border-border/50 hover:shadow-xl hover:shadow-indigo-500/5 transition-all duration-500 relative overflow-hidden group">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full -translate-y-16 translate-x-16 group-hover:scale-110 transition-transform duration-700 blur-3xl opacity-50" />
+            ))}
+          </div>
+        </div>
+        {wizardStep === 1 && (
+          <motion.div
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+            className="grid grid-cols-1 lg:grid-cols-2 gap-8"
+          >
+            <div className="space-y-8">
+              <motion.div variants={cardVariants} className="bg-card rounded-[2rem] p-8 shadow-sm border border-border/50 hover:shadow-xl hover:shadow-violet-500/5 transition-all duration-500 relative overflow-hidden group">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-violet-500/10 rounded-full -translate-y-16 translate-x-16 group-hover:scale-110 transition-transform duration-700 blur-3xl opacity-50" />
               
-              <div className="flex items-center gap-4 mb-8 relative z-10">
-                <div className="w-12 h-12 rounded-2xl bg-blue-500/100 text-white flex items-center justify-center shadow-lg shadow-blue-500/10 group-hover:scale-110 transition-transform">
-                  <Phone size={24} />
-                </div>
-                <div>
-                  <h3 className="text-lg font-black text-foreground tracking-tight">Contato</h3>
-                  <p className="text-[10px] text-muted-foreground/70 font-bold uppercase tracking-[0.2em]">Meios de comunicação</p>
-                </div>
-              </div>
-
-              <div className="space-y-6 relative z-10">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] flex items-center gap-1.5 ml-1">
-                      Telefone / WhatsApp <span className="text-rose-500">*</span>
-                    </label>
-                    <div className="relative group/input">
-                      <Input 
-                        placeholder="(00) 00000-0000 ou +55 (DDD) 90000-0000" 
-                        value={form.phone}
-                        onChange={(e) => handleInputChange('phone', e.target.value)}
-                        className={cn(
-                          "h-12 rounded-xl border-border bg-muted/30 focus:bg-background focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all text-sm font-semibold pl-11",
-                          errors.phone && "border-rose-300 bg-rose-50/30 focus:ring-rose-500/10 focus:border-rose-500"
-                        )}
-                      />
-                      <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground/70 group-focus-within/input:text-blue-500 transition-colors" size={18} />
-                    </div>
-                    {errors.phone && <p className="text-[10px] text-rose-500 font-bold flex items-center gap-1 ml-1"><AlertCircle size={10} /> {errors.phone}</p>}
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">E-mail</label>
-                    <div className="relative group/input">
-                      <Input 
-                        name="student_contact_email"
-                        autoComplete="off"
-                        placeholder="email@exemplo.com" 
-                        value={form.email}
-                        type="email"
-                        onChange={(e) => handleInputChange('email', e.target.value)}
-                        className="h-12 rounded-xl border-border bg-muted/30 focus:bg-background focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all text-sm font-semibold pl-11"
-                      />
-                      <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground/70 group-focus-within/input:text-blue-500 transition-colors" size={18} />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Endereço</label>
-                  <div className="relative group/input">
-                    <Input 
-                      placeholder="Rua, número, bairro, cidade - UF" 
-                      value={form.address}
-                      onChange={(e) => handleInputChange('address', e.target.value)}
-                      className="h-12 rounded-xl border-border bg-muted/30 focus:bg-background focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all text-sm font-semibold pl-11"
-                    />
-                    <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground/70 group-focus-within/input:text-blue-500 transition-colors" size={18} />
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-
-            {/* CARD — Agendar Aula (Formulário Completo Integrado) */}
-            <motion.div variants={cardVariants} className="bg-card rounded-[2rem] p-8 shadow-sm border border-violet-500/20 bg-violet-500/5 hover:shadow-xl hover:shadow-violet-500/5 transition-all duration-500 relative overflow-hidden group">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-violet-500/10 rounded-full -translate-y-16 translate-x-16 group-hover:scale-110 transition-transform duration-700 blur-3xl opacity-50" />
-              
-              <div className="flex items-center justify-between mb-6 relative z-10">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-violet-600 to-indigo-600 text-white flex items-center justify-center shadow-lg shadow-violet-500/20 group-hover:scale-110 transition-transform">
-                    <CalendarDays size={24} />
+                <div className="flex items-center gap-4 mb-8 relative z-10">
+                  <div className="w-12 h-12 rounded-2xl bg-violet-600 text-white flex items-center justify-center shadow-lg shadow-violet-500/10 group-hover:scale-110 transition-transform">
+                    <GraduationCap size={24} />
                   </div>
                   <div>
-                    <h3 className="text-lg font-black text-foreground tracking-tight">Agendar Aula</h3>
-                    <p className="text-[10px] text-violet-600/70 font-bold uppercase tracking-[0.2em]">Opcional na matrícula</p>
+                    <h3 className="text-lg font-black text-foreground tracking-tight">Acadêmico</h3>
+                    <p className="text-[10px] text-muted-foreground/70 font-bold uppercase tracking-[0.2em]">Ensino e aprendizado</p>
                   </div>
                 </div>
-              </div>
 
-              <div className="space-y-4 relative z-10">
-                {/* Título da Aula */}
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Título da Aula *</label>
-                  <Input
-                    value={scheduleForm.title}
-                    onChange={e => updateSchedule(p => ({ ...p, title: e.target.value }))}
-                    placeholder={`Aula de ${instruments.find((i: any) => i.id.toString() === scheduleForm.instrumentId)?.name ?? "Música"} - ${form.name || "Aluno"}`}
-                    className={cn("h-12 rounded-xl text-sm font-semibold border-border bg-muted/30", scheduleErrors.title && "border-red-500")}
-                  />
-                  {scheduleErrors.title && <p className="text-xs text-red-500 ml-1">{scheduleErrors.title}</p>}
-                </div>
-
-                {/* Data + Horário */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Data Inicial (Início) *</label>
-                    <div className="relative">
-                      <Input
-                        type="date"
-                        value={scheduleForm.date}
-                        onChange={e => {
-                          const value = e.target.value;
-                          const [yy, mm, dd] = value.split("-").map(Number);
-                          const dayOfWeek = Number.isFinite(yy) && Number.isFinite(mm) && Number.isFinite(dd)
-                            ? new Date(yy, mm - 1, dd).getDay()
-                            : null;
-                          updateSchedule(p => ({
-                            ...p,
-                            date: value,
-                            weeklySlots: dayOfWeek === null
-                              ? p.weeklySlots
-                              : p.weeklySlots.map((slot, index) => (index === 0 ? { ...slot, dayOfWeek } : slot)),
-                          }));
-                        }}
-                        className={cn("h-12 rounded-xl pl-10 text-sm font-semibold border-border bg-muted/30", scheduleErrors.date && "border-red-500")}
-                      />
-                      <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
+                <div className="space-y-6 relative z-10">
+                  {/* Linha 1: Instrumento e Nível */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Instrumento principal</label>
+                      <Select value={form.instrumentId} onValueChange={(v) => handleInputChange('instrumentId', v)}>
+                        <SelectTrigger className="h-12 rounded-xl border-border bg-muted/30 focus:ring-4 focus:ring-violet-500/10 transition-all text-sm font-semibold px-4">
+                          <SelectValue placeholder="Selecione" />
+                        </SelectTrigger>
+                        <SelectContent className="rounded-xl border-border shadow-2xl p-1">
+                          {instruments.map(inst => (
+                            <SelectItem key={inst.id} value={String(inst.id)} className="rounded-lg">
+                              <div className="flex items-center gap-2">
+                                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: inst.color || '#6366f1' }} />
+                                <span className="font-medium">{inst.name}</span>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
-                    {scheduleErrors.date && <p className="text-xs text-red-500 ml-1">{scheduleErrors.date}</p>}
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Nível</label>
+                      <Select value={form.level} onValueChange={(v) => handleInputChange('level', v)}>
+                        <SelectTrigger className="h-12 rounded-xl border-border bg-muted/30 focus:ring-4 focus:ring-violet-500/10 transition-all text-sm font-semibold px-4">
+                          <SelectValue placeholder="Selecione" />
+                        </SelectTrigger>
+                        <SelectContent className="rounded-xl border-border shadow-2xl p-1">
+                          <SelectItem value="iniciante" className="rounded-lg">
+                            <Badge variant="secondary" className="bg-indigo-500/10 text-indigo-600 border-none font-bold">Iniciante</Badge>
+                          </SelectItem>
+                          <SelectItem value="intermediario" className="rounded-lg">
+                            <Badge variant="secondary" className="bg-blue-500/10 text-blue-600 border-none font-bold">Intermediário</Badge>
+                          </SelectItem>
+                          <SelectItem value="avancado" className="rounded-lg">
+                            <Badge variant="secondary" className="bg-emerald-50 text-emerald-600 border-none font-bold">Avançado</Badge>
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
-                  
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">
-                      {scheduleMultiSlot ? "Horário das Aulas" : "Horário *"}
-                    </label>
-                    {scheduleMultiSlot ? (
-                      <div className="h-12 rounded-xl border border-violet-500/20 bg-violet-500/10 px-3.5 flex items-center justify-between text-xs font-bold text-violet-700">
-                        <span className="flex items-center gap-2">
-                          <Clock size={14} className="text-violet-600 shrink-0" />
-                          Definido individualmente abaixo
-                        </span>
-                        <span className="text-[10px] bg-violet-600 text-white px-2 py-0.5 rounded-md uppercase font-black">{scheduleForm.lessonsPerWeek}x/sem</span>
+
+                  {/* Linha 2: Professor, Sala e Data de Início */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Professor Responsável</label>
+                      <Select value={form.professorId} onValueChange={(v) => handleInputChange('professorId', v)}>
+                        <SelectTrigger className="h-12 rounded-xl border-border bg-muted/30 focus:ring-4 focus:ring-violet-500/10 transition-all text-sm font-semibold px-4">
+                          <SelectValue placeholder="Selecione (Opcional)" />
+                        </SelectTrigger>
+                        <SelectContent className="rounded-xl border-border shadow-2xl p-1">
+                          <SelectItem value="none" className="rounded-lg">
+                             <span className="font-medium text-muted-foreground">Nenhum</span>
+                          </SelectItem>
+                          {professores.map((prof: any) => (
+                            <SelectItem key={prof.id} value={String(prof.userId)} className="rounded-lg">
+                              <span className="font-medium">{prof.name}</span>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Sala de Aula (Padrão)</label>
+                      <Select value={form.studioRoomId} onValueChange={(v) => handleInputChange('studioRoomId', v)}>
+                        <SelectTrigger className="h-12 rounded-xl border-border bg-muted/30 focus:ring-4 focus:ring-violet-500/10 transition-all text-sm font-semibold px-4">
+                          <SelectValue placeholder="Selecione a Sala" />
+                        </SelectTrigger>
+                        <SelectContent className="rounded-xl border-border shadow-2xl p-1">
+                          <SelectItem value="none" className="rounded-lg">
+                            <span className="font-medium text-muted-foreground">Nenhuma sala vinculada</span>
+                          </SelectItem>
+                          {studioRooms.map((room: any) => (
+                            <SelectItem key={room.id} value={String(room.id)} className="rounded-lg">
+                              <div className="flex items-center gap-2">
+                                <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: room.color || '#3b82f6' }} />
+                                <span className="font-medium">{room.name}</span>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-1 gap-6">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Data de início</label>
+                      <div className="relative group/input">
+                        <Input 
+                          type="date" 
+                          value={form.startDate}
+                          onChange={(e) => handleInputChange('startDate', e.target.value)}
+                          className="h-12 rounded-xl border-border bg-muted/30 focus:bg-background focus:ring-4 focus:ring-violet-500/10 focus:border-violet-500 transition-all text-sm font-semibold pl-11 pr-4"
+                        />
+                        <CalendarIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground/70 group-focus-within/input:text-violet-500 transition-colors" size={18} />
                       </div>
-                    ) : (
-                      <div className="space-y-1.5">
-                        <div className="relative">
-                          <Input
-                            type="time"
-                            value={scheduleForm.time}
-                            onChange={e => {
-                              const value = e.target.value;
-                              updateSchedule(p => ({
-                                ...p,
-                                time: value,
-                                weeklySlots: p.weeklySlots.map((slot, index) =>
-                                  index === 0 ? { ...slot, time: value } : slot
-                                ),
-                              }));
-                            }}
-                            className={cn("h-12 rounded-xl pl-10 text-sm font-semibold border-border bg-muted/30", scheduleErrors.time && "border-red-500")}
-                          />
-                          <Clock className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
-                        </div>
-                        
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2 w-full">
+                      <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Tipo de Aula</label>
+                      <Select value={form.lessonType} onValueChange={(v) => handleInputChange('lessonType', v)}>
+                        <SelectTrigger className="h-12 w-full rounded-xl border-border bg-muted/30 focus:ring-4 focus:ring-violet-500/10 transition-all text-sm font-semibold px-4">
+                          <SelectValue placeholder="Selecione" />
+                        </SelectTrigger>
+                        <SelectContent className="rounded-xl border-border shadow-2xl p-1">
+                          <SelectItem value="individual" className="rounded-lg font-medium">Individual</SelectItem>
+                          <SelectItem value="turma" className="rounded-lg font-medium">Turma / Coletiva</SelectItem>
+                          <SelectItem value="online" className="rounded-lg font-medium">🌐 Online (Zoom, Meet, etc.)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {form.lessonType === 'online' && (
+                      <div className="space-y-2 md:col-span-2 w-full">
+                        <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Link da Reunião Online</label>
+                        <Input
+                          placeholder="https://meet.google.com/xxx ou https://zoom.us/j/xxx"
+                          value={form.onlineMeetingLink || ''}
+                          onChange={(e) => handleInputChange('onlineMeetingLink', e.target.value)}
+                          className="h-12 w-full rounded-xl border-border bg-muted/30 focus:bg-background focus:ring-4 focus:ring-violet-500/10 focus:border-violet-500 transition-all text-sm font-semibold"
+                        />
                       </div>
                     )}
-                    {!scheduleMultiSlot && scheduleErrors.time && <p className="text-xs text-red-500 ml-1">{scheduleErrors.time}</p>}
                   </div>
-                </div>
-
-                {/* Duração + Instrumento */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Duração</label>
-                    <Select
-                      value={String(scheduleForm.duration)}
-                      onValueChange={v => updateSchedule(p => ({ ...p, duration: Number(v) }))}
-                    >
-                      <SelectTrigger className="h-12 rounded-xl border-border bg-muted/30 text-sm font-semibold px-4">
-                        <div className="flex items-center gap-2">
-                          <Timer size={14} className="text-muted-foreground" />
-                          <SelectValue />
+                  {/* PRD v1.1 — Cursos do aluno (quantidade + professor por curso) */}
+                  {isEditMode && (
+                    <div className="mt-6 p-4 rounded-xl border border-violet-500/20 bg-violet-500/5 space-y-3">
+                      <div className="flex items-center justify-between gap-3 flex-wrap">
+                        <div>
+                          <p className="text-sm font-bold text-foreground">Cursos do aluno</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">Se o aluno faz mais de um curso, escolha o instrumento e o professor de cada aula extra.</p>
                         </div>
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="30">30 minutos</SelectItem>
-                        <SelectItem value="40">40 minutos</SelectItem>
-                        <SelectItem value="45">45 minutos</SelectItem>
-                        <SelectItem value="50">50 minutos</SelectItem>
-                        <SelectItem value="60">60 minutos</SelectItem>
-                        <SelectItem value="90">90 minutos</SelectItem>
-                        <SelectItem value="120">120 minutos</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Instrumento</label>
-                    <Select
-                      value={scheduleForm.instrumentId}
-                      onValueChange={v => updateSchedule(p => ({ ...p, instrumentId: v }))}
-                    >
-                      <SelectTrigger className="h-12 rounded-xl border-border bg-muted/30 text-sm font-semibold px-4">
-                        <SelectValue placeholder="Selecionar" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {instruments.map((inst: any) => (
-                          <SelectItem key={inst.id} value={String(inst.id)}>{inst.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                {/* BUG #7 FIX: Sala de Aula adicionada ao formulário de agendamento */}
-                <div className={cn("grid gap-4", studioRooms.length > 0 ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1")}>
-                {studioRooms.length > 0 && (
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Sala de Aula</label>
-                    <Select
-                      value={scheduleForm.studioRoomId || "none"}
-                      onValueChange={v => updateSchedule(p => ({ ...p, studioRoomId: v === "none" ? "" : v }))}
-                    >
-                      <SelectTrigger className="h-12 rounded-xl border-border bg-muted/30 text-sm font-semibold px-4">
-                        <SelectValue placeholder="Nenhuma sala" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">Nenhuma sala</SelectItem>
-                        {studioRooms.map((room: any) => (
-                          <SelectItem key={room.id} value={String(room.id)}>{room.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-
-                {/* Recorrência Semanal */}
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Repetir</label>
-                    <Select
-                      value={scheduleForm.interval}
-                      onValueChange={(v) => {
-                        const nextInterval = v as RecurrenceInterval;
-                        const opts = RECURRENCE_DURATIONS[nextInterval];
-                        const validCount = opts.some((o) => o.value === scheduleForm.recurrenceCount) ? scheduleForm.recurrenceCount : opts[0].value;
-                        updateSchedule(p => ({ ...p, interval: nextInterval, recurrenceCount: validCount }));
-                      }}
-                    >
-                      <SelectTrigger className="h-12 rounded-xl border-border bg-muted/30 text-sm font-semibold px-4">
-                        <div className="flex items-center gap-2">
-                          <RefreshCw size={14} className="text-muted-foreground" />
-                          <SelectValue />
-                        </div>
-                      </SelectTrigger>
-                      <SelectContent>
-                        {RECURRENCE_INTERVALS.map((i) => (
-                          <SelectItem key={i.id} value={i.id}>{i.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    </div>
-                </div>
-
-                <div className="space-y-2">
-                <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1 pt-1">Gerar por</label>
                         <Select
-                          value={String(scheduleRecurrenceDuration)}
-                          onValueChange={(v) => updateSchedule(p => (p.interval === "semanal" ? { ...p, weeksCount: Number(v) } : { ...p, recurrenceCount: Number(v) }))}
+                          value={String(courseCount)}
+                          onValueChange={(v) => {
+                            const n = Number(v);
+                            setCourseCount(n);
+                            setExtraCourses((prev) => {
+                              const next = prev.slice(0, Math.max(0, n - 1));
+                              while (next.length < n - 1) next.push({ instrumentId: "", teacherUserId: "" });
+                              return next;
+                            });
+                            setCoursesDirty(true);
+                          }}
                         >
-                          <SelectTrigger className="h-12 rounded-xl border-border bg-muted/30 text-sm font-semibold px-4">
-                            <div className="flex items-center gap-2">
-                              <CalendarRange size={14} className="text-muted-foreground" />
-                              <SelectValue />
-                            </div>
+                          <SelectTrigger className="h-10 w-32 rounded-xl border-border bg-background text-xs font-bold">
+                            <SelectValue />
                           </SelectTrigger>
-                          <SelectContent>
-                            {(scheduleForm.interval === "semanal"
-                              ? [{ value: 1, label: "1 vez (aula avulsa)" }, ...RECURRENCE_DURATIONS.semanal]
-                              : RECURRENCE_DURATIONS[scheduleForm.interval]
-                            ).map((o) => (
-                              <SelectItem key={o.value} value={String(o.value)}>{o.label}</SelectItem>
+                          <SelectContent className="rounded-xl p-1">
+                            {[1, 2, 3, 4].map((n) => (
+                              <SelectItem key={n} value={String(n)} className="rounded-lg font-medium">{n} curso{n > 1 ? "s" : ""}</SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
-                        {scheduleOccurrences.length > 0 && (
-                          <p className={cn("text-xs font-bold ml-1 flex items-center gap-1", scheduleExceedsLimit ? "text-rose-600" : "text-violet-600")}>
-                            <CalendarRange size={12} />
-                            {scheduleExceedsLimit
-                              ? `Limite de ${MAX_OCCURRENCES} aulas excedido (${scheduleOccurrences.length}). Reduza a duração ou os dias por semana.`
-                              : `${scheduleOccurrences.length} aula(s) serão criadas · de ${format(scheduleOccurrences[0].date, "dd/MM/yyyy")} até ${format(scheduleOccurrences[scheduleOccurrences.length - 1].date, "dd/MM/yyyy")}.`}
-                          </p>
-                        )}
-                        {scheduleForm.interval === "mensal_fixo" && (
-                          <p className="text-xs text-muted-foreground font-medium ml-1">No modo mensal (dia fixo), a série usa a data inicial selecionada — os dias da semana não se aplicam.</p>
-                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Curso 1: <strong className="text-foreground">{instruments.find((i: any) => String(i.id) === form.instrumentId)?.name || "—"}</strong> · Prof.{" "}
+                        <strong className="text-foreground">{(professores as any[]).find((p: any) => String(p.userId) === form.professorId)?.name || "—"}</strong>
+                      </p>
+                      {Array.from({ length: Math.max(0, courseCount - 1) }).map((_, i) => (
+                        <div key={i} className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <div className="space-y-1.5">
+                            <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Curso {i + 2}</label>
+                            <Select
+                              value={extraCourses[i]?.instrumentId || ""}
+                              onValueChange={(v) => {
+                                setExtraCourses((prev) => prev.map((c, idx) => (idx === i ? { ...c, instrumentId: v } : c)));
+                                setCoursesDirty(true);
+                              }}
+                            >
+                              <SelectTrigger className="h-12 w-full rounded-xl border-border bg-muted/30 text-sm font-semibold px-4">
+                                <SelectValue placeholder="Selecione" />
+                              </SelectTrigger>
+                              <SelectContent className="rounded-xl p-1">
+                                {instruments.map((instr: any) => (
+                                  <SelectItem key={instr.id} value={String(instr.id)} className="rounded-lg font-medium">{instr.name}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-1.5">
+                            <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Professor do curso {i + 2}</label>
+                            <Select
+                              value={extraCourses[i]?.teacherUserId || ""}
+                              onValueChange={(v) => {
+                                setExtraCourses((prev) => prev.map((c, idx) => (idx === i ? { ...c, teacherUserId: v } : c)));
+                                setCoursesDirty(true);
+                              }}
+                            >
+                              <SelectTrigger className="h-12 w-full rounded-xl border-border bg-muted/30 text-sm font-semibold px-4">
+                                <SelectValue placeholder="Professor atual" />
+                              </SelectTrigger>
+                              <SelectContent className="rounded-xl p-1">
+                                {(professores as any[]).map((p: any) => (
+                                  <SelectItem key={p.userId} value={String(p.userId)} className="rounded-lg font-medium">{p.name}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            </div>
+            <div className="space-y-8">
+              {/* CARD — Agendar Aula (Formulário Completo Integrado) */}
+              <motion.div variants={cardVariants} className="bg-card rounded-[2rem] p-8 shadow-sm border border-violet-500/20 bg-violet-500/5 hover:shadow-xl hover:shadow-violet-500/5 transition-all duration-500 relative overflow-hidden group">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-violet-500/10 rounded-full -translate-y-16 translate-x-16 group-hover:scale-110 transition-transform duration-700 blur-3xl opacity-50" />
+              
+                <div className="flex items-center justify-between mb-6 relative z-10">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-violet-600 to-indigo-600 text-white flex items-center justify-center shadow-lg shadow-violet-500/20 group-hover:scale-110 transition-transform">
+                      <CalendarDays size={24} />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-black text-foreground tracking-tight">Agendar Aula</h3>
+                      <p className="text-[10px] text-violet-600/70 font-bold uppercase tracking-[0.2em]">Opcional na matrícula</p>
+                    </div>
+                  </div>
                 </div>
 
-                {/* Aulas na Mesma Semana */}
-{scheduleForm.interval !== "mensal_fixo" && (
-                <div className="p-4 bg-primary/5 border border-primary/20 rounded-2xl space-y-3">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-                    <label className="text-[11px] font-black uppercase tracking-wider text-primary flex items-center gap-2">
-                      <CalendarIcon size={14} /> Aulas na mesma semana
-                    </label>
-                    <div className="flex items-center gap-1 overflow-x-auto no-scrollbar pb-0.5">
-                      {[1, 2, 3, 4].map(num => (
-                        <button
-                          key={num}
-                          type="button"
-                          onClick={() => {
-                            const [startY, startM, startD] = scheduleForm.date.split("-").map(Number);
-                            const initialDay = new Date(startY, startM - 1, startD).getDay();
-                            const newSlots: Array<{ dayOfWeek: number; time: string; studioRoomId: string }> = [];
-                            for (let i = 0; i < num; i++) {
-                              newSlots.push({
-                                dayOfWeek: (initialDay + (i * 2)) % 7,
-                                time: scheduleForm.time,
-                                studioRoomId: ""
-                              });
-                            }
+                <div className="space-y-4 relative z-10">
+                  {/* Título da Aula */}
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Título da Aula *</label>
+                    <Input
+                      value={scheduleForm.title}
+                      onChange={e => updateSchedule(p => ({ ...p, title: e.target.value }))}
+                      placeholder={`Aula de ${instruments.find((i: any) => i.id.toString() === scheduleForm.instrumentId)?.name ?? "Música"} - ${form.name || "Aluno"}`}
+                      className={cn("h-12 rounded-xl text-sm font-semibold border-border bg-muted/30", scheduleErrors.title && "border-red-500")}
+                    />
+                    {scheduleErrors.title && <p className="text-xs text-red-500 ml-1">{scheduleErrors.title}</p>}
+                  </div>
+
+                  {/* Data + Horário */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Data Inicial (Início) *</label>
+                      <div className="relative">
+                        <Input
+                          type="date"
+                          value={scheduleForm.date}
+                          onChange={e => {
+                            const value = e.target.value;
+                            const [yy, mm, dd] = value.split("-").map(Number);
+                            const dayOfWeek = Number.isFinite(yy) && Number.isFinite(mm) && Number.isFinite(dd)
+                              ? new Date(yy, mm - 1, dd).getDay()
+                              : null;
                             updateSchedule(p => ({
                               ...p,
-                              lessonsPerWeek: num,
-                              weeklySlots: newSlots,
-                              weeksCount: p.weeksCount === 1 ? 4 : p.weeksCount
+                              date: value,
+                              weeklySlots: dayOfWeek === null
+                                ? p.weeklySlots
+                                : p.weeklySlots.map((slot, index) => (index === 0 ? { ...slot, dayOfWeek } : slot)),
                             }));
                           }}
-                          className={cn(
-                            "px-2.5 sm:px-3 py-1 rounded-lg text-xs font-bold transition-all border cursor-pointer whitespace-nowrap shrink-0",
-                            scheduleForm.lessonsPerWeek === num
-                              ? "bg-primary text-white border-primary shadow-sm shadow-primary/20"
-                              : "bg-card text-muted-foreground border-border hover:bg-muted"
-                          )}
-                        >
-                          {num}x/sem
-                        </button>
-                      ))}
+                          className={cn("h-12 rounded-xl pl-10 text-sm font-semibold border-border bg-muted/30", scheduleErrors.date && "border-red-500")}
+                        />
+                        <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
+                      </div>
+                      {scheduleErrors.date && <p className="text-xs text-red-500 ml-1">{scheduleErrors.date}</p>}
+                    </div>
+                  
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">
+                        {scheduleMultiSlot ? "Horário das Aulas" : "Horário *"}
+                      </label>
+                      {scheduleMultiSlot ? (
+                        <div className="h-12 rounded-xl border border-violet-500/20 bg-violet-500/10 px-3.5 flex items-center justify-between text-xs font-bold text-violet-700">
+                          <span className="flex items-center gap-2">
+                            <Clock size={14} className="text-violet-600 shrink-0" />
+                            Definido individualmente abaixo
+                          </span>
+                          <span className="text-[10px] bg-violet-600 text-white px-2 py-0.5 rounded-md uppercase font-black">{scheduleForm.lessonsPerWeek}x/sem</span>
+                        </div>
+                      ) : (
+                        <div className="space-y-1.5">
+                          <div className="relative">
+                            <Input
+                              type="time"
+                              value={scheduleForm.time}
+                              onChange={e => {
+                                const value = e.target.value;
+                                updateSchedule(p => ({
+                                  ...p,
+                                  time: value,
+                                  weeklySlots: p.weeklySlots.map((slot, index) =>
+                                    index === 0 ? { ...slot, time: value } : slot
+                                  ),
+                                }));
+                              }}
+                              className={cn("h-12 rounded-xl pl-10 text-sm font-semibold border-border bg-muted/30", scheduleErrors.time && "border-red-500")}
+                            />
+                            <Clock className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
+                          </div>
+                        
+                        </div>
+                      )}
+                      {!scheduleMultiSlot && scheduleErrors.time && <p className="text-xs text-red-500 ml-1">{scheduleErrors.time}</p>}
                     </div>
                   </div>
 
-                  {scheduleForm.lessonsPerWeek > 1 && (
-                    <div className="space-y-2 pt-2 border-t border-primary/10">
-                      <p className="text-xs text-muted-foreground font-medium">Configure os dias e horários das aulas:</p>
-                      <div className="grid gap-2">
-                        {scheduleForm.weeklySlots.map((slot, idx) => (
-                          <div key={idx} className="flex items-center gap-2 bg-card/60 p-2 rounded-xl border border-border/40 text-xs">
-                            <span className="font-bold text-foreground min-w-[50px]">Aula {idx + 1}:</span>
-                            <select
-                              value={slot.dayOfWeek}
-                              onChange={(e) => {
-                                const val = Number(e.target.value);
-                                const updated = [...scheduleForm.weeklySlots];
-                                updated[idx].dayOfWeek = val;
-                                updateSchedule(p => ({ ...p, weeklySlots: updated }));
-                              }}
-                              className="h-9 bg-muted/20 border border-border/40 rounded-lg px-2 text-xs font-bold outline-none"
-                            >
-                              <option value={0}>Domingo</option>
-                              <option value={1}>Segunda-feira</option>
-                              <option value={2}>Terça-feira</option>
-                              <option value={3}>Quarta-feira</option>
-                              <option value={4}>Quinta-feira</option>
-                              <option value={5}>Sexta-feira</option>
-                              <option value={6}>Sábado</option>
-                            </select>
-                            <input
-                              type="time"
-                              value={slot.time}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                const updated = [...scheduleForm.weeklySlots];
-                                updated[idx].time = val;
-                                updateSchedule(p => ({ ...p, weeklySlots: updated }));
-                              }}
-                              className="h-9 bg-muted/20 border border-border/40 rounded-lg px-2 text-xs font-bold outline-none"
-                            />
+                  {/* Duração + Instrumento */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Duração</label>
+                      <Select
+                        value={String(scheduleForm.duration)}
+                        onValueChange={v => updateSchedule(p => ({ ...p, duration: Number(v) }))}
+                      >
+                        <SelectTrigger className="h-12 rounded-xl border-border bg-muted/30 text-sm font-semibold px-4">
+                          <div className="flex items-center gap-2">
+                            <Timer size={14} className="text-muted-foreground" />
+                            <SelectValue />
                           </div>
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="30">30 minutos</SelectItem>
+                          <SelectItem value="40">40 minutos</SelectItem>
+                          <SelectItem value="45">45 minutos</SelectItem>
+                          <SelectItem value="50">50 minutos</SelectItem>
+                          <SelectItem value="60">60 minutos</SelectItem>
+                          <SelectItem value="90">90 minutos</SelectItem>
+                          <SelectItem value="120">120 minutos</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Instrumento</label>
+                      <Select
+                        value={scheduleForm.instrumentId}
+                        onValueChange={v => updateSchedule(p => ({ ...p, instrumentId: v }))}
+                      >
+                        <SelectTrigger className="h-12 rounded-xl border-border bg-muted/30 text-sm font-semibold px-4">
+                          <SelectValue placeholder="Selecionar" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {instruments.map((inst: any) => (
+                            <SelectItem key={inst.id} value={String(inst.id)}>{inst.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  {/* BUG #7 FIX: Sala de Aula adicionada ao formulário de agendamento */}
+                  <div className={cn("grid gap-4", studioRooms.length > 0 ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1")}>
+                  {studioRooms.length > 0 && (
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Sala de Aula</label>
+                      <Select
+                        value={scheduleForm.studioRoomId || "none"}
+                        onValueChange={v => updateSchedule(p => ({ ...p, studioRoomId: v === "none" ? "" : v }))}
+                      >
+                        <SelectTrigger className="h-12 rounded-xl border-border bg-muted/30 text-sm font-semibold px-4">
+                          <SelectValue placeholder="Nenhuma sala" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">Nenhuma sala</SelectItem>
+                          {studioRooms.map((room: any) => (
+                            <SelectItem key={room.id} value={String(room.id)}>{room.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+
+                  {/* Recorrência Semanal */}
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Repetir</label>
+                      <Select
+                        value={scheduleForm.interval}
+                        onValueChange={(v) => {
+                          const nextInterval = v as RecurrenceInterval;
+                          const opts = RECURRENCE_DURATIONS[nextInterval];
+                          const validCount = opts.some((o) => o.value === scheduleForm.recurrenceCount) ? scheduleForm.recurrenceCount : opts[0].value;
+                          updateSchedule(p => ({ ...p, interval: nextInterval, recurrenceCount: validCount }));
+                        }}
+                      >
+                        <SelectTrigger className="h-12 rounded-xl border-border bg-muted/30 text-sm font-semibold px-4">
+                          <div className="flex items-center gap-2">
+                            <RefreshCw size={14} className="text-muted-foreground" />
+                            <SelectValue />
+                          </div>
+                        </SelectTrigger>
+                        <SelectContent>
+                          {RECURRENCE_INTERVALS.map((i) => (
+                            <SelectItem key={i.id} value={i.id}>{i.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      </div>
+                  </div>
+
+                  <div className="space-y-2">
+                  <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1 pt-1">Gerar por</label>
+                          <Select
+                            value={String(scheduleRecurrenceDuration)}
+                            onValueChange={(v) => updateSchedule(p => (p.interval === "semanal" ? { ...p, weeksCount: Number(v) } : { ...p, recurrenceCount: Number(v) }))}
+                          >
+                            <SelectTrigger className="h-12 rounded-xl border-border bg-muted/30 text-sm font-semibold px-4">
+                              <div className="flex items-center gap-2">
+                                <CalendarRange size={14} className="text-muted-foreground" />
+                                <SelectValue />
+                              </div>
+                            </SelectTrigger>
+                            <SelectContent>
+                              {(scheduleForm.interval === "semanal"
+                                ? [{ value: 1, label: "1 vez (aula avulsa)" }, ...RECURRENCE_DURATIONS.semanal]
+                                : RECURRENCE_DURATIONS[scheduleForm.interval]
+                              ).map((o) => (
+                                <SelectItem key={o.value} value={String(o.value)}>{o.label}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          {scheduleOccurrences.length > 0 && (
+                            <p className={cn("text-xs font-bold ml-1 flex items-center gap-1", scheduleExceedsLimit ? "text-rose-600" : "text-violet-600")}>
+                              <CalendarRange size={12} />
+                              {scheduleExceedsLimit
+                                ? `Limite de ${MAX_OCCURRENCES} aulas excedido (${scheduleOccurrences.length}). Reduza a duração ou os dias por semana.`
+                                : `${scheduleOccurrences.length} aula(s) serão criadas · de ${format(scheduleOccurrences[0].date, "dd/MM/yyyy")} até ${format(scheduleOccurrences[scheduleOccurrences.length - 1].date, "dd/MM/yyyy")}.`}
+                            </p>
+                          )}
+                          {scheduleForm.interval === "mensal_fixo" && (
+                            <p className="text-xs text-muted-foreground font-medium ml-1">No modo mensal (dia fixo), a série usa a data inicial selecionada — os dias da semana não se aplicam.</p>
+                          )}
+                  </div>
+
+                  {/* Aulas na Mesma Semana */}
+  {scheduleForm.interval !== "mensal_fixo" && (
+                  <div className="p-4 bg-primary/5 border border-primary/20 rounded-2xl space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                      <label className="text-[11px] font-black uppercase tracking-wider text-primary flex items-center gap-2">
+                        <CalendarIcon size={14} /> Aulas na mesma semana
+                      </label>
+                      <div className="flex items-center gap-1 overflow-x-auto no-scrollbar pb-0.5">
+                        {[1, 2, 3, 4].map(num => (
+                          <button
+                            key={num}
+                            type="button"
+                            onClick={() => {
+                              const [startY, startM, startD] = scheduleForm.date.split("-").map(Number);
+                              const initialDay = new Date(startY, startM - 1, startD).getDay();
+                              const newSlots: Array<{ dayOfWeek: number; time: string; studioRoomId: string }> = [];
+                              for (let i = 0; i < num; i++) {
+                                newSlots.push({
+                                  dayOfWeek: (initialDay + (i * 2)) % 7,
+                                  time: scheduleForm.time,
+                                  studioRoomId: ""
+                                });
+                              }
+                              updateSchedule(p => ({
+                                ...p,
+                                lessonsPerWeek: num,
+                                weeklySlots: newSlots,
+                                weeksCount: p.weeksCount === 1 ? 4 : p.weeksCount
+                              }));
+                            }}
+                            className={cn(
+                              "px-2.5 sm:px-3 py-1 rounded-lg text-xs font-bold transition-all border cursor-pointer whitespace-nowrap shrink-0",
+                              scheduleForm.lessonsPerWeek === num
+                                ? "bg-primary text-white border-primary shadow-sm shadow-primary/20"
+                                : "bg-card text-muted-foreground border-border hover:bg-muted"
+                            )}
+                          >
+                            {num}x/sem
+                          </button>
                         ))}
+                      </div>
+                    </div>
+
+                    {scheduleForm.lessonsPerWeek > 1 && (
+                      <div className="space-y-2 pt-2 border-t border-primary/10">
+                        <p className="text-xs text-muted-foreground font-medium">Configure os dias e horários das aulas:</p>
+                        <div className="grid gap-2">
+                          {scheduleForm.weeklySlots.map((slot, idx) => (
+                            <div key={idx} className="flex items-center gap-2 bg-card/60 p-2 rounded-xl border border-border/40 text-xs">
+                              <span className="font-bold text-foreground min-w-[50px]">Aula {idx + 1}:</span>
+                              <select
+                                value={slot.dayOfWeek}
+                                onChange={(e) => {
+                                  const val = Number(e.target.value);
+                                  const updated = [...scheduleForm.weeklySlots];
+                                  updated[idx].dayOfWeek = val;
+                                  updateSchedule(p => ({ ...p, weeklySlots: updated }));
+                                }}
+                                className="h-9 bg-muted/20 border border-border/40 rounded-lg px-2 text-xs font-bold outline-none"
+                              >
+                                <option value={0}>Domingo</option>
+                                <option value={1}>Segunda-feira</option>
+                                <option value={2}>Terça-feira</option>
+                                <option value={3}>Quarta-feira</option>
+                                <option value={4}>Quinta-feira</option>
+                                <option value={5}>Sexta-feira</option>
+                                <option value={6}>Sábado</option>
+                              </select>
+                              <input
+                                type="time"
+                                value={slot.time}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  const updated = [...scheduleForm.weeklySlots];
+                                  updated[idx].time = val;
+                                  updateSchedule(p => ({ ...p, weeklySlots: updated }));
+                                }}
+                                className="h-9 bg-muted/20 border border-border/40 rounded-lg px-2 text-xs font-bold outline-none"
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+  )}
+                                  {/* Observações da Aula */}
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Observações da Aula</label>
+                    <Textarea
+                      value={scheduleForm.notes}
+                      onChange={e => updateSchedule(p => ({ ...p, notes: e.target.value }))}
+                      placeholder="Conteúdo da aula, objetivos, materiais..."
+                      className="rounded-xl text-sm resize-none border-border bg-muted/30"
+                      rows={3}
+                    />
+                  </div>
+
+                  {/* PRD_AGENDAMENTO_VISIVEL: prévia detalhada do que será agendado */}
+                  {scheduleOccurrences.length > 0 && (
+                    <div className={cn(
+                      "rounded-2xl border p-4 space-y-3",
+                      scheduleExceedsLimit ? "border-rose-500/30 bg-rose-500/5" : "border-violet-500/25 bg-violet-500/5"
+                    )}>
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className={cn("text-xs font-black uppercase tracking-widest flex items-center gap-2", scheduleExceedsLimit ? "text-rose-600" : "text-violet-700 dark:text-violet-400")}>
+                          <CalendarRange size={14} /> Prévia do agendamento
+                        </p>
+                        <span className={cn("text-[11px] font-bold", scheduleExceedsLimit ? "text-rose-600" : "text-violet-700 dark:text-violet-400")}>
+                          {scheduleExceedsLimit
+                            ? `Limite de ${MAX_OCCURRENCES} aulas excedido (${scheduleOccurrences.length})`
+                            : schedulePreview.summary}
+                        </span>
+                      </div>
+                      {!scheduleExceedsLimit && (
+                        <ul className="space-y-1.5 max-h-44 overflow-y-auto pr-1">
+                          {schedulePreview.groups.map((group) => (
+                            <li key={group.dayOfWeek} className="flex flex-wrap items-center gap-2 rounded-xl border border-border/40 bg-background/70 px-3 py-2 text-xs">
+                              <span className="font-black text-foreground min-w-[34px]">{group.label}</span>
+                              <span className="text-muted-foreground font-semibold">
+                                {group.dates.map((d) => format(d, "dd/MM")).join(", ")}
+                              </span>
+                              <span className="ml-auto font-black text-violet-700 dark:text-violet-300">
+                                {group.times.join(" · ")}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                      {scheduleExceedsLimit && (
+                        <p className="text-xs text-rose-600 font-semibold">
+                          Reduza a duração ou os dias por semana para continuar.
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Botão Ação de Agendamento Inline */}
+                  {/* BUG #6 FIX: checkConflicts.isFetching substituído por checkConflictsMutation.isPending */}
+                  <Button
+                    type="button"
+                    className="w-full h-13 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-black text-sm shadow-lg shadow-violet-500/20 transition-all active:scale-95 flex items-center justify-center gap-2"
+                    onClick={() => handleScheduleSubmit()}
+                    disabled={createLessonMutation.isPending || createBatchLessonMutation.isPending || checkConflictsMutation.isPending || isSaving}
+                  >
+                    {(createLessonMutation.isPending || createBatchLessonMutation.isPending || checkConflictsMutation.isPending || isSaving) ? (
+                      <><Loader2 size={18} className="animate-spin" /> {!isEditMode ? "Cadastrando e Agendando..." : "Agendando..."}</>
+                    ) : !isEditMode ? (
+                      <><CalendarDays size={18} /> Cadastrar Aluno e Agendar Aula</>
+                    ) : (
+                      <><CalendarDays size={18} /> Agendar Aula</>                       
+                    )}
+                  </Button>
+
+                  {/* PRD_AGENDAMENTO_VISIVEL: confirmação com o que foi criado */}
+                  {scheduleResult && (
+                    <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-4 space-y-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="text-sm font-black text-emerald-700 dark:text-emerald-400 flex items-center gap-2">
+                          <CheckCircle2 size={17} />
+                          {scheduleResult.createdCount} {scheduleResult.createdCount === 1 ? "aula agendada" : "aulas agendadas"}
+                        </p>
+                        {scheduleResult.createdCount < scheduleResult.items.length && (
+                          <span className="text-[11px] font-bold text-amber-600 dark:text-amber-400">
+                            {scheduleResult.items.length - scheduleResult.createdCount} não criada(s) por conflito
+                          </span>
+                        )}
+                      </div>
+                      <ul className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                        {scheduleResult.items.slice(0, 12).map((item, index) => {
+                          const createdLesson = studentLessons.find(
+                            (l: any) => new Date(l.scheduledAt).getTime() === new Date(item.scheduledAt).getTime()
+                          );
+                          return (
+                            <li key={index} className="flex items-center justify-between gap-2 rounded-xl border border-border/40 bg-background/70 px-3 py-2 text-xs">
+                              <span className="font-bold text-foreground">
+                                {format(new Date(item.scheduledAt), "dd/MM/yyyy")} · {format(new Date(item.scheduledAt), "HH:mm")} · {item.duration}min
+                              </span>
+                              {createdLesson ? (
+                                <button
+                                  type="button"
+                                  onClick={() => setEditingLesson(createdLesson)}
+                                  className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-primary transition-colors"
+                                  aria-label="Editar esta aula"
+                                >
+                                  <Pencil size={13} />
+                                </button>
+                              ) : null}
+                            </li>
+                          );
+                        })}
+                      </ul>
+                      {scheduleResult.items.length > 12 && (
+                        <p className="text-[11px] text-muted-foreground">+ {scheduleResult.items.length - 12} aula(s) — veja todas no painel abaixo.</p>
+                      )}
+                      <div className="flex flex-wrap gap-2">
+                        <Button type="button" variant="outline" size="sm" className="rounded-xl font-bold text-xs" onClick={() => setLocation("/aulas")}>
+                          Ver na agenda
+                        </Button>
+                        <Button type="button" variant="outline" size="sm" className="rounded-xl font-bold text-xs" onClick={() => setScheduleResult(null)}>
+                          Agendar outra
+                        </Button>
                       </div>
                     </div>
                   )}
                 </div>
-
-)}
-                                {/* Observações da Aula */}
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Observações da Aula</label>
-                  <Textarea
-                    value={scheduleForm.notes}
-                    onChange={e => updateSchedule(p => ({ ...p, notes: e.target.value }))}
-                    placeholder="Conteúdo da aula, objetivos, materiais..."
-                    className="rounded-xl text-sm resize-none border-border bg-muted/30"
-                    rows={3}
-                  />
-                </div>
-
-                {/* PRD_AGENDAMENTO_VISIVEL: prévia detalhada do que será agendado */}
-                {scheduleOccurrences.length > 0 && (
-                  <div className={cn(
-                    "rounded-2xl border p-4 space-y-3",
-                    scheduleExceedsLimit ? "border-rose-500/30 bg-rose-500/5" : "border-violet-500/25 bg-violet-500/5"
-                  )}>
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <p className={cn("text-xs font-black uppercase tracking-widest flex items-center gap-2", scheduleExceedsLimit ? "text-rose-600" : "text-violet-700 dark:text-violet-400")}>
-                        <CalendarRange size={14} /> Prévia do agendamento
-                      </p>
-                      <span className={cn("text-[11px] font-bold", scheduleExceedsLimit ? "text-rose-600" : "text-violet-700 dark:text-violet-400")}>
-                        {scheduleExceedsLimit
-                          ? `Limite de ${MAX_OCCURRENCES} aulas excedido (${scheduleOccurrences.length})`
-                          : schedulePreview.summary}
-                      </span>
-                    </div>
-                    {!scheduleExceedsLimit && (
-                      <ul className="space-y-1.5 max-h-44 overflow-y-auto pr-1">
-                        {schedulePreview.groups.map((group) => (
-                          <li key={group.dayOfWeek} className="flex flex-wrap items-center gap-2 rounded-xl border border-border/40 bg-background/70 px-3 py-2 text-xs">
-                            <span className="font-black text-foreground min-w-[34px]">{group.label}</span>
-                            <span className="text-muted-foreground font-semibold">
-                              {group.dates.map((d) => format(d, "dd/MM")).join(", ")}
-                            </span>
-                            <span className="ml-auto font-black text-violet-700 dark:text-violet-300">
-                              {group.times.join(" · ")}
-                            </span>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                    {scheduleExceedsLimit && (
-                      <p className="text-xs text-rose-600 font-semibold">
-                        Reduza a duração ou os dias por semana para continuar.
-                      </p>
-                    )}
-                  </div>
-                )}
-
-                {/* Botão Ação de Agendamento Inline */}
-                {/* BUG #6 FIX: checkConflicts.isFetching substituído por checkConflictsMutation.isPending */}
-                <Button
-                  type="button"
-                  className="w-full h-13 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-black text-sm shadow-lg shadow-violet-500/20 transition-all active:scale-95 flex items-center justify-center gap-2"
-                  onClick={() => handleScheduleSubmit()}
-                  disabled={createLessonMutation.isPending || createBatchLessonMutation.isPending || checkConflictsMutation.isPending || isSaving}
-                >
-                  {(createLessonMutation.isPending || createBatchLessonMutation.isPending || checkConflictsMutation.isPending || isSaving) ? (
-                    <><Loader2 size={18} className="animate-spin" /> {!isEditMode ? "Cadastrando e Agendando..." : "Agendando..."}</>
-                  ) : !isEditMode ? (
-                    <><CalendarDays size={18} /> Cadastrar Aluno e Agendar Aula</>
-                  ) : (
-                    <><CalendarDays size={18} /> Agendar Aula</>                       
-                  )}
-                </Button>
-
-                {/* PRD_AGENDAMENTO_VISIVEL: confirmação com o que foi criado */}
-                {scheduleResult && (
-                  <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-4 space-y-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <p className="text-sm font-black text-emerald-700 dark:text-emerald-400 flex items-center gap-2">
-                        <CheckCircle2 size={17} />
-                        {scheduleResult.createdCount} {scheduleResult.createdCount === 1 ? "aula agendada" : "aulas agendadas"}
-                      </p>
-                      {scheduleResult.createdCount < scheduleResult.items.length && (
-                        <span className="text-[11px] font-bold text-amber-600 dark:text-amber-400">
-                          {scheduleResult.items.length - scheduleResult.createdCount} não criada(s) por conflito
-                        </span>
-                      )}
-                    </div>
-                    <ul className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
-                      {scheduleResult.items.slice(0, 12).map((item, index) => {
-                        const createdLesson = studentLessons.find(
-                          (l: any) => new Date(l.scheduledAt).getTime() === new Date(item.scheduledAt).getTime()
-                        );
-                        return (
-                          <li key={index} className="flex items-center justify-between gap-2 rounded-xl border border-border/40 bg-background/70 px-3 py-2 text-xs">
-                            <span className="font-bold text-foreground">
-                              {format(new Date(item.scheduledAt), "dd/MM/yyyy")} · {format(new Date(item.scheduledAt), "HH:mm")} · {item.duration}min
-                            </span>
-                            {createdLesson ? (
-                              <button
-                                type="button"
-                                onClick={() => setEditingLesson(createdLesson)}
-                                className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-primary transition-colors"
-                                aria-label="Editar esta aula"
-                              >
-                                <Pencil size={13} />
-                              </button>
-                            ) : null}
-                          </li>
-                        );
-                      })}
-                    </ul>
-                    {scheduleResult.items.length > 12 && (
-                      <p className="text-[11px] text-muted-foreground">+ {scheduleResult.items.length - 12} aula(s) — veja todas no painel abaixo.</p>
-                    )}
-                    <div className="flex flex-wrap gap-2">
-                      <Button type="button" variant="outline" size="sm" className="rounded-xl font-bold text-xs" onClick={() => setLocation("/aulas")}>
-                        Ver na agenda
-                      </Button>
-                      <Button type="button" variant="outline" size="sm" className="rounded-xl font-bold text-xs" onClick={() => setScheduleResult(null)}>
-                        Agendar outra
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </motion.div>
-
-            {/* PRD_AGENDAMENTO_VISIVEL: painel de aulas agendadas do aluno */}
-            {panelStudentId && (
-              <motion.div variants={cardVariants} className="bg-card rounded-[2rem] p-6 sm:p-8 shadow-sm border border-border/50 space-y-4">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div>
-                    <h3 className="text-lg font-black text-foreground tracking-tight flex items-center gap-2">
-                      <CalendarCheck size={18} className="text-emerald-600" /> Aulas agendadas
-                    </h3>
-                    <p className="text-[10px] text-muted-foreground/70 font-bold uppercase tracking-[0.2em]">Próximas aulas deste aluno</p>
-                  </div>
-                  {studentUpcomingLessons.length > 5 && (
-                    <button type="button" onClick={() => setLocation("/aulas")} className="text-xs font-bold text-primary hover:underline">
-                      Ver todas ({studentUpcomingLessons.length})
-                    </button>
-                  )}
-                </div>
-
-                {isLoadingStudentLessons ? (
-                  <p className="text-sm text-muted-foreground flex items-center gap-2">
-                    <Loader2 size={14} className="animate-spin" /> Carregando aulas...
-                  </p>
-                ) : panelPreviewLessons.length === 0 ? (
-                  <p className="text-sm text-muted-foreground rounded-xl border border-dashed border-border/60 bg-muted/20 px-4 py-3">
-                    Nenhuma aula agendada ainda — use o formulário acima para agendar.
-                  </p>
-                ) : (
-                  <ul className="space-y-2">
-                    {panelPreviewLessons.map((lesson: any) => (
-                      <li key={lesson.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/50 bg-muted/20 px-3 py-2.5">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="text-sm font-black text-foreground">{format(new Date(lesson.scheduledAt), "dd/MM/yyyy")}</span>
-                          <span className="text-sm font-bold text-muted-foreground">{format(new Date(lesson.scheduledAt), "HH:mm")}</span>
-                          <span className="text-[10px] font-black uppercase tracking-widest text-emerald-600 bg-emerald-500/10 px-2 py-0.5 rounded-md">Agendada</span>
-                          <span className="text-xs font-semibold text-muted-foreground">{lesson.duration ?? 60}min</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <button
-                            type="button"
-                            onClick={() => setEditingLesson(lesson)}
-                            className="p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-primary transition-colors"
-                            aria-label={`Editar aula de ${format(new Date(lesson.scheduledAt), "dd/MM/yyyy HH:mm")}`}
-                          >
-                            <Pencil size={14} />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (confirm("Excluir esta aula?")) deleteLessonMutation.mutate({ id: lesson.id });
-                            }}
-                            className="p-2 rounded-lg hover:bg-rose-500/10 text-muted-foreground hover:text-rose-600 transition-colors"
-                            aria-label={`Excluir aula de ${format(new Date(lesson.scheduledAt), "dd/MM/yyyy HH:mm")}`}
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                )}
               </motion.div>
-            )}
-          </div>
+            </div>
+          </motion.div>
+        )}
+        {wizardStep === 2 && (
+          <motion.div
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+            className="max-w-3xl mx-auto"
+          >
+            <motion.div variants={cardVariants} className="bg-card rounded-[2rem] p-8 shadow-sm border border-border/50 hover:shadow-xl hover:shadow-emerald-500/5 transition-all duration-500 relative overflow-hidden group">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full -translate-y-16 translate-x-16 group-hover:scale-110 transition-transform duration-700 blur-3xl opacity-50" />
 
-          {/* Coluna 2 */}
-          <div className="space-y-8">
-            {/* CARD 2 — Informações Acadêmicas */}
-            <motion.div variants={cardVariants} className="bg-card rounded-[2rem] p-8 shadow-sm border border-border/50 hover:shadow-xl hover:shadow-violet-500/5 transition-all duration-500 relative overflow-hidden group">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-violet-500/10 rounded-full -translate-y-16 translate-x-16 group-hover:scale-110 transition-transform duration-700 blur-3xl opacity-50" />
-              
               <div className="flex items-center gap-4 mb-8 relative z-10">
-                <div className="w-12 h-12 rounded-2xl bg-violet-600 text-white flex items-center justify-center shadow-lg shadow-violet-500/10 group-hover:scale-110 transition-transform">
-                  <GraduationCap size={24} />
+                <div className="w-12 h-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shadow-lg shadow-emerald-500/10 group-hover:scale-110 transition-transform">
+                  <FileText size={24} />
                 </div>
                 <div>
-                  <h3 className="text-lg font-black text-foreground tracking-tight">Acadêmico</h3>
-                  <p className="text-[10px] text-muted-foreground/70 font-bold uppercase tracking-[0.2em]">Ensino e aprendizado</p>
+                  <h3 className="text-lg font-black text-foreground tracking-tight">Financeiro</h3>
+                  <p className="text-[10px] text-muted-foreground/70 font-bold uppercase tracking-[0.2em]">Cobrança e planos</p>
                 </div>
               </div>
 
               <div className="space-y-6 relative z-10">
-                {/* Linha 1: Instrumento e Nível */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Instrumento principal</label>
-                    <Select value={form.instrumentId} onValueChange={(v) => handleInputChange('instrumentId', v)}>
-                      <SelectTrigger className="h-12 rounded-xl border-border bg-muted/30 focus:ring-4 focus:ring-violet-500/10 transition-all text-sm font-semibold px-4">
-                        <SelectValue placeholder="Selecione" />
-                      </SelectTrigger>
-                      <SelectContent className="rounded-xl border-border shadow-2xl p-1">
-                        {instruments.map(inst => (
-                          <SelectItem key={inst.id} value={String(inst.id)} className="rounded-lg">
-                            <div className="flex items-center gap-2">
-                              <div className="w-2 h-2 rounded-full" style={{ backgroundColor: inst.color || '#6366f1' }} />
-                              <span className="font-medium">{inst.name}</span>
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Nível</label>
-                    <Select value={form.level} onValueChange={(v) => handleInputChange('level', v)}>
-                      <SelectTrigger className="h-12 rounded-xl border-border bg-muted/30 focus:ring-4 focus:ring-violet-500/10 transition-all text-sm font-semibold px-4">
-                        <SelectValue placeholder="Selecione" />
-                      </SelectTrigger>
-                      <SelectContent className="rounded-xl border-border shadow-2xl p-1">
-                        <SelectItem value="iniciante" className="rounded-lg">
-                          <Badge variant="secondary" className="bg-indigo-500/10 text-indigo-600 border-none font-bold">Iniciante</Badge>
-                        </SelectItem>
-                        <SelectItem value="intermediario" className="rounded-lg">
-                          <Badge variant="secondary" className="bg-blue-500/10 text-blue-600 border-none font-bold">Intermediário</Badge>
-                        </SelectItem>
-                        <SelectItem value="avancado" className="rounded-lg">
-                          <Badge variant="secondary" className="bg-emerald-50 text-emerald-600 border-none font-bold">Avançado</Badge>
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                {/* Linha 2: Professor, Sala e Data de Início */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Professor Responsável</label>
-                    <Select value={form.professorId} onValueChange={(v) => handleInputChange('professorId', v)}>
-                      <SelectTrigger className="h-12 rounded-xl border-border bg-muted/30 focus:ring-4 focus:ring-violet-500/10 transition-all text-sm font-semibold px-4">
-                        <SelectValue placeholder="Selecione (Opcional)" />
-                      </SelectTrigger>
-                      <SelectContent className="rounded-xl border-border shadow-2xl p-1">
-                        <SelectItem value="none" className="rounded-lg">
-                           <span className="font-medium text-muted-foreground">Nenhum</span>
-                        </SelectItem>
-                        {professores.map((prof: any) => (
-                          <SelectItem key={prof.id} value={String(prof.userId)} className="rounded-lg">
-                            <span className="font-medium">{prof.name}</span>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Sala de Aula (Padrão)</label>
-                    <Select value={form.studioRoomId} onValueChange={(v) => handleInputChange('studioRoomId', v)}>
-                      <SelectTrigger className="h-12 rounded-xl border-border bg-muted/30 focus:ring-4 focus:ring-violet-500/10 transition-all text-sm font-semibold px-4">
-                        <SelectValue placeholder="Selecione a Sala" />
-                      </SelectTrigger>
-                      <SelectContent className="rounded-xl border-border shadow-2xl p-1">
-                        <SelectItem value="none" className="rounded-lg">
-                          <span className="font-medium text-muted-foreground">Nenhuma sala vinculada</span>
-                        </SelectItem>
-                        {studioRooms.map((room: any) => (
-                          <SelectItem key={room.id} value={String(room.id)} className="rounded-lg">
-                            <div className="flex items-center gap-2">
-                              <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: room.color || '#3b82f6' }} />
-                              <span className="font-medium">{room.name}</span>
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-1 gap-6">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Data de início</label>
-                    <div className="relative group/input">
-                      <Input 
-                        type="date" 
-                        value={form.startDate}
-                        onChange={(e) => handleInputChange('startDate', e.target.value)}
-                        className="h-12 rounded-xl border-border bg-muted/30 focus:bg-background focus:ring-4 focus:ring-violet-500/10 focus:border-violet-500 transition-all text-sm font-semibold pl-11 pr-4"
-                      />
-                      <CalendarIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground/70 group-focus-within/input:text-violet-500 transition-colors" size={18} />
-                    </div>
-                  </div>
-                </div>
-
                 {/* Linha 3: Cobrança - Valor e Periodicidade */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2 w-full">
@@ -1861,8 +1769,6 @@ export default function NovoAluno() {
                     </Select>
                   </div>
                 </div>
-
-                {/* Linha 4: Dia de Vencimento e Tipo de Aula */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2 w-full">
                     <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Vencimento (Dia)</label>
@@ -1888,112 +1794,7 @@ export default function NovoAluno() {
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="space-y-2 w-full">
-                    <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Tipo de Aula</label>
-                    <Select value={form.lessonType} onValueChange={(v) => handleInputChange('lessonType', v)}>
-                      <SelectTrigger className="h-12 w-full rounded-xl border-border bg-muted/30 focus:ring-4 focus:ring-violet-500/10 transition-all text-sm font-semibold px-4">
-                        <SelectValue placeholder="Selecione" />
-                      </SelectTrigger>
-                      <SelectContent className="rounded-xl border-border shadow-2xl p-1">
-                        <SelectItem value="individual" className="rounded-lg font-medium">Individual</SelectItem>
-                        <SelectItem value="turma" className="rounded-lg font-medium">Turma / Coletiva</SelectItem>
-                        <SelectItem value="online" className="rounded-lg font-medium">🌐 Online (Zoom, Meet, etc.)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  {form.lessonType === 'online' && (
-                    <div className="space-y-2 md:col-span-2 w-full">
-                      <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Link da Reunião Online</label>
-                      <Input
-                        placeholder="https://meet.google.com/xxx ou https://zoom.us/j/xxx"
-                        value={form.onlineMeetingLink || ''}
-                        onChange={(e) => handleInputChange('onlineMeetingLink', e.target.value)}
-                        className="h-12 w-full rounded-xl border-border bg-muted/30 focus:bg-background focus:ring-4 focus:ring-violet-500/10 focus:border-violet-500 transition-all text-sm font-semibold"
-                      />
-                    </div>
-                  )}
                 </div>
-
-                {/* PRD v1.1 — Cursos do aluno (quantidade + professor por curso) */}
-                {isEditMode && (
-                  <div className="mt-6 p-4 rounded-xl border border-violet-500/20 bg-violet-500/5 space-y-3">
-                    <div className="flex items-center justify-between gap-3 flex-wrap">
-                      <div>
-                        <p className="text-sm font-bold text-foreground">Cursos do aluno</p>
-                        <p className="text-xs text-muted-foreground mt-0.5">Se o aluno faz mais de um curso, escolha o instrumento e o professor de cada aula extra.</p>
-                      </div>
-                      <Select
-                        value={String(courseCount)}
-                        onValueChange={(v) => {
-                          const n = Number(v);
-                          setCourseCount(n);
-                          setExtraCourses((prev) => {
-                            const next = prev.slice(0, Math.max(0, n - 1));
-                            while (next.length < n - 1) next.push({ instrumentId: "", teacherUserId: "" });
-                            return next;
-                          });
-                          setCoursesDirty(true);
-                        }}
-                      >
-                        <SelectTrigger className="h-10 w-32 rounded-xl border-border bg-background text-xs font-bold">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent className="rounded-xl p-1">
-                          {[1, 2, 3, 4].map((n) => (
-                            <SelectItem key={n} value={String(n)} className="rounded-lg font-medium">{n} curso{n > 1 ? "s" : ""}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Curso 1: <strong className="text-foreground">{instruments.find((i: any) => String(i.id) === form.instrumentId)?.name || "—"}</strong> · Prof.{" "}
-                      <strong className="text-foreground">{(professores as any[]).find((p: any) => String(p.userId) === form.professorId)?.name || "—"}</strong>
-                    </p>
-                    {Array.from({ length: Math.max(0, courseCount - 1) }).map((_, i) => (
-                      <div key={i} className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        <div className="space-y-1.5">
-                          <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Curso {i + 2}</label>
-                          <Select
-                            value={extraCourses[i]?.instrumentId || ""}
-                            onValueChange={(v) => {
-                              setExtraCourses((prev) => prev.map((c, idx) => (idx === i ? { ...c, instrumentId: v } : c)));
-                              setCoursesDirty(true);
-                            }}
-                          >
-                            <SelectTrigger className="h-12 w-full rounded-xl border-border bg-muted/30 text-sm font-semibold px-4">
-                              <SelectValue placeholder="Selecione" />
-                            </SelectTrigger>
-                            <SelectContent className="rounded-xl p-1">
-                              {instruments.map((instr: any) => (
-                                <SelectItem key={instr.id} value={String(instr.id)} className="rounded-lg font-medium">{instr.name}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-1.5">
-                          <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Professor do curso {i + 2}</label>
-                          <Select
-                            value={extraCourses[i]?.teacherUserId || ""}
-                            onValueChange={(v) => {
-                              setExtraCourses((prev) => prev.map((c, idx) => (idx === i ? { ...c, teacherUserId: v } : c)));
-                              setCoursesDirty(true);
-                            }}
-                          >
-                            <SelectTrigger className="h-12 w-full rounded-xl border-border bg-muted/30 text-sm font-semibold px-4">
-                              <SelectValue placeholder="Professor atual" />
-                            </SelectTrigger>
-                            <SelectContent className="rounded-xl p-1">
-                              {(professores as any[]).map((p: any) => (
-                                <SelectItem key={p.userId} value={String(p.userId)} className="rounded-lg font-medium">{p.name}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
                 {/* PLANOS & BOLSAS: catálogo da escola (somente no cadastro) */}
                 {!isEditMode && schoolPlans.length > 0 && (
                   <div className="mt-6 p-4 bg-emerald-500/5 rounded-xl border border-emerald-500/20 space-y-3">
@@ -2054,7 +1855,6 @@ export default function NovoAluno() {
                     )}
                   </div>
                 )}
-
                 {/* Geração automática de mensalidades (somente no cadastro) */}
                 {!isEditMode && (
                   <div className="mt-6 p-4 bg-indigo-500/5 rounded-xl border border-indigo-500/20 space-y-4">
@@ -2090,165 +1890,583 @@ export default function NovoAluno() {
                 )}
               </div>
             </motion.div>
+          </motion.div>
+        )}
+        {wizardStep === 3 && (
+          <motion.div
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+            className="grid grid-cols-1 lg:grid-cols-2 gap-8"
+          >
+            <div className="space-y-8">
+              {/* CARD 1 — Dados Pessoais */}
+              <motion.div variants={cardVariants} className="bg-card rounded-[2rem] p-8 shadow-sm border border-border/50 relative overflow-hidden group">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full -translate-y-16 translate-x-16 group-hover:scale-110 transition-transform duration-700 blur-3xl opacity-50" />
+              
+                <div className="flex items-center gap-4 mb-8 relative z-10">
+                  <div className="relative shrink-0">
+                    <Avatar className="w-16 h-16 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-lg shadow-indigo-500/10 border-2 border-background">
+                      <AvatarImage src={form.avatar} className="object-cover" />
+                      <AvatarFallback className="bg-indigo-600 text-white font-bold uppercase text-xl">
+                        {form.name ? form.name.substring(0, 2) : <User size={24} />}
+                      </AvatarFallback>
+                    </Avatar>
+                    <input 
+                      type="file" 
+                      ref={avatarInputRef} 
+                      className="hidden" 
+                      accept="image/*" 
+                      onChange={handleAvatarChange} 
+                    />
+                    <button 
+                      onClick={() => avatarInputRef.current?.click()}
+                      className="absolute -bottom-2 -right-2 w-8 h-8 rounded-full bg-card border-2 border-border shadow-sm flex items-center justify-center text-indigo-600 cursor-pointer z-10 hover:bg-indigo-50 transition-colors"
+                    >
+                      {uploadAvatarMutation.isPending ? (
+                        <Loader2 size={12} className="animate-spin" />
+                      ) : (
+                        <Pencil size={12} />
+                      )}
+                    </button>
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-black text-foreground tracking-tight">Dados Pessoais</h3>
+                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-widest">Informações básicas do aluno</p>
+                  </div>
+                </div>
 
-            {/* CARD 4 — Responsável (Conditional) */}
-            <AnimatePresence>
-              {isMinor && (
-                <motion.div 
-                  initial={{ height: 0, opacity: 0, scale: 0.95 }}
-                  animate={{ height: "auto", opacity: 1, scale: 1 }}
-                  exit={{ height: 0, opacity: 0, scale: 0.95 }}
-                  transition={{ type: "spring", stiffness: 100, damping: 20 }}
-                  className="overflow-hidden"
-                >
-                  <div className="bg-card rounded-[2rem] p-8 shadow-sm border border-amber-500/20 bg-amber-500/5 hover:shadow-xl hover:shadow-amber-500/5 transition-all duration-500 relative group mb-8">
-                    <div className="flex items-center gap-4 mb-8">
-                      <div className="w-12 h-12 rounded-2xl bg-amber-500 text-white flex items-center justify-center shadow-lg shadow-amber-500/20 group-hover:scale-110 transition-transform">
-                        <Users size={24} />
+                <div className="space-y-6 relative z-10">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] flex items-center gap-1.5 ml-1">
+                        Nome completo <span className="text-rose-500">*</span>
+                      </label>
+                      <div className="relative group/input">
+                        <Input 
+                          placeholder="Ex: walysson Rodrigo" 
+                          value={form.name}
+                          onChange={(e) => handleInputChange('name', e.target.value)}
+                          className={cn(
+                            "h-12 rounded-xl border-border bg-muted/30 focus:bg-background focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-sm font-semibold pl-11",
+                            errors.name && "border-rose-300 bg-rose-50/30 focus:ring-rose-500/10 focus:border-rose-500"
+                          )}
+                        />
+                        <User className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground/70 group-focus-within/input:text-indigo-500 transition-colors" size={18} />
                       </div>
-                      <div>
-                        <h3 className="text-lg font-black text-foreground tracking-tight">Responsável Legal</h3>
-                        <p className="text-[10px] text-amber-600/70 font-bold uppercase tracking-[0.2em]">Obrigatório para menores</p>
-                      </div>
+                      {errors.name && <p className="text-[10px] text-rose-500 font-bold flex items-center gap-1 ml-1"><AlertCircle size={10} /> {errors.name}</p>}
                     </div>
-
-                    <div className="space-y-6">
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] flex items-center gap-1.5 ml-1">
-                          Nome do responsável <span className="text-rose-500">*</span>
-                        </label>
-                        <div className="relative group/input">
-                          <Input 
-                            placeholder="Nome completo do responsável" 
-                            value={form.guardianName}
-                            onChange={(e) => handleInputChange('guardianName', e.target.value)}
-                            className={cn(
-                              "h-12 rounded-xl border-border bg-muted/30 focus:bg-background focus:ring-4 focus:ring-amber-500/10 focus:border-amber-500 transition-all text-sm font-semibold pl-11",
-                              errors.guardianName && "border-rose-300 bg-rose-50/30 focus:ring-rose-500/10 focus:border-rose-500"
-                            )}
-                          />
-                          <User className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground/70 group-focus-within/input:text-amber-500 transition-colors" size={18} />
-                        </div>
-                        {errors.guardianName && <p className="text-[10px] text-rose-500 font-bold flex items-center gap-1 ml-1"><AlertCircle size={10} /> {errors.guardianName}</p>}
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-2">
-                          <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] flex items-center gap-1.5 ml-1">
-                            Telefone <span className="text-rose-500">*</span>
-                          </label>
-                          <div className="relative group/input">
-                            <Input 
-                              placeholder="(00) 00000-0000" 
-                              value={form.guardianPhone}
-                              onChange={(e) => handleInputChange('guardianPhone', e.target.value)}
-                              className={cn(
-                                "h-12 rounded-xl border-border bg-muted/30 focus:bg-background focus:ring-4 focus:ring-amber-500/10 focus:border-amber-500 transition-all text-sm font-semibold pl-11",
-                                errors.guardianPhone && "border-rose-300 bg-rose-50/30 focus:ring-rose-500/10 focus:border-rose-500"
-                              )}
-                            />
-                            <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground/70 group-focus-within/input:text-amber-500 transition-colors" size={18} />
-                          </div>
-                          {errors.guardianPhone && <p className="text-[10px] text-rose-500 font-bold flex items-center gap-1 ml-1"><AlertCircle size={10} /> {errors.guardianPhone}</p>}
-                        </div>
-                        <div className="space-y-2">
-                          <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">E-mail</label>
-                          <div className="relative group/input">
-                            <Input 
-                              placeholder="email@exemplo.com" 
-                              type="email"
-                              value={form.guardianEmail}
-                              onChange={(e) => handleInputChange('guardianEmail', e.target.value)}
-                              className="h-12 rounded-xl border-border bg-muted/30 focus:bg-background focus:ring-4 focus:ring-amber-500/10 focus:border-amber-500 transition-all text-sm font-semibold pl-11"
-                            />
-                            <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground/70 group-focus-within/input:text-amber-500 transition-colors" size={18} />
-                          </div>
-                        </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Nome social (opcional)</label>
+                      <div className="relative group/input">
+                        <Input 
+                          placeholder="Como prefere ser chamado" 
+                          value={form.socialName}
+                          onChange={(e) => handleInputChange('socialName', e.target.value)}
+                          className="h-12 rounded-xl border-border bg-muted/30 focus:bg-background focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-sm font-semibold pl-11"
+                        />
+                        <UserCheck className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground/70 group-focus-within/input:text-indigo-500 transition-colors" size={18} />
                       </div>
                     </div>
                   </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] flex items-center gap-1.5 ml-1">
+                        Data de nascimento
+                      </label>
+                      <div className="relative group/input">
+                        <Input 
+                          type="date" 
+                          value={form.birthDate}
+                          onChange={(e) => handleInputChange('birthDate', e.target.value)}
+                          className={cn(
+                            "h-12 rounded-xl border-border bg-muted/30 focus:bg-background focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-sm font-semibold pl-11 pr-4",
+                            errors.birthDate && "border-rose-300 bg-rose-50/30 focus:ring-rose-500/10 focus:border-rose-500"
+                          )}
+                        />
+                        <CalendarIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground/70 group-focus-within/input:text-indigo-500 transition-colors" size={18} />
+                      </div>
+                      {errors.birthDate && <p className="text-[10px] text-rose-500 font-bold flex items-center gap-1 ml-1"><AlertCircle size={10} /> {errors.birthDate}</p>}
+                      <p className="text-[10px] font-semibold text-amber-600/90 dark:text-amber-400/90 flex items-center gap-1 ml-1 pt-0.5">
+                        <Info size={12} className="shrink-0 text-amber-500" />
+                        Ao informar a data de nascimento de um aluno menor de idade (-18 anos), os campos do responsável financeiro serão exibidos automaticamente.
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Gênero</label>
+                      <Select value={form.gender} onValueChange={(v) => handleInputChange('gender', v)}>
+                        <SelectTrigger className="h-12 rounded-xl border-border bg-muted/30 focus:ring-4 focus:ring-indigo-500/10 transition-all text-sm font-semibold px-4">
+                          <SelectValue placeholder="Selecione" />
+                        </SelectTrigger>
+                        <SelectContent className="rounded-xl border-border shadow-2xl p-1">
+                          <SelectItem value="masculino" className="rounded-lg font-medium">Masculino</SelectItem>
+                          <SelectItem value="feminino" className="rounded-lg font-medium">Feminino</SelectItem>
+                          <SelectItem value="outro" className="rounded-lg font-medium">Outro / Prefiro não dizer</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">CPF</label>
+                      <div className="relative group/input">
+                        <Input 
+                          placeholder="000.000.000-00" 
+                          value={form.cpf}
+                          onChange={(e) => handleInputChange('cpf', e.target.value)}
+                          className={cn(
+                            "h-12 rounded-xl border-border bg-muted/30 focus:bg-background focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-sm font-semibold pl-11",
+                            errors.cpf && "border-rose-300 bg-rose-50/30 focus:ring-rose-500/10 focus:border-rose-500"
+                          )}
+                        />
+                        <FileText className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground/70 group-focus-within/input:text-indigo-500 transition-colors" size={18} />
+                      </div>
+                      {errors.cpf && <p className="text-[10px] text-rose-500 font-bold flex items-center gap-1 ml-1"><AlertCircle size={10} /> {errors.cpf}</p>}
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">RG</label>
+                      <div className="relative group/input">
+                        <Input 
+                          placeholder="00.000.000-0" 
+                          value={form.rg}
+                          onChange={(e) => handleInputChange('rg', e.target.value)}
+                          className={cn(
+                            "h-12 rounded-xl border-border bg-muted/30 focus:bg-background focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-sm font-semibold pl-11",
+                            errors.rg && "border-rose-300 bg-rose-50/30 focus:ring-rose-500/10 focus:border-rose-500"
+                          )}
+                        />
+                        <FileText className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground/70 group-focus-within/input:text-indigo-500 transition-colors" size={18} />
+                      </div>
+                      {errors.rg && <p className="text-[10px] text-rose-500 font-bold flex items-center gap-1 ml-1"><AlertCircle size={10} /> {errors.rg}</p>}
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+              {/* CARD 3 — Contato */}
+              <motion.div variants={cardVariants} className="bg-card rounded-[2rem] p-8 shadow-sm border border-border/50 hover:shadow-xl hover:shadow-indigo-500/5 transition-all duration-500 relative overflow-hidden group">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full -translate-y-16 translate-x-16 group-hover:scale-110 transition-transform duration-700 blur-3xl opacity-50" />
+              
+                <div className="flex items-center gap-4 mb-8 relative z-10">
+                  <div className="w-12 h-12 rounded-2xl bg-blue-500/100 text-white flex items-center justify-center shadow-lg shadow-blue-500/10 group-hover:scale-110 transition-transform">
+                    <Phone size={24} />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-black text-foreground tracking-tight">Contato</h3>
+                    <p className="text-[10px] text-muted-foreground/70 font-bold uppercase tracking-[0.2em]">Meios de comunicação</p>
+                  </div>
+                </div>
+
+                <div className="space-y-6 relative z-10">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] flex items-center gap-1.5 ml-1">
+                        Telefone / WhatsApp <span className="text-rose-500">*</span>
+                      </label>
+                      <div className="relative group/input">
+                        <Input 
+                          placeholder="(00) 00000-0000 ou +55 (DDD) 90000-0000" 
+                          value={form.phone}
+                          onChange={(e) => handleInputChange('phone', e.target.value)}
+                          className={cn(
+                            "h-12 rounded-xl border-border bg-muted/30 focus:bg-background focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all text-sm font-semibold pl-11",
+                            errors.phone && "border-rose-300 bg-rose-50/30 focus:ring-rose-500/10 focus:border-rose-500"
+                          )}
+                        />
+                        <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground/70 group-focus-within/input:text-blue-500 transition-colors" size={18} />
+                      </div>
+                      {errors.phone && <p className="text-[10px] text-rose-500 font-bold flex items-center gap-1 ml-1"><AlertCircle size={10} /> {errors.phone}</p>}
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">E-mail</label>
+                      <div className="relative group/input">
+                        <Input 
+                          name="student_contact_email"
+                          autoComplete="off"
+                          placeholder="email@exemplo.com" 
+                          value={form.email}
+                          type="email"
+                          onChange={(e) => handleInputChange('email', e.target.value)}
+                          className="h-12 rounded-xl border-border bg-muted/30 focus:bg-background focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all text-sm font-semibold pl-11"
+                        />
+                        <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground/70 group-focus-within/input:text-blue-500 transition-colors" size={18} />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Endereço</label>
+                    <div className="relative group/input">
+                      <Input 
+                        placeholder="Rua, número, bairro, cidade - UF" 
+                        value={form.address}
+                        onChange={(e) => handleInputChange('address', e.target.value)}
+                        className="h-12 rounded-xl border-border bg-muted/30 focus:bg-background focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all text-sm font-semibold pl-11"
+                      />
+                      <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground/70 group-focus-within/input:text-blue-500 transition-colors" size={18} />
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            </div>
+            <div className="space-y-8">
+              {/* CARD 4 — Responsável (Conditional) */}
+              <AnimatePresence>
+                {isMinor && (
+                  <motion.div 
+                    initial={{ height: 0, opacity: 0, scale: 0.95 }}
+                    animate={{ height: "auto", opacity: 1, scale: 1 }}
+                    exit={{ height: 0, opacity: 0, scale: 0.95 }}
+                    transition={{ type: "spring", stiffness: 100, damping: 20 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="bg-card rounded-[2rem] p-8 shadow-sm border border-amber-500/20 bg-amber-500/5 hover:shadow-xl hover:shadow-amber-500/5 transition-all duration-500 relative group mb-8">
+                      <div className="flex items-center gap-4 mb-8">
+                        <div className="w-12 h-12 rounded-2xl bg-amber-500 text-white flex items-center justify-center shadow-lg shadow-amber-500/20 group-hover:scale-110 transition-transform">
+                          <Users size={24} />
+                        </div>
+                        <div>
+                          <h3 className="text-lg font-black text-foreground tracking-tight">Responsável Legal</h3>
+                          <p className="text-[10px] text-amber-600/70 font-bold uppercase tracking-[0.2em]">Obrigatório para menores</p>
+                        </div>
+                      </div>
+
+                      <div className="space-y-6">
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] flex items-center gap-1.5 ml-1">
+                            Nome do responsável <span className="text-rose-500">*</span>
+                          </label>
+                          <div className="relative group/input">
+                            <Input 
+                              placeholder="Nome completo do responsável" 
+                              value={form.guardianName}
+                              onChange={(e) => handleInputChange('guardianName', e.target.value)}
+                              className={cn(
+                                "h-12 rounded-xl border-border bg-muted/30 focus:bg-background focus:ring-4 focus:ring-amber-500/10 focus:border-amber-500 transition-all text-sm font-semibold pl-11",
+                                errors.guardianName && "border-rose-300 bg-rose-50/30 focus:ring-rose-500/10 focus:border-rose-500"
+                              )}
+                            />
+                            <User className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground/70 group-focus-within/input:text-amber-500 transition-colors" size={18} />
+                          </div>
+                          {errors.guardianName && <p className="text-[10px] text-rose-500 font-bold flex items-center gap-1 ml-1"><AlertCircle size={10} /> {errors.guardianName}</p>}
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <div className="space-y-2">
+                            <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] flex items-center gap-1.5 ml-1">
+                              Telefone <span className="text-rose-500">*</span>
+                            </label>
+                            <div className="relative group/input">
+                              <Input 
+                                placeholder="(00) 00000-0000" 
+                                value={form.guardianPhone}
+                                onChange={(e) => handleInputChange('guardianPhone', e.target.value)}
+                                className={cn(
+                                  "h-12 rounded-xl border-border bg-muted/30 focus:bg-background focus:ring-4 focus:ring-amber-500/10 focus:border-amber-500 transition-all text-sm font-semibold pl-11",
+                                  errors.guardianPhone && "border-rose-300 bg-rose-50/30 focus:ring-rose-500/10 focus:border-rose-500"
+                                )}
+                              />
+                              <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground/70 group-focus-within/input:text-amber-500 transition-colors" size={18} />
+                            </div>
+                            {errors.guardianPhone && <p className="text-[10px] text-rose-500 font-bold flex items-center gap-1 ml-1"><AlertCircle size={10} /> {errors.guardianPhone}</p>}
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">E-mail</label>
+                            <div className="relative group/input">
+                              <Input 
+                                placeholder="email@exemplo.com" 
+                                type="email"
+                                value={form.guardianEmail}
+                                onChange={(e) => handleInputChange('guardianEmail', e.target.value)}
+                                className="h-12 rounded-xl border-border bg-muted/30 focus:bg-background focus:ring-4 focus:ring-amber-500/10 focus:border-amber-500 transition-all text-sm font-semibold pl-11"
+                              />
+                              <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground/70 group-focus-within/input:text-amber-500 transition-colors" size={18} />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+              {/* CARD 5 — Observações */}
+              <motion.div variants={cardVariants} className="bg-card rounded-[2rem] p-8 shadow-sm border border-border/50 hover:shadow-xl hover:shadow-slate-500/5 transition-all duration-500 relative group">
+                <div className="flex items-center gap-4 mb-8">
+                  <div className="w-12 h-12 rounded-2xl bg-slate-800 text-white flex items-center justify-center shadow-lg shadow-slate-800/20 group-hover:scale-110 transition-transform">
+                    <FileText size={24} />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-black text-foreground tracking-tight">Observações</h3>
+                    <p className="text-[10px] text-muted-foreground/70 font-bold uppercase tracking-[0.2em]">Informações extras</p>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Textarea 
+                    placeholder="Adicione detalhes sobre o aluno, objetivos ou histórico musical..." 
+                    className="min-h-[160px] rounded-2xl border-border bg-muted/30 focus:bg-background focus:ring-4 focus:ring-slate-800/10 focus:border-slate-800 transition-all text-sm font-semibold p-4 resize-none leading-relaxed shadow-inner"
+                    value={form.notes}
+                    onChange={(e) => handleInputChange('notes', e.target.value)}
+                    maxLength={500}
+                  />
+                  <div className="flex justify-between items-center px-1">
+                    <p className="text-[9px] text-muted-foreground/70 font-bold uppercase tracking-widest italic">Visível apenas para professores</p>
+                    <span className={cn(
+                      "text-[10px] font-black uppercase tracking-widest",
+                      form.notes.length > 450 ? "text-rose-500" : "text-muted-foreground/70"
+                    )}>
+                      {form.notes.length} / 500
+                    </span>
+                  </div>
+                </div>
+              </motion.div>
+              {/* CARD 5.5 — Automações */}
+              <motion.div variants={cardVariants} className="bg-card rounded-[2rem] p-8 shadow-sm border border-border/50 hover:shadow-xl hover:shadow-slate-500/5 transition-all duration-500 relative group">
+                <div className="flex items-center gap-4 mb-6">
+                  <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-500/10 group-hover:scale-110 transition-transform">
+                    <Bot size={24} />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-black text-foreground tracking-tight">Lembretes Automáticos</h3>
+                    <p className="text-[10px] text-muted-foreground/70 font-bold uppercase tracking-[0.2em]">WhatsApp & Robô</p>
+                  </div>
+                </div>
+              
+                <div className="flex items-center justify-between p-4 bg-muted/30 rounded-xl border border-border/50">
+                  <div>
+                    <p className="text-sm font-bold text-foreground">Permitir mensagens automáticas</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">Se desativado, o aluno não receberá lembretes automáticos de cobrança, aula ou treinos via WhatsApp.</p>
+                  </div>
+                  <Switch 
+                    checked={form.allowAutoReminders}
+                    onCheckedChange={(checked) => setForm(prev => ({ ...prev, allowAutoReminders: checked }))}
+                  />
+                </div>
+              </motion.div>
+              {/* CARD 6 — Portal do Aluno (Novo) */}
+              {!isEditMode && <PortalAccessCard form={form} handleInputChange={handleInputChange} cardVariants={cardVariants} />}
+            </div>
+          </motion.div>
+        )}
+        {wizardStep === 4 && (
+          <motion.div
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+            className="grid grid-cols-1 lg:grid-cols-2 gap-8"
+          >
+            <div className="space-y-8">
+              <motion.div variants={cardVariants} className="bg-card rounded-[2rem] p-8 shadow-sm border border-border/50 relative overflow-hidden group">
+                <div className="flex items-center gap-4 mb-6 relative z-10">
+                  <div className="w-12 h-12 rounded-2xl bg-violet-600 text-white flex items-center justify-center shadow-lg shadow-violet-500/10">
+                    <GraduationCap size={24} />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-black text-foreground tracking-tight">Cursos</h3>
+                    <p className="text-[10px] text-muted-foreground/70 font-bold uppercase tracking-[0.2em]">Instrumentos e professores</p>
+                  </div>
+                </div>
+                <div className="space-y-3 relative z-10">
+                  {summaryCourses.length === 0 ? (
+                    <p className="text-sm text-muted-foreground rounded-xl border border-dashed border-border/60 bg-muted/20 px-4 py-3">Nenhum curso selecionado.</p>
+                  ) : (
+                    summaryCourses.map((c: any, index: number) => (
+                      <div key={c.id ?? index} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/50 bg-muted/20 px-4 py-3">
+                        <span className="text-sm font-black text-foreground">
+                          {instruments.find((i: any) => String(i.id) === String(c.instrumentId))?.name || "—"}
+                        </span>
+                        <span className="text-xs font-semibold text-muted-foreground">
+                          {professores.find((p: any) => String(p.userId) === String(c.teacherUserId))?.name || "—"}
+                        </span>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </motion.div>
+              <motion.div variants={cardVariants} className="bg-card rounded-[2rem] p-8 shadow-sm border border-border/50 relative overflow-hidden group">
+                <div className="flex items-center gap-4 mb-6 relative z-10">
+                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-violet-600 to-indigo-600 text-white flex items-center justify-center shadow-lg shadow-violet-500/20">
+                    <CalendarDays size={24} />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-black text-foreground tracking-tight">Agenda</h3>
+                    <p className="text-[10px] text-muted-foreground/70 font-bold uppercase tracking-[0.2em]">Horários semanais</p>
+                  </div>
+                </div>
+                {scheduleTouched && scheduleForm.weeklySlots.length > 0 ? (
+                  <div className="space-y-3 relative z-10">
+                    {scheduleForm.weeklySlots.map((slot, index) => (
+                      <div key={index} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/50 bg-muted/20 px-4 py-3">
+                        <span className="text-sm font-black text-foreground">{weekDayLabels[slot.dayOfWeek] || "—"}</span>
+                        <span className="text-xs font-semibold text-muted-foreground">
+                          {slot.time || "—"} · {studioRooms.find((r: any) => String(r.id) === String(slot.studioRoomId || form.studioRoomId))?.name || "Sem sala"}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground rounded-xl border border-dashed border-border/60 bg-muted/20 px-4 py-3">Nenhum horário semanal definido.</p>
+                )}
+              </motion.div>
+              {/* PRD_AGENDAMENTO_VISIVEL: painel de aulas agendadas do aluno */}
+              {panelStudentId && (
+                <motion.div variants={cardVariants} className="bg-card rounded-[2rem] p-6 sm:p-8 shadow-sm border border-border/50 space-y-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <h3 className="text-lg font-black text-foreground tracking-tight flex items-center gap-2">
+                        <CalendarCheck size={18} className="text-emerald-600" /> Aulas agendadas
+                      </h3>
+                      <p className="text-[10px] text-muted-foreground/70 font-bold uppercase tracking-[0.2em]">Próximas aulas deste aluno</p>
+                    </div>
+                    {studentUpcomingLessons.length > 5 && (
+                      <button type="button" onClick={() => setLocation("/aulas")} className="text-xs font-bold text-primary hover:underline">
+                        Ver todas ({studentUpcomingLessons.length})
+                      </button>
+                    )}
+                  </div>
+
+                  {isLoadingStudentLessons ? (
+                    <p className="text-sm text-muted-foreground flex items-center gap-2">
+                      <Loader2 size={14} className="animate-spin" /> Carregando aulas...
+                    </p>
+                  ) : panelPreviewLessons.length === 0 ? (
+                    <p className="text-sm text-muted-foreground rounded-xl border border-dashed border-border/60 bg-muted/20 px-4 py-3">
+                      Nenhuma aula agendada ainda — use o formulário acima para agendar.
+                    </p>
+                  ) : (
+                    <ul className="space-y-2">
+                      {panelPreviewLessons.map((lesson: any) => (
+                        <li key={lesson.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/50 bg-muted/20 px-3 py-2.5">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-sm font-black text-foreground">{format(new Date(lesson.scheduledAt), "dd/MM/yyyy")}</span>
+                            <span className="text-sm font-bold text-muted-foreground">{format(new Date(lesson.scheduledAt), "HH:mm")}</span>
+                            <span className="text-[10px] font-black uppercase tracking-widest text-emerald-600 bg-emerald-500/10 px-2 py-0.5 rounded-md">Agendada</span>
+                            <span className="text-xs font-semibold text-muted-foreground">{lesson.duration ?? 60}min</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => setEditingLesson(lesson)}
+                              className="p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-primary transition-colors"
+                              aria-label={`Editar aula de ${format(new Date(lesson.scheduledAt), "dd/MM/yyyy HH:mm")}`}
+                            >
+                              <Pencil size={14} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (confirm("Excluir esta aula?")) deleteLessonMutation.mutate({ id: lesson.id });
+                              }}
+                              className="p-2 rounded-lg hover:bg-rose-500/10 text-muted-foreground hover:text-rose-600 transition-colors"
+                              aria-label={`Excluir aula de ${format(new Date(lesson.scheduledAt), "dd/MM/yyyy HH:mm")}`}
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </motion.div>
               )}
-            </AnimatePresence>
-
-            {/* CARD 5 — Observações */}
-            <motion.div variants={cardVariants} className="bg-card rounded-[2rem] p-8 shadow-sm border border-border/50 hover:shadow-xl hover:shadow-slate-500/5 transition-all duration-500 relative group">
-              <div className="flex items-center gap-4 mb-8">
-                <div className="w-12 h-12 rounded-2xl bg-slate-800 text-white flex items-center justify-center shadow-lg shadow-slate-800/20 group-hover:scale-110 transition-transform">
-                  <FileText size={24} />
+            </div>
+            <div className="space-y-8">
+              <motion.div variants={cardVariants} className="bg-card rounded-[2rem] p-8 shadow-sm border border-border/50 relative overflow-hidden group">
+                <div className="flex items-center gap-4 mb-6 relative z-10">
+                  <div className="w-12 h-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shadow-lg shadow-emerald-500/10">
+                    <FileText size={24} />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-black text-foreground tracking-tight">Financeiro</h3>
+                    <p className="text-[10px] text-muted-foreground/70 font-bold uppercase tracking-[0.2em]">Cobrança</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-lg font-black text-foreground tracking-tight">Observações</h3>
-                  <p className="text-[10px] text-muted-foreground/70 font-bold uppercase tracking-[0.2em]">Informações extras</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 relative z-10">
+                  <div className="rounded-xl border border-border/50 bg-muted/20 px-4 py-3">
+                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em]">Plano</p>
+                    <p className="text-sm font-bold text-foreground mt-0.5 break-words">{selectedPlan?.nome || "Sem plano"}</p>
+                  </div>
+                  <div className="rounded-xl border border-border/50 bg-muted/20 px-4 py-3">
+                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em]">Mensalidade</p>
+                    <p className="text-sm font-bold text-foreground mt-0.5 break-words">{formatBRL(parseBRL(form.monthlyFee))}</p>
+                  </div>
+                  <div className="rounded-xl border border-border/50 bg-muted/20 px-4 py-3">
+                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em]">Periodicidade</p>
+                    <p className="text-sm font-bold text-foreground mt-0.5 break-words capitalize">{form.billingPeriodicity || "—"}</p>
+                  </div>
+                  <div className="rounded-xl border border-border/50 bg-muted/20 px-4 py-3">
+                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em]">Vencimento (Dia)</p>
+                    <p className="text-sm font-bold text-foreground mt-0.5 break-words">{form.dueDay || "—"}</p>
+                  </div>
                 </div>
-              </div>
-
-              <div className="space-y-2">
-                <Textarea 
-                  placeholder="Adicione detalhes sobre o aluno, objetivos ou histórico musical..." 
-                  className="min-h-[160px] rounded-2xl border-border bg-muted/30 focus:bg-background focus:ring-4 focus:ring-slate-800/10 focus:border-slate-800 transition-all text-sm font-semibold p-4 resize-none leading-relaxed shadow-inner"
-                  value={form.notes}
-                  onChange={(e) => handleInputChange('notes', e.target.value)}
-                  maxLength={500}
-                />
-                <div className="flex justify-between items-center px-1">
-                  <p className="text-[9px] text-muted-foreground/70 font-bold uppercase tracking-widest italic">Visível apenas para professores</p>
-                  <span className={cn(
-                    "text-[10px] font-black uppercase tracking-widest",
-                    form.notes.length > 450 ? "text-rose-500" : "text-muted-foreground/70"
-                  )}>
-                    {form.notes.length} / 500
-                  </span>
+              </motion.div>
+              <motion.div variants={cardVariants} className="bg-card rounded-[2rem] p-8 shadow-sm border border-border/50 relative overflow-hidden group">
+                <div className="flex items-center gap-4 mb-6 relative z-10">
+                  <div className="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-lg shadow-indigo-500/10">
+                    <User size={24} />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-black text-foreground tracking-tight">Dados do Aluno</h3>
+                    <p className="text-[10px] text-muted-foreground/70 font-bold uppercase tracking-[0.2em]">Informações cadastrais</p>
+                  </div>
                 </div>
-              </div>
-            </motion.div>
-
-            {/* CARD 5.5 — Automações */}
-            <motion.div variants={cardVariants} className="bg-card rounded-[2rem] p-8 shadow-sm border border-border/50 hover:shadow-xl hover:shadow-slate-500/5 transition-all duration-500 relative group">
-              <div className="flex items-center gap-4 mb-6">
-                <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-500/10 group-hover:scale-110 transition-transform">
-                  <Bot size={24} />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 relative z-10">
+                  {[
+                    { label: "Nome", value: form.name },
+                    { label: "Data de Nascimento", value: form.birthDate && isValid(parseISO(form.birthDate)) ? format(parseISO(form.birthDate), "dd/MM/yyyy") : "" },
+                    { label: "CPF", value: form.cpf },
+                    { label: "E-mail", value: form.email },
+                    { label: "Telefone", value: form.phone },
+                    ...(form.guardianName.trim() ? [{ label: "Responsável", value: form.guardianName }] : []),
+                  ].map((item) => (
+                    <div key={item.label} className="rounded-xl border border-border/50 bg-muted/20 px-4 py-3">
+                      <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em]">{item.label}</p>
+                      <p className="text-sm font-bold text-foreground mt-0.5 break-words">{item.value || "—"}</p>
+                    </div>
+                  ))}
                 </div>
-                <div>
-                  <h3 className="text-lg font-black text-foreground tracking-tight">Lembretes Automáticos</h3>
-                  <p className="text-[10px] text-muted-foreground/70 font-bold uppercase tracking-[0.2em]">WhatsApp & Robô</p>
-                </div>
-              </div>
-              
-              <div className="flex items-center justify-between p-4 bg-muted/30 rounded-xl border border-border/50">
-                <div>
-                  <p className="text-sm font-bold text-foreground">Permitir mensagens automáticas</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">Se desativado, o aluno não receberá lembretes automáticos de cobrança, aula ou treinos via WhatsApp.</p>
-                </div>
-                <Switch 
-                  checked={form.allowAutoReminders}
-                  onCheckedChange={(checked) => setForm(prev => ({ ...prev, allowAutoReminders: checked }))}
-                />
-              </div>
-            </motion.div>
-
-            {/* CARD 6 — Portal do Aluno (Novo) */}
-            {!isEditMode && <PortalAccessCard form={form} handleInputChange={handleInputChange} cardVariants={cardVariants} />}
-          </div>
-        </motion.div>
-
-        {/* Footer actions mobile */}
-        <div className="mt-12 flex items-center justify-center gap-4 lg:hidden pb-10">
-           <Button 
-              variant="outline" 
+              </motion.div>
+            </div>
+          </motion.div>
+        )}
+        <div className="mt-12 flex flex-wrap items-center justify-center gap-4 pb-10">
+          {wizardStep > 1 && (
+            <Button
+              variant="outline"
               className="rounded-xl border-border font-bold text-slate-600 h-12 px-8"
-              onClick={() => setLocation("/alunos")}
+              onClick={() => setWizardStep((s) => Math.max(1, s - 1))}
             >
-              Cancelar
+              <ChevronLeft size={18} className="mr-2" />
+              Voltar
             </Button>
-            <Button 
-              className="rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold h-12 px-8 shadow-lg shadow-indigo-500/10"
-              onClick={handleSave}
-              disabled={isSaving}
+          )}
+          {wizardStep < 4 ? (
+            <Button
+              className="rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white font-bold h-12 px-8 shadow-lg shadow-indigo-500/20 transition-all active:scale-95"
+              onClick={() => setWizardStep((s) => Math.min(4, s + 1))}
             >
-              {isSaving ? <Loader2 size={18} className="animate-spin mr-2" /> : <Check size={18} className="mr-2" />}
-              Salvar Aluno
+              Continuar
             </Button>
+          ) : (
+            <>
+              <Button
+                variant="outline"
+                className="rounded-xl border-border font-bold text-slate-600 h-12 px-8"
+                onClick={() => setLocation("/alunos")}
+              >
+                Cancelar
+              </Button>
+              <Button
+                className="rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold h-12 px-8 shadow-lg shadow-indigo-500/10"
+                onClick={handleSave}
+                disabled={isSaving}
+              >
+                {isSaving ? <Loader2 size={18} className="animate-spin mr-2" /> : <Check size={18} className="mr-2" />}
+                Salvar Aluno
+              </Button>
+            </>
+          )}
         </div>
       </main>
 

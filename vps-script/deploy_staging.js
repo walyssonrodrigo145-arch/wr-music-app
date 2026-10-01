@@ -277,6 +277,7 @@ const filesToUpload = [
   'client/src/pages/student/Avisos.tsx',
   'client/src/pages/student/Pagamentos.tsx',
   'DOSSIER_CACABUG_2026-10-01.md',
+  'PRD_CADASTRO_ALUNO_WIZARD.md',
   'shared/releases.ts',
   // ── Calendário Escolar (feriados/recessos/eventos) ──
   'shared/schoolCalendar.ts',
