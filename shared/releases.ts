@@ -26,6 +26,16 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: "2026.10.01.7",
+    date: "2026-10-01",
+    title: "Horários das aulas importadas corrigidos + Próximas aulas mais limpas",
+    summary: "As aulas importadas do sistema antigo apareciam 3h mais cedo na agenda; todas foram recalculadas e agora batem com o relógio da escola. O painel 'Próximas aulas hoje' deixou de listar aulas já concluídas/canceladas e passou a mostrar cada turma uma única vez.",
+    items: [
+      { type: "correcao", title: "Horários das aulas importadas", description: "As aulas que vieram do sistema antigo estavam 3h adiantadas na tela; todas foram reajustadas (respeitando o horário de verão de 2017–2019). A importação de novos dados também foi corrigida para não repetir o problema." },
+      { type: "correcao", title: "Próximas aulas hoje", description: "Aulas concluídas ou canceladas não aparecem mais nessa lista, e cada turma ocupa uma única linha em vez de repetir por aluno." },
+    ],
+  },
+  {
     version: "2026.10.01.6",
     date: "2026-10-01",
     title: "Aula em andamento na agenda + cadastro começando pelos dados pessoais",

@@ -321,6 +321,18 @@ export default function Aulas() {
     const todayCompleted = todayLessons.filter(l => l.status === 'concluida').length;
     const todayPending = todayLessons.filter(l => l.status === 'agendada').length;
     const todayCancelled = todayLessons.filter(l => l.status === 'cancelada').length;
+    // Lista "Próximas aulas hoje": sem concluídas/canceladas e com turmas agrupadas (1 linha por sessão)
+    const seenTurmaKeys = new Set<string>();
+    const upcomingToday = todayLessons
+      .filter(l => l.status !== 'concluida' && l.status !== 'cancelada')
+      .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime())
+      .filter(l => {
+        if (l.lessonType !== 'turma') return true;
+        const key = `${l.recurringGroupId || l.title || 'turma'}|${new Date(l.scheduledAt).getTime()}`;
+        if (seenTurmaKeys.has(key)) return false;
+        seenTurmaKeys.add(key);
+        return true;
+      });
 
     // Cálculo estático/dinâmico de ocupação semanal (Domingo a Sábado)
     const weekDays = eachDayOfInterval({ start: startOfWeek(new Date(), { weekStartsOn: 0 }), end: endOfWeek(new Date(), { weekStartsOn: 0 }) });
@@ -704,10 +716,10 @@ export default function Aulas() {
                   <span className="text-[9px] font-bold text-blue-600 hover:underline cursor-pointer" onClick={() => setView('dia')}>Ver todas</span>
                 </div>
                 <div className="space-y-2 max-h-64 overflow-y-auto no-scrollbar">
-                  {todayLessons.length === 0 ? (
-                    <p className="text-xs text-muted-foreground italic text-center py-4">Nenhuma aula agendada para hoje.</p>
+                  {upcomingToday.length === 0 ? (
+                    <p className="text-xs text-muted-foreground italic text-center py-4">Nenhuma aula pendente para hoje.</p>
                   ) : (
-                    todayLessons.slice(0, 6).map((l: any) => {
+                    upcomingToday.slice(0, 6).map((l: any) => {
                       const isTurma = l.lessonType === 'turma';
                       const nameText = isTurma ? (l.title || "Turma") : (l.studentName || l.experimentalName || "Aula");
                       const statusColor = l.status === 'concluida' ? "bg-emerald-500 text-emerald-600" : l.status === 'falta' ? "bg-rose-500 text-rose-500" : "bg-blue-500 text-blue-600";
