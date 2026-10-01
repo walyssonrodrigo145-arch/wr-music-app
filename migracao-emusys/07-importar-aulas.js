@@ -1,6 +1,16 @@
 // Kit de migração Emusys -> MusicPro | 07 - Importar aulas (agenda + histórico)
 // Uso: node 07-importar-aulas.js [--commit]
 // Lê saida/aulas-parseadas.json (gerado pelo 02-extrair-aulas.js).
+//
+// FUSO (importante): o app lê as colunas `timestamp` como UTC (Drizzle faz
+// `new Date(valor + '+0000')`) e o navegador renderiza em America/Sao_Paulo.
+// Logo o banco deve guardar o INSTANTE UTC da hora de parede (parede + offset,
+// 3h no horário padrão e 2h nos verões de 2017–2019). Fazemos isso passando um
+// `Date` construído no fuso de Brasília: `new Date('AAAA-MM-DDThh:mm:ss')`.
+// NUNCA envie strings tipo data como parâmetro (o postgres.js as interpreta no
+// fuso local E as envia como timestamptz — converte de novo).
+
+process.env.TZ = 'America/Sao_Paulo';
 
 const fs = require('fs');
 const net = require('net');
@@ -102,7 +112,8 @@ const instrDoCurso = (curso) => { for (const [re, nome] of INSTR_RULES) if (re.t
   const dbInstr = await sql`SELECT id, name FROM instruments WHERE "organizationId"=${ORG}`;
   const instrByName = new Map(dbInstr.map(i => [normalize(i.name), i.id]));
 
-  const existentes = new Set((await sql`SELECT "studentId", "scheduledAt" FROM lessons WHERE "organizationId"=${ORG}`).map(l => { const x = new Date(l.scheduledAt); return `${l.studentId}|${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}T${String(x.getHours()).padStart(2, '0')}:${String(x.getMinutes()).padStart(2, '0')}`; }));
+  // Converte o valor gravado (UTC) de volta para a hora de parede (BRT) para comparar com a fonte.
+  const existentes = new Set((await sql`SELECT "studentId", "scheduledAt"::text AS t FROM lessons WHERE "organizationId"=${ORG}`).map(l => { const x = new Date(l.t.replace(' ', 'T') + 'Z'); return `${l.studentId}|${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}T${String(x.getHours()).padStart(2, '0')}:${String(x.getMinutes()).padStart(2, '0')}`; }));
 
   const hoje = new Date().toISOString().slice(0, 10);
   const rows = [];
@@ -154,7 +165,7 @@ const instrDoCurso = (curso) => { for (const [re, nome] of INSTR_RULES) if (re.t
     for (let i = 0; i < rows.length; i += 200) {
       const chunk = rows.slice(i, i + 200);
       await tx`INSERT INTO lessons ("organizationId","userId","studentId",title,"scheduledAt",duration,status,"lessonType",notes,"instrumentId","studioRoomId","alertSent1h","alertSent30m","studentConfirmation")
-        VALUES ${tx(chunk.map(r => [ORG, r.userId, r.studentId, r.title, (r.scheduledAt ? new Date(String(r.scheduledAt).replace(' ', 'T') + 'Z') : r.scheduledAt), 60, r.status, 'individual', r.notes, r.instrumentId, r.studioRoomId, false, false, 'pendente']))}`;
+        VALUES ${tx(chunk.map(r => [ORG, r.userId, r.studentId, r.title, (r.scheduledAt ? new Date(String(r.scheduledAt).replace(' ', 'T')) : r.scheduledAt), 60, r.status, 'individual', r.notes, r.instrumentId, r.studioRoomId, false, false, 'pendente']))}`;
       n += chunk.length;
       if (n % 2000 === 0) console.log('  ...', n);
     }

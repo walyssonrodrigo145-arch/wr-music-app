@@ -89,7 +89,7 @@ Os PDFs dos contratos sobem para o volume `uploads_data` da VPS em
 5. A sessão do Emusys expira em algumas horas (e o PHP pode invalidar) — se algum
    script falhar com "SESSAO CAIU", rode o `01-login.js` de novo.
 6. O código 2FA vai para o e-mail do CLIENTE — combine antes com ele para repassar.
-7. **Datas/horas com o driver do banco:** strings tipo `YYYY-MM-DD HH:MM:SS` enviadas como parâmetro são interpretadas como hora LOCAL e convertidas para UTC (some +3h em horário de Brasília). Sempre envie `new Date(AAAAMMDDThh:mm:ssZ)` (construído em UTC) para gravar a hora "de parede" — o 07 já faz isso.
+7. **Fuso horário (crítico):** o MusicPro lê colunas `timestamp` como UTC (Drizzle: `new Date(valor + '+0000')`) e o navegador exibe em America/Sao_Paulo. Portanto o banco deve guardar o **instante UTC** da hora de parede (`parede + offset`: 3h no padrão, 2h nos verões de 2017–2019). O `07-importar-aulas.js` faz isso com `new Date('AAAA-MM-DDThh:mm:ss')` (fuso de Brasília) — **nunca** envie strings tipo data como parâmetro: o postgres.js as interpreta no fuso local **e** as envia como timestamptz, somando o offset duas vezes (já causou bug de +6h). Se precisar gravar valor exato, passe um `Date` (`toISOString()`).
 8. A agenda futura do Emusys também pode ser puxada dia a dia (`{_x:"J6RNdl1", tipoTela:"Gestao", dia:"AAAA-MM-DD"}`) — cada célula traz `inicio` (minutos), `duracao`, aluno no `hint` e `Matricula_ID`. Útil para conferir/completar as aulas futuras.
 9. Alunos com **mais de uma matrícula ativa** (2 cursos) têm o relatório principal só da primeira: as aulas da segunda vêm pela agenda (item 8). Sem isso, o aluno "some" da agenda futura.
 

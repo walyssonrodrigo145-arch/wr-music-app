@@ -25,7 +25,7 @@ const WEEKDAYS = { domingo: 0, 'segunda-feira': 1, 'terca-feira': 2, 'quarta-fei
 const parseAgenda = (agenda) => {
   const out = { weekday: null, timeStr: null, roomName: null };
   if (!agenda) return out;
-  for (const [nome, idx] of Object.entries(WEEKDAYS)) if (normalize(agenda).startsWith(nome)) out.weekday = idx;
+  for (const [nome, idx] of Object.entries(WEEKDAYS)) if (normalize(agenda).startsWith(normalize(nome))) out.weekday = idx;
   const tm = agenda.match(/(\d{1,2}:\d{2})\s+[àa]s/i);
   if (tm) out.timeStr = tm[1].padStart(5, '0');
   const rm = agenda.match(ROOM_RE);
