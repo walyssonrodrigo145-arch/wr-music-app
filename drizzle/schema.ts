@@ -195,6 +195,25 @@ export const students = pgTable("students", {
   uniqueIndex("students_email_org_idx").on(table.email, table.organizationId),
 ]);
 
+// ─── CALENDÁRIO ESCOLAR (feriados, recessos e eventos) ────────────────────────
+// Espelho do "Calendário da Escola" do Emusys: marcações coloridas por tipo.
+export const schoolHolidays = pgTable("school_holidays", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organizationId").notNull(),
+  date: date("date").notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  // 'recesso' | 'feriado_nacional' | 'feriado_estadual' | 'feriado_municipal' | 'evento'
+  type: varchar("type", { length: 30 }).default("feriado_nacional").notNull(),
+  createdByUserId: integer("createdByUserId"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
+}, (table) => [
+  index("school_holidays_org_date_idx").on(table.organizationId, table.date),
+]);
+
+export type SchoolHoliday = typeof schoolHolidays.$inferSelect;
+export type InsertSchoolHoliday = typeof schoolHolidays.$inferInsert;
+
 export const lessons = pgTable("lessons", {
   id: serial("id").primaryKey(),
   organizationId: integer("organizationId"),

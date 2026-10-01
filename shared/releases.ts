@@ -26,6 +26,17 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: "2026.10.01",
+    date: "2026-10-01",
+    title: "Calendário Escolar: feriados, recessos e eventos da escola",
+    summary: "Chegou o Calendário Escolar em Configurações → Calendário: visão anual com cores por tipo (recesso, feriados nacional/estadual/municipal e eventos), importação automática dos feriados nacionais (com Carnaval e Sexta-feira Santa calculados) e marcações por dia.",
+    items: [
+      { type: "novo", title: "Calendário Escolar", description: "Visão dos 12 meses com marcações coloridas por tipo, legenda e navegação por ano. Cada dia pode ter mais de uma marcação." },
+      { type: "novo", title: "Feriados nacionais com um clique", description: "Botão que importa os feriados nacionais do ano: datas fixas + Carnaval e Sexta-feira Santa calculados pela Páscoa." },
+      { type: "melhoria", title: "Escola organiza férias e eventos", description: "Cadastre recessos (férias de julho, por exemplo) e eventos da escola (recitais, festas) para orientar a agenda e a comunicação com os alunos." },
+    ],
+  },
+  {
     version: "2026.09.28",
     date: "2026-09-28",
     title: "Agenda mobile renovada + Histórico de alunos (arquivar, reativar e reconquistar)",

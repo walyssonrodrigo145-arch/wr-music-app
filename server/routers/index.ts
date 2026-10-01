@@ -12,6 +12,7 @@ import { fiscalRouter } from "../fiscalRouter";
 import { crmRouter } from "../crmRouter";
 import { chatbotFlowRouter } from "../chatbotFlowRouter";
 import { schoolAiRouter } from "../schoolAiRouter";
+import { holidaysRouters } from "./holidaysRouters";
 import { fcmRouter } from "../fcmRouter";
 import { authRouters } from "./authRouters";
 import { progressRouters } from "./progressRouters";
@@ -79,6 +80,8 @@ export const appRouter = router({
   avaliacoes: avaliacoesRouter,
   // ── 🎁 Programa Indique & Ganhe (novas chaves no fim — não reordenar as existentes) ──
   referral: referralRouter,
+  // ── 📅 Calendário Escolar: feriados, recessos e eventos (novas chaves no fim — não reordenar as existentes) ──
+  ...holidaysRouters,
 });
 
 export type AppRouter = typeof appRouter;

@@ -156,6 +156,19 @@ async function ensureSchemaConsistency(db: any) {
     await db.execute(sql`ALTER TABLE "students" ADD COLUMN IF NOT EXISTS "reactivatedAt" timestamp`);
     await db.execute(sql`CREATE INDEX IF NOT EXISTS "idx_students_org_deleted" ON "students" ("organizationId", "deletedAt")`);
 
+    // school_holidays: Calendário Escolar (feriados, recessos e eventos)
+    await db.execute(sql`CREATE TABLE IF NOT EXISTS "school_holidays" (
+      "id" serial PRIMARY KEY,
+      "organizationId" integer NOT NULL,
+      "date" date NOT NULL,
+      "name" varchar(255) NOT NULL,
+      "type" varchar(30) DEFAULT 'feriado_nacional' NOT NULL,
+      "createdByUserId" integer,
+      "createdAt" timestamp DEFAULT now() NOT NULL,
+      "updatedAt" timestamp DEFAULT now() NOT NULL
+    )`);
+    await db.execute(sql`CREATE INDEX IF NOT EXISTS "school_holidays_org_date_idx" ON "school_holidays" ("organizationId", "date")`);
+
     // lessons.studentId (nullable)
     await db.execute(sql`ALTER TABLE "lessons" ALTER COLUMN "studentId" DROP NOT NULL`);
     

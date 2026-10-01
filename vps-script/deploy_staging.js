@@ -1,4 +1,4 @@
-const { Client } = require('ssh2');
+﻿const { Client } = require('ssh2');
 const fs = require('fs');
 const path = require('path');
 
@@ -217,6 +217,16 @@ const filesToUpload = [
   'PRD_HISTORICO_ALUNOS.md',
   // ── Fix agenda: janela -3m/+12m com limite 10k (histórico importado não some mais) ──
   'server/routers/lessonsRouters.ts',
+  // ── Calendário Escolar (feriados/recessos/eventos) ──
+  'shared/schoolCalendar.ts',
+  'server/schoolCalendar.test.ts',
+  'server/routers/holidaysRouters.ts',
+  'server/routers/index.ts',
+  'server/db.ts',
+  'drizzle/schema.ts',
+  'client/src/components/settings/CalendarioEscolar.tsx',
+  'client/src/pages/Configuracoes.tsx',
+  'shared/releases.ts',
 ];
 
 console.log('🚀 Iniciando deploy no Ambiente de Testes (STAGING)...');
