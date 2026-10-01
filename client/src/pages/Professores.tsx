@@ -10,7 +10,7 @@ import {
   Loader2, Plus, Trash2, Edit2, Mail, GraduationCap,
   Lock, Phone, Star, DollarSign, Shield, Info, KeyRound,
   CheckCircle2, Users, Camera, Copy, MessageCircle, FileText,
-  CalendarCheck, BookOpen, ShieldAlert, LayoutDashboard,
+  CalendarCheck, BookOpen, ShieldAlert, LayoutDashboard, Archive, RotateCcw,
 } from "lucide-react";
 import {
   Dialog,
@@ -138,6 +138,23 @@ function ProfessoresPanel() {
     },
     onError: (e) => toast.error(e.message),
   });
+  const archiveMutation = trpc.professores.archive.useMutation({
+    onSuccess: () => {
+      toast.success("Professor arquivado! Ele sai das listas e da agenda, mas o histórico é preservado.");
+      utils.professores.overview.invalidate();
+      utils.professores.list.invalidate();
+    },
+    onError: (e) => toast.error(e.message),
+  });
+  const reactivateMutation = trpc.professores.reactivate.useMutation({
+    onSuccess: () => {
+      toast.success("Professor reativado!");
+      utils.professores.overview.invalidate();
+      utils.professores.list.invalidate();
+    },
+    onError: (e) => toast.error(e.message),
+  });
+  const [showArchived, setShowArchived] = useState(false);
 
   const resetForm = () => {
     setName(""); setEmail(""); setPassword(""); setTelefone("");
@@ -215,7 +232,9 @@ function ProfessoresPanel() {
     () => Array.from(new Set(professores.flatMap((p) => (p.especialidade ? p.especialidade.split(",").map((s: string) => s.trim()) : [])))),
     [professores]
   );
-  const filtered = professores.filter((p) => {
+  const arquivadosCount = professores.filter((p: any) => p.archivedAt).length;
+  const baseProfessores = showArchived ? professores : professores.filter((p: any) => !p.archivedAt);
+  const filtered = baseProfessores.filter((p) => {
     const matchSearch =
       !search.trim() ||
       p.name?.toLowerCase().includes(search.toLowerCase()) ||
@@ -499,6 +518,20 @@ function ProfessoresPanel() {
             <option key={esp} value={esp}>{esp}</option>
           ))}
         </select>
+        <button
+          type="button"
+          onClick={() => setShowArchived((v) => !v)}
+          title={showArchived ? "Voltar para professores ativos" : "Ver professores arquivados"}
+          className={cn(
+            "h-11 px-3.5 rounded-xl border text-xs font-black inline-flex items-center gap-2 transition-all active:scale-95 cursor-pointer",
+            showArchived
+              ? "bg-amber-500/15 border-amber-500/40 text-amber-700 dark:text-amber-300"
+              : "border-border/60 bg-background text-muted-foreground hover:text-foreground"
+          )}
+        >
+          {showArchived ? <RotateCcw size={14} /> : <Archive size={14} />}
+          {showArchived ? "Ver ativos" : `Arquivados${arquivadosCount ? ` (${arquivadosCount})` : ""}`}
+        </button>
       </div>
 
       {/* Estados */}
@@ -538,7 +571,10 @@ function ProfessoresPanel() {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.3, delay: Math.min(idx * 0.04, 0.3) }}
-                className="bg-card/40 backdrop-blur-xl rounded-[1.25rem] border border-white/10 shadow-2xl shadow-primary/5 hover:shadow-primary/15 hover:-translate-y-1.5 transition-all duration-500 overflow-hidden min-w-0"
+                className={cn(
+                  "bg-card/40 backdrop-blur-xl rounded-[1.25rem] border border-white/10 shadow-2xl shadow-primary/5 hover:shadow-primary/15 hover:-translate-y-1.5 transition-all duration-500 overflow-hidden min-w-0",
+                  prof.archivedAt && "opacity-70 border-amber-500/30"
+                )}
               >
                 <div className="p-4 space-y-3">
                   {/* Cabeçalho do card */}
@@ -552,6 +588,11 @@ function ProfessoresPanel() {
                         <Mail size={10} /> {prof.email}
                         {isGmailProf && <span className="inline-flex items-center text-[8px] font-bold bg-blue-500/10 text-blue-500 px-1.5 py-0.5 rounded-full border border-blue-500/20">Google</span>}
                       </div>
+                      {prof.archivedAt && (
+                        <span className="inline-flex items-center gap-1 mt-1.5 text-[9px] font-black uppercase tracking-widest text-amber-700 dark:text-amber-300 bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 rounded-full">
+                          <Archive size={10} /> Arquivado
+                        </span>
+                      )}
                     </div>
                   </div>
 
@@ -603,22 +644,45 @@ function ProfessoresPanel() {
                       <span className="block text-[8px] text-muted-foreground/70">{Array.isArray(prof.permissions) ? prof.permissions.length : 0} permissões</span>
                     </div>
                     <div className="flex items-center gap-1.5">
-                      <a href="/folha" title="Ver Folha de Pagamento" className="h-9 w-9 flex items-center justify-center rounded-lg bg-muted/40 hover:bg-muted text-muted-foreground transition-all active:scale-95">
-                        <FileText size={14} />
-                      </a>
-                      <button onClick={() => setRulesProf(prof)} title="Regras de Cobrança" className="h-9 w-9 flex items-center justify-center rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 transition-all active:scale-95 cursor-pointer">
-                        <DollarSign size={14} />
-                      </button>
-                      <button onClick={() => handleOpenEdit(prof)} title="Editar" className="h-9 w-9 flex items-center justify-center rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 transition-all active:scale-95 cursor-pointer">
-                        <Edit2 size={14} />
-                      </button>
-                      <button
-                        onClick={() => { if (confirm(`Remover "${prof.name}"? O acesso dele será bloqueado.`)) deleteMutation.mutate({ id: prof.id }); }}
-                        title="Excluir"
-                        className="h-9 w-9 flex items-center justify-center rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 border border-rose-500/20 transition-all active:scale-95 cursor-pointer"
-                      >
-                        <Trash2 size={14} />
-                      </button>
+                      {prof.archivedAt ? (
+                        <>
+                          <button
+                            onClick={() => reactivateMutation.mutate({ id: prof.id })}
+                            disabled={reactivateMutation.isPending}
+                            title="Reativar professor"
+                            className="h-9 w-9 flex items-center justify-center rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 transition-all active:scale-95 cursor-pointer disabled:opacity-50"
+                          >
+                            <RotateCcw size={14} />
+                          </button>
+                          <button
+                            onClick={() => { if (confirm(`Excluir definitivamente "${prof.name}"? O histórico de aulas/folha dele será reatribuído ao admin.`)) deleteMutation.mutate({ id: prof.id }); }}
+                            title="Excluir definitivamente"
+                            className="h-9 w-9 flex items-center justify-center rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 border border-rose-500/20 transition-all active:scale-95 cursor-pointer"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <a href="/folha" title="Ver Folha de Pagamento" className="h-9 w-9 flex items-center justify-center rounded-lg bg-muted/40 hover:bg-muted text-muted-foreground transition-all active:scale-95">
+                            <FileText size={14} />
+                          </a>
+                          <button onClick={() => setRulesProf(prof)} title="Regras de Cobrança" className="h-9 w-9 flex items-center justify-center rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 transition-all active:scale-95 cursor-pointer">
+                            <DollarSign size={14} />
+                          </button>
+                          <button onClick={() => handleOpenEdit(prof)} title="Editar" className="h-9 w-9 flex items-center justify-center rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 transition-all active:scale-95 cursor-pointer">
+                            <Edit2 size={14} />
+                          </button>
+                          <button
+                            onClick={() => { if (confirm(`Arquivar "${prof.name}"? Ele sai das listas, da agenda e das seleções — mas o histórico (aulas, folha) é preservado e pode ser reativado depois.`)) archiveMutation.mutate({ id: prof.id }); }}
+                            disabled={archiveMutation.isPending}
+                            title="Arquivar professor"
+                            className="h-9 w-9 flex items-center justify-center rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/20 transition-all active:scale-95 cursor-pointer disabled:opacity-50"
+                          >
+                            <Archive size={14} />
+                          </button>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>

@@ -217,6 +217,11 @@ const filesToUpload = [
   'PRD_HISTORICO_ALUNOS.md',
   // ── Fix agenda: janela -3m/+12m com limite 10k (histórico importado não some mais) ──
   'server/routers/lessonsRouters.ts',
+  // ── Professores: arquivar/reativar + legenda da agenda ──
+  'client/src/pages/Professores.tsx',
+  'shared/agenda.ts',
+  'shared/schoolCalendar.ts',
+  'client/src/lib/printAgenda.ts',
   // ── Calendário Escolar (feriados/recessos/eventos) ──
   'shared/schoolCalendar.ts',
   'server/schoolCalendar.test.ts',

@@ -169,6 +169,10 @@ async function ensureSchemaConsistency(db: any) {
     )`);
     await db.execute(sql`CREATE INDEX IF NOT EXISTS "school_holidays_org_date_idx" ON "school_holidays" ("organizationId", "date")`);
 
+    // professores: arquivamento (soft) — sai das listas, mantém histórico
+    await db.execute(sql`ALTER TABLE "professores" ADD COLUMN IF NOT EXISTS "archivedAt" timestamp`);
+    await db.execute(sql`ALTER TABLE "professores" ADD COLUMN IF NOT EXISTS "archivedBy" integer`);
+
     // lessons.studentId (nullable)
     await db.execute(sql`ALTER TABLE "lessons" ALTER COLUMN "studentId" DROP NOT NULL`);
     
@@ -1834,6 +1838,10 @@ export async function getRecentLessons(
     instrumentName: instruments.name,
     studentName: students.name,
     studentId: students.id,
+    // Atalhos de contato na agenda (Dados do Responsável / WhatsApp)
+    studentPhone: students.phone,
+    guardianName: students.guardianName,
+    guardianPhone: students.guardianPhone,
     lessonType: lessons.lessonType,
     recurringGroupId: lessons.recurringGroupId,
     // CAÇA-BUG: a agenda (lessons.list sem input) usa getRecentLessons — sem

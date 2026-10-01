@@ -358,7 +358,7 @@ const durationOf = (plano, parcelas) => {
     for (const c of planoContracts) {
       const st = find2(c.nome);
       if (!st) continue;
-      await tx`INSERT INTO contracts ("organizationId","userId","studentId","contractNumber",title,status,provider,"templateContentSnapshot","monthlyFee","startDate","signedDocumentUrl","signedAt") VALUES (${ORG},${ADMIN},${st.id},${c.contractNumber},${c.title},'assinado','assinafy',${c.snapshot},${c.monthlyFee},${c.startDate},${c.url},${(c.startDate ? c.startDate + ' 12:00:00' : null)})`;
+      await tx`INSERT INTO contracts ("organizationId","userId","studentId","contractNumber",title,status,provider,"templateContentSnapshot","monthlyFee","startDate","signedDocumentUrl","signedAt") VALUES (${ORG},${ADMIN},${st.id},${c.contractNumber},${c.title},'assinado','assinafy',${c.snapshot},${c.monthlyFee},${c.startDate},${c.url},${(c.startDate ? new Date(c.startDate + 'T12:00:00Z') : null)})`;
       contractIns++;
     }
     console.log('contracts inseridos:', contractIns);

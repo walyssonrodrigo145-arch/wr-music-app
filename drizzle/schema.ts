@@ -122,6 +122,9 @@ export const professores = pgTable("professores", {
   // Cards do dashboard PERMITIDOS para este professor (definido pelo admin, modo trava).
   // JSON array de widget IDs; vazio = todos permitidos (retrocompatível).
   dashboardWidgets: text("dashboardWidgets").default("").notNull(),
+  // Arquivamento (soft): professor sai das listas/seleções mas mantém histórico (aulas, folha).
+  archivedAt: timestamp("archivedAt"),
+  archivedBy: integer("archivedBy"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 

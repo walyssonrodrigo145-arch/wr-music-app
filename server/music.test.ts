@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach } from "vitest";
+﻿import { describe, expect, it, vi, beforeEach } from "vitest";
 import { appRouter } from "./routers";
 import type { TrpcContext } from "./_core/context";
 // AUDIT FIX: mock de banco totalmente encadeável COM fila de resultados —
@@ -478,5 +478,34 @@ describe("auth router", () => {
     const caller = appRouter.createCaller(ctx);
     const result = await caller.auth.logout();
     expect(result).toEqual({ success: true });
+  });
+});
+describe("professores (arquivamento)", () => {
+  beforeEach(() => {
+    selectQueue.length = 0;
+  });
+
+  it("arquiva um professor (soft delete)", async () => {
+    const ctx = createAuthContext();
+    const caller = appRouter.createCaller(ctx);
+    // Fila: [professor existente]
+    enqueueSelectResult([{ id: 7 }]);
+    const result = await caller.professores.archive({ id: 7 });
+    expect(result).toHaveProperty("success", true);
+  });
+
+  it("reativa um professor arquivado", async () => {
+    const ctx = createAuthContext();
+    const caller = appRouter.createCaller(ctx);
+    enqueueSelectResult([{ id: 7 }]);
+    const result = await caller.professores.reactivate({ id: 7 });
+    expect(result).toHaveProperty("success", true);
+  });
+
+  it("nao arquiva professor inexistente (NOT_FOUND)", async () => {
+    const ctx = createAuthContext();
+    const caller = appRouter.createCaller(ctx);
+    enqueueSelectResult([]);
+    await expect(caller.professores.archive({ id: 999 })).rejects.toThrow(/n.o encontrado/i);
   });
 });

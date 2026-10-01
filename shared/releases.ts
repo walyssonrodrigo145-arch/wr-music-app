@@ -26,6 +26,16 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: "2026.10.01.1",
+    date: "2026-10-01",
+    title: "Professores: arquivar e reativar + legenda completa na agenda",
+    summary: "Agora dá para arquivar professores que saíram da escola: eles saem das listas, filtros e seleções, mas todo o histórico (aulas, folha, turmas) fica preservado — com botão Reativar e uma visão de Arquivados. A legenda da agenda também ganhou Aula a Repor e Remarcada.",
+    items: [
+      { type: "novo", title: "Arquivar professores", description: "Na página Professores, o botão de arquivar tira o professor das listas, da agenda e das seleções sem apagar nada. Um filtro 'Arquivados' mostra quem está arquivado, com reativar em 1 clique." },
+      { type: "melhoria", title: "Legenda da agenda completa", description: "A legenda/atalho de status da agenda agora inclui Aula a Repor e Remarcada, além de Agendada, Concluída, Falta e Cancelada." },
+    ],
+  },
+  {
     version: "2026.10.01",
     date: "2026-10-01",
     title: "Calendário Escolar: feriados, recessos e eventos da escola",

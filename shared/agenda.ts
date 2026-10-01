@@ -1,7 +1,7 @@
 // ─── Agenda mobile: helpers puros (grade do mês, agregação de status e filtros) ──
 // Compartilhado (client) e testável no vitest do server.
 
-export const AGENDA_STATUS_ORDER = ["agendada", "concluida", "falta", "cancelada"] as const;
+export const AGENDA_STATUS_ORDER = ["agendada", "concluida", "falta", "cancelada", "a_repor", "remarcada"] as const;
 
 /** Cor do pontinho no calendário — mesma família visual de AULA_STATUS_CONFIG. */
 export const AGENDA_STATUS_DOT: Record<string, { label: string; dot: string }> = {

@@ -89,3 +89,30 @@ export function monthGrid(year: number, month: number): Array<{ day: number; dat
   for (let d = 1; d <= daysInMonth; d++) cells.push({ day: d, date: iso(year, month, d) });
   return cells;
 }
+
+/** Cor do pontinho de feriado/recesso na agenda (mesma família da tela do Calendário). */
+export const SCHOOL_HOLIDAY_DOT: Record<SchoolHolidayType, string> = {
+  recesso: "bg-amber-400",
+  feriado_nacional: "bg-emerald-400",
+  feriado_estadual: "bg-cyan-400",
+  feriado_municipal: "bg-fuchsia-400",
+  evento: "bg-rose-400",
+};
+
+export interface SchoolHolidayLike {
+  date: string;
+  name: string;
+  type: string;
+}
+
+/** Agrupa marcações por data (YYYY-MM-DD) para consulta rápida na agenda. */
+export function buildHolidayMap<T extends SchoolHolidayLike>(list: T[]): Map<string, T[]> {
+  const map = new Map<string, T[]>();
+  for (const item of list || []) {
+    const key = String(item.date || "").slice(0, 10);
+    if (!key) continue;
+    if (!map.has(key)) map.set(key, []);
+    map.get(key)!.push(item);
+  }
+  return map;
+}

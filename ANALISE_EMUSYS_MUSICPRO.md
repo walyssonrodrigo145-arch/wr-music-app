@@ -129,3 +129,71 @@ necessidade de regras por curso/duração.
   Efetivadas".
 - Kit reutilizável: `migracao-emusys/` (login 2FA, extrações, consolidação, importação
   transacional, arquivamento e financeiro 1:1).
+
+---
+
+## 4. Agenda: o que trazer do Emusys para melhorar a nossa
+
+Análise feita com acesso direto à agenda do Emusys (modos, menu de contexto da aula e
+tela de disponibilidade) em 01/10/2026.
+
+### 4.1 Como a agenda do Emusys funciona (observado)
+- **6 modos de visualização** no topo: `Dia | Semana | Professores | Salas | Todos | Com aula`.
+  - Semana: colunas por dia, **linhas de hora (08:00–23:00)**, células = aulas coloridas.
+  - Professores/Salas: mesmas linhas de hora, mas **colunas por professor ou por sala**.
+  - "Com aula": esconde recursos sem aula no período (limpa a visão de quem só quer ver o que existe).
+- **Célula da aula**: nome curto do aluno + sala; cor = status (legenda de 8 situações);
+  tooltip com aluno, idade, responsável, contato, curso, horário, duração, sala, última aula e nº da aula.
+- **Menu de contexto da aula** (clique): Marcar Presença Manual, Cancelar aula,
+  **Mover Agendamento** (arrastar/sugerir data), **Alterar Professor**, **Alterar Sala**,
+  **Alterar Modo (Online/Presencial)**, Dados do Aluno, **Dados do Responsável**.
+- **Legenda de status rica** (8 cores): futuro; aluno presente; aluno presente/professor faltou;
+  aluno faltou/professor presente (sem reposição); ambos faltaram (possível reposição);
+  em breve/andamento; cancelada; turma sem alunos/matrícula trancada.
+- **Disponibilidade / Reserva de Horários**: grade com colunas por sala (RESIDÊNCIA, SALA 1–5)
+  e por professor, mostrando as aulas (aluno + professor) e espaços livres — usada para
+  encaixar matrículas e reservas.
+- Feriados/recessos do "Calendário da Escola" aparecem no calendário (já replicamos essa tela).
+
+### 4.2 Comparativo com a agenda do MusicPro (o que já temos)
+Mês/Semana/Dia/Lista (cards por dia, sem grade de hora); filtros por professor/instrumento/
+status/modalidade (sala só no mobile); LessonDetailModal com Concluída/Falta/A Repor/
+Remarcar/Cancelar/Editar/Excluir + chamada de turma; recorrência (semanal/quinzenal/mensal,
+até N aulas); remarcação pelo aluno com validação de conflito; reposições com políticas e
+créditos; QR de presença no totem; painel de horários livres/salas ao vivo; calendário escolar
+(recém-lançado, ainda **não usado** pela agenda).
+
+### 4.3 Melhorias propostas (em ordem de prioridade)
+
+**P0 — rápidas e de alto valor**
+1. **Integrar o Calendário Escolar na agenda**: pintar dias de feriado/recesso na grade e
+   avisar (ou bloquear com confirmação) ao agendar aula em data marcada.
+2. **Filtro por sala no desktop** (já existe no mobile) e incluir `a_repor`/`remarcada`
+   na legenda e nos filtros (têm cor, mas não aparecem).
+3. **Imprimir/exportar a agenda** (semana/dia por professor ou sala) — o Emusys imprime.
+4. **"Dados do Responsável"** no card da aula (atalho WhatsApp do responsável) — reusa o
+   histórico/arquivo de alunos que já temos.
+
+**P1 — estruturantes (mudam o jogo da recepção)**
+5. **Grade horária com linhas de hora** (Semana e Dia) — hoje a agenda é lista de cartões;
+   o Emusys trabalha como "grade de horários", que é o padrão mental de escola de música.
+6. **Visões por Professor e por Sala** (colunas = recurso) + botão **"Com aula"** para
+   ocultar recursos ociosos.
+7. **Manutenção direta na célula**: Alterar Professor, Alterar Sala e Alterar
+   Modalidade (Online/Presencial) sem abrir o cadastro do aluno.
+8. **Presença manual com 1 clique** na célula (o Emusys tem "Marcar Presença Manual";
+   hoje exigimos abrir o modal).
+
+**P2 — avançado**
+9. **Arrastar-e-soltar aulas** na grade (mover horário/dia e entre professores/salas,
+   com confirmação e tratamento de série) — hoje só via "Remarcar".
+10. **Grade de Disponibilidade** por professor/sala com **reservas de tempo** (médico,
+    ensaio) — conecta com o serviço de horários livres que já existe e com os créditos
+    de horas (item 1.3 do documento).
+11. **Sugestão de horário livre ao agendar** (usa a disponibilidade do professor + sala
+    + calendário escolar, evitando feriados).
+
+Observação de implementação: os itens 5–6 cabem dentro do componente de agenda atual
+(desktop `Aulas.tsx` + `MobileAgenda`) reaproveitando os dados que `lessons.list` já
+retorna (início/duração por aula); o item 9 pode usar as mesmas mutações de remarcação já
+existentes (`updateStatus`/`update`).

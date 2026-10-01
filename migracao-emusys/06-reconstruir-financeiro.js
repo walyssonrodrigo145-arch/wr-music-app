@@ -57,7 +57,7 @@ const normalize = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036
   for (const d of data.dues) {
     const st = resolve(d.nome);
     if (!st) { semAluno++; continue; }
-    rows.push({ studentId: st.id, userId: st.professorId, amount: d.amount.toFixed(2), dueDate: d.dueDate, paidAt: d.paidDate ? `${d.paidDate} 12:00:00` : null, status: d.status, month: d.month, year: d.year, notes: `Importado do Emusys: ${d.fatura}${d.forma ? ' | Forma: ' + d.forma : ''}`.slice(0, 400) });
+    rows.push({ studentId: st.id, userId: st.professorId, amount: d.amount.toFixed(2), dueDate: d.dueDate, paidAt: d.paidDate ? new Date(d.paidDate + 'T12:00:00Z') : null, status: d.status, month: d.month, year: d.year, notes: `Importado do Emusys: ${d.fatura}${d.forma ? ' | Forma: ' + d.forma : ''}`.slice(0, 400) });
   }
 
   const esperado = {};

@@ -20,7 +20,7 @@ import {
   getExperimentalStats,
 } from "../db";
 import { organizations, users, students, lessons, instruments, reminders, reminderTemplates, paymentDues, asaasCustomers, settings, studentGoals, studentTimeline, studentFiles, announcements, chatMessages, rescheduleRequests, studentEvolution, aiConversations, aiMessages, aiDocuments, expenses, dailyStudyPlans, notifications, professores, professorPayments, attendanceTokens, attendanceLogs, contracts, fileComments, studioRooms, schoolIntegrations, contractTemplates, contractEvents, crmLeads, crmGoals, crmActivities, fiscalCompanies, fiscalInvoices, fiscalServices, fiscalJobs, fiscalLogs } from "../../drizzle/schema";
-import { eq, desc, sql, and, gte, lt, lte, asc, ne, or, inArray, aliasedTable, ilike, isNotNull } from "drizzle-orm";
+import { eq, desc, sql, and, gte, lt, lte, asc, ne, or, inArray, aliasedTable, ilike, isNotNull, isNull } from "drizzle-orm";
 import { notifyOwner, notifyUser } from "../_core/notification";
 import { handleDbError } from "../utils/error_handler";
 import { TRPCError } from "@trpc/server";
@@ -334,27 +334,32 @@ export const reportsRouters = {
   }),
 
   professores: router({
-    list: protectedProcedure.query(async ({ ctx }) => {
-      const db = await getDb();
-      if (!db) return [];
-      const orgId = ctx.user.organizationId!;
+    list: protectedProcedure
+      .input(z.object({ includeArchived: z.boolean().optional() }).optional())
+      .query(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) return [];
+        const orgId = ctx.user.organizationId!;
 
-      const list = await db.select({
-        professor: professores,
-        userName: users.name,
-        userEmail: users.email,
-        openId: users.openId,
-      })
-        .from(professores)
-        .innerJoin(users, eq(users.id, professores.userId))
-        .where(eq(professores.organizationId, orgId));
+        const list = await db.select({
+          professor: professores,
+          userName: users.name,
+          userEmail: users.email,
+          openId: users.openId,
+        })
+          .from(professores)
+          .innerJoin(users, eq(users.id, professores.userId))
+          .where(and(
+            eq(professores.organizationId, orgId),
+            input?.includeArchived ? undefined : isNull(professores.archivedAt)
+          ));
 
-      return list.map(p => ({
-        ...p.professor,
-        name: p.userName,
-        email: p.userEmail,
-      }));
-    }),
+        return list.map(p => ({
+          ...p.professor,
+          name: p.userName,
+          email: p.userEmail,
+        }));
+      }),
 
     /**
      * Dashboard de professores — ADMIN/OWNER apenas (professor NÃO acessa).
@@ -456,14 +461,17 @@ export const reportsRouters = {
         hourlyRate: p.professor.hourlyRate,
         paymentPercentage: p.professor.paymentPercentage,
         lastSignedIn: p.lastSignedIn,
+        archivedAt: p.professor.archivedAt,
         alunosAtivos: alunosMap.get(p.professor.userId) ?? 0,
         aulasMes: aulasMap.get(p.professor.userId) ?? 0,
         pagamentoMes: pagMap.get(p.professor.id) ?? null,
       }));
 
+      const ativosOut = professoresOut.filter((p) => !p.archivedAt);
+
       return {
         kpis: {
-          totalProfessores: rows.length,
+          totalProfessores: ativosOut.length,
           alunosAtivos: Array.from(alunosMap.values()).reduce((a, b) => a + b, 0),
           aulasMes: Array.from(aulasMap.values()).reduce((a, b) => a + b, 0),
           custoMes: Array.from(pagMap.values()).reduce((a, p) => a + p.totalAmount, 0),
@@ -650,6 +658,44 @@ export const reportsRouters = {
           await tx.delete(users).where(eq(users.id, prof.userId));
         });
 
+        return { success: true };
+      }),
+
+    /** Arquiva um professor (soft): sai das listas/seleções, mantém histórico e login bloqueado nas listas. */
+    archive: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
+        if (ctx.user.role !== "admin" && ctx.user.openId !== ENV.ownerOpenId) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Apenas administradores podem arquivar professores." });
+        }
+        const orgId = ctx.user.organizationId!;
+        const [prof] = await db.select({ id: professores.id }).from(professores)
+          .where(and(eq(professores.id, input.id), eq(professores.organizationId, orgId))).limit(1);
+        if (!prof) throw new TRPCError({ code: "NOT_FOUND", message: "Professor não encontrado" });
+        await db.update(professores)
+          .set({ archivedAt: new Date(), archivedBy: ctx.user.id })
+          .where(and(eq(professores.id, input.id), eq(professores.organizationId, orgId)));
+        return { success: true };
+      }),
+
+    /** Reativa um professor arquivado. */
+    reactivate: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
+        if (ctx.user.role !== "admin" && ctx.user.openId !== ENV.ownerOpenId) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Apenas administradores podem reativar professores." });
+        }
+        const orgId = ctx.user.organizationId!;
+        const [prof] = await db.select({ id: professores.id }).from(professores)
+          .where(and(eq(professores.id, input.id), eq(professores.organizationId, orgId))).limit(1);
+        if (!prof) throw new TRPCError({ code: "NOT_FOUND", message: "Professor não encontrado" });
+        await db.update(professores)
+          .set({ archivedAt: null, archivedBy: null })
+          .where(and(eq(professores.id, input.id), eq(professores.organizationId, orgId)));
         return { success: true };
       }),
   }),
