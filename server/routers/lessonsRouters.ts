@@ -475,11 +475,13 @@ export const lessonsRouters = {
             .orderBy(asc(lessons.scheduledAt));
         }
 
-        // Sem filtro de data: passa professorId para getRecentLessons se for professor
+        // Sem filtro de data: passa professorId para getRecentLessons se for professor.
+        // Limite alto (10k) para a agenda cobrir toda a janela (-3m/+12m) mesmo com
+        // escolas grandes/histórico importado (antes: 500 — outubro "sumia" da agenda).
         if (isProfessor) {
-          return getRecentLessons(orgId, undefined, 500, ctx.user.id);
+          return getRecentLessons(orgId, undefined, 10000, ctx.user.id);
         }
-        return getRecentLessons(orgId, isUserAdmin ? undefined : ctx.user.id, 500);
+        return getRecentLessons(orgId, isUserAdmin ? undefined : ctx.user.id, 10000);
       }),
 
     upcoming: protectedProcedure.query(async ({ ctx }) => {

@@ -1,0 +1,12 @@
+{
+  "name": "migracao-emusys",
+  "private": true,
+  "description": "Kit de migração Emusys -> MusicPro (uso interno). Rode de dentro do repositório do MusicPro ou instale: npm i ssh2 postgres playwright-core",
+  "scripts": {
+    "login": "node 01-login.js",
+    "extrair": "node 02-extrair-alunos.js && node 02-extrair-financeiro.js && node 02-extrair-contratos.js",
+    "consolidar": "node 03-consolidar.js",
+    "simular": "node 04-importar.js",
+    "importar": "node 04-importar.js --commit"
+  }
+}

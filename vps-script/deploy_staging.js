@@ -215,6 +215,8 @@ const filesToUpload = [
   'client/src/pages/Relatorios.tsx',
   'PRD_AGENDA_MOBILE.md',
   'PRD_HISTORICO_ALUNOS.md',
+  // ── Fix agenda: janela -3m/+12m com limite 10k (histórico importado não some mais) ──
+  'server/routers/lessonsRouters.ts',
 ];
 
 console.log('🚀 Iniciando deploy no Ambiente de Testes (STAGING)...');

@@ -1,0 +1,33 @@
+{
+  "emusys": {
+    "base": "https://sys.emusys.com.br",
+    "email": "email-do-cliente@exemplo.com",
+    "password": "senha-do-emusys"
+  },
+  "vps": {
+    "host": "0.0.0.0",
+    "port": 22,
+    "username": "root",
+    "password": "senha-ssh-da-vps"
+  },
+  "db": {
+    "container": "wr-music-app-db-1",
+    "containerIp": "172.18.0.2",
+    "user": "postgres",
+    "password": "senha-do-banco",
+    "database": "wrmusic",
+    "appContainer": "wr-music-app-app-1",
+    "uploadsVolumePath": "/var/lib/docker/volumes/wr-music-app_uploads_data/_data"
+  },
+  "app": {
+    "url": "https://wrmusicpro.com.br",
+    "contractsFolder": "contracts-emusys"
+  },
+  "target": {
+    "organizationId": 0,
+    "adminUserId": 0,
+    "professorOverrides": {},
+    "instrumentoOverrides": {},
+    "financeiroAnoInicial": 2015
+  }
+}

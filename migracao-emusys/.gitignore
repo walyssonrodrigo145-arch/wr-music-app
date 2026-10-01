@@ -1,0 +1,5 @@
+config.json
+.estado/
+saida/
+node_modules/
+package-lock.json
