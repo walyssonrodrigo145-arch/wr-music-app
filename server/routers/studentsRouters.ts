@@ -54,6 +54,47 @@ import { fiscalRouter } from "../fiscalRouter";
 import { FiscalService } from "../services/fiscal/FiscalService";
 import { loginAttempts, safeEqualStr, isReservedSuperAdminEmail, getOrgPlanLimits, syncOrgAsaasSubscription, reconcileOrgAsaasCharges, runCreateAssinafyContract } from "./helpers";
 
+/** Cursos ativos do aluno com professor e conclusão (PRD v1.1 — múltiplos cursos). */
+async function getActiveCoursesForStudent(db: any, orgId: number, studentId: number) {
+  const profUsers = aliasedTable(users, "prof_users");
+  const enrolls = await db.select({
+    id: studentEnrollments.id,
+    instrumentId: studentEnrollments.instrumentId,
+    instrumentName: instruments.name,
+    instrumentColor: instruments.color,
+    teacherUserId: studentEnrollments.teacherUserId,
+    professorName: profUsers.name,
+    startDate: studentEnrollments.startDate,
+    durationMonths: studentEnrollments.durationMonths,
+    endDate: studentEnrollments.endDate,
+    planId: studentEnrollments.planId,
+    status: studentEnrollments.status,
+  }).from(studentEnrollments)
+    .leftJoin(instruments, eq(instruments.id, studentEnrollments.instrumentId))
+    .leftJoin(profUsers, eq(profUsers.id, studentEnrollments.teacherUserId))
+    .where(and(
+      eq(studentEnrollments.organizationId, orgId),
+      eq(studentEnrollments.studentId, studentId),
+      eq(studentEnrollments.status, "ativo"),
+    ));
+
+  const addMonthsClamped = (iso: string, months: number) => {
+    const [y, m, d] = String(iso).slice(0, 10).split("-").map(Number);
+    if (!y || !m || !d) return null;
+    const lastDay = new Date(y, m - 1 + months + 1, 0).getDate();
+    const dt = new Date(y, m - 1 + months, Math.min(d, lastDay));
+    const p = (n: number) => String(n).padStart(2, "0");
+    return `${dt.getFullYear()}-${p(dt.getMonth() + 1)}-${p(dt.getDate())}`;
+  };
+
+  return enrolls.map((e: any) => ({
+    ...e,
+    conclusionDate: e.endDate
+      ? String(e.endDate).slice(0, 10)
+      : (e.startDate ? addMonthsClamped(String(e.startDate), e.durationMonths || 0) : null),
+  }));
+}
+
 function normalizePhoneDigits(value: string | null | undefined) {
   return (value || "").replace(/\D/g, "");
 }
@@ -260,7 +301,8 @@ export const studentsRouters = {
       }
 
       debugLog(`[TRPC] students.getForEdit: Successfully retrieved student ${student.name}`);
-      return student;
+      const courses = await getActiveCoursesForStudent(db, orgId, input.id);
+      return { ...student, courses };
     }),
     getDetails: protectedProcedure.input(z.object({ id: z.number() })).query(async ({ ctx, input }) => {
       const db = await getDb();
@@ -380,8 +422,11 @@ export const studentsRouters = {
 
       debugLog(`[TRPC] Successfully fetched all info for student ${input.id}. Portal access: ${!!studentUser}`);
 
+      const courses = await getActiveCoursesForStudent(db, orgId, input.id);
+
       return {
         ...student,
+        courses,
         lastPaymentDate: lastPayment?.paidAt || null,
         nextDueDate: nextPayment?.dueDate || null, 
         hasPortalAccess: !!studentUser,

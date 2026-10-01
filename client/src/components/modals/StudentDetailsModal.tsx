@@ -261,6 +261,29 @@ export function StudentDetailsModal({ open, onOpenChange, studentId, onEdit, onD
               {/* PRD Repertório — músicas do aluno visíveis no perfil */}
               <RepertoireSummarySection studentId={student.id} />
 
+              {/* PRD v1.1 — Cursos do aluno (professor + conclusão por curso) */}
+              {Array.isArray((student as any).courses) && (student as any).courses.length > 0 && (
+                <div className="rounded-2xl border border-border/50 bg-card/50 p-4 space-y-3">
+                  <p className="text-[10px] font-black uppercase tracking-[0.15em] text-muted-foreground">
+                    Cursos ({((student as any).courses as any[]).length})
+                  </p>
+                  {((student as any).courses as any[]).map((c: any) => (
+                    <div key={c.id} className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className="w-2 h-2 rounded-full shrink-0" style={{ background: c.instrumentColor || student.instrumentColor || "#6366f1" }} />
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold text-foreground truncate">{c.instrumentName || "Curso"}</p>
+                          <p className="text-[10px] text-muted-foreground truncate">Prof. {c.professorName || "—"}</p>
+                        </div>
+                      </div>
+                      <span className={cn("text-[10px] font-black whitespace-nowrap", c.conclusionDate ? "text-primary" : "text-muted-foreground/60")}>
+                        {c.conclusionDate ? `Conclui em ${String(c.conclusionDate).slice(0, 10).split("-").reverse().join("/")}` : "Em andamento"}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               {/* Contratos digitais */}
               <StudentContractsSection studentId={student.id} student={student} />
             </div>

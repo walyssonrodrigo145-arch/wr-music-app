@@ -219,6 +219,11 @@ export default function NovoAluno() {
     schoolPlanId: null as number | null,
   });
 
+  // ── Múltiplos cursos (PRD v1.1) ─────────────────────────────────────────────
+  const [courseCount, setCourseCount] = useState(1);
+  const [extraCourses, setExtraCourses] = useState<Array<{ id?: number; instrumentId: string; teacherUserId: string }>>([]);
+  const [coursesDirty, setCoursesDirty] = useState(false);
+
   // Pre-populate form when editing
   useEffect(() => {
     if (isEditMode && studentData) {
@@ -254,6 +259,12 @@ export default function NovoAluno() {
         monthsCount: 3,
         schoolPlanId: (studentData as any).schoolPlanId ?? null,
       });
+
+      // Múltiplos cursos (PRD v1.1): carrega os cursos atuais do aluno
+      const cs: any[] = (studentData as any).courses || [];
+      setCourseCount(Math.max(1, Math.min(4, cs.length || 1)));
+      setExtraCourses(cs.slice(1).map((c: any) => ({ id: c.id, instrumentId: String(c.instrumentId || ""), teacherUserId: c.teacherUserId ? String(c.teacherUserId) : "" })));
+      setCoursesDirty(false);
 
       const bd = (studentData as any).birthDate;
       if (bd) {
@@ -420,6 +431,11 @@ export default function NovoAluno() {
       toast.error("Erro ao atualizar aluno: " + msg);
       setIsSaving(false);
     }
+  });
+
+  // Múltiplos cursos (PRD v1.1): sincroniza matrículas no salvar
+  const syncCoursesMutation = trpc.students.syncCourses.useMutation({
+    onError: (e) => toast.error("Erro ao salvar cursos: " + e.message),
   });
 
   // Contrato digital (Assinafy — BYOK): abre o modal de criação de contrato
@@ -804,6 +820,37 @@ export default function NovoAluno() {
     }
 
     setIsSaving(true);
+
+    // Múltiplos cursos (PRD v1.1): sincroniza as matrículas antes de salvar o aluno
+    if (isEditMode && coursesDirty) {
+      const extras = extraCourses.slice(0, Math.max(0, courseCount - 1));
+      if (extras.some((c) => !c.instrumentId)) {
+        toast.error("Escolha o curso/instrumento de cada aula extra.");
+        setIsSaving(false);
+        return;
+      }
+      const todos = [form.instrumentId, ...extras.map((c) => c.instrumentId)].filter(Boolean);
+      if (new Set(todos).size !== todos.length) {
+        toast.error("Instrumento já selecionado em outro curso.");
+        setIsSaving(false);
+        return;
+      }
+      const primary = (studentData as any)?.courses?.[0];
+      const cursos = [
+        {
+          id: primary?.id as number | undefined,
+          instrumentId: form.instrumentId ? Number(form.instrumentId) : Number(primary?.instrumentId || 0),
+          teacherUserId: (primary?.teacherUserId as number | undefined) ?? (form.professorId ? Number(form.professorId) : null),
+        },
+        ...extras.map((c) => ({ id: c.id, instrumentId: Number(c.instrumentId), teacherUserId: c.teacherUserId ? Number(c.teacherUserId) : null })),
+      ];
+      try {
+        await syncCoursesMutation.mutateAsync({ studentId: studentId!, courses: cursos as any });
+      } catch {
+        setIsSaving(false);
+        return;
+      }
+    }
 
     const payload: any = {
       name: form.name.trim(),
@@ -1861,6 +1908,86 @@ export default function NovoAluno() {
                     </div>
                   )}
                 </div>
+
+                {/* PRD v1.1 — Cursos do aluno (quantidade + professor por curso) */}
+                {isEditMode && (
+                  <div className="mt-6 p-4 rounded-xl border border-violet-500/20 bg-violet-500/5 space-y-3">
+                    <div className="flex items-center justify-between gap-3 flex-wrap">
+                      <div>
+                        <p className="text-sm font-bold text-foreground">Cursos do aluno</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">Se o aluno faz mais de um curso, escolha o instrumento e o professor de cada aula extra.</p>
+                      </div>
+                      <Select
+                        value={String(courseCount)}
+                        onValueChange={(v) => {
+                          const n = Number(v);
+                          setCourseCount(n);
+                          setExtraCourses((prev) => {
+                            const next = prev.slice(0, Math.max(0, n - 1));
+                            while (next.length < n - 1) next.push({ instrumentId: "", teacherUserId: "" });
+                            return next;
+                          });
+                          setCoursesDirty(true);
+                        }}
+                      >
+                        <SelectTrigger className="h-10 w-32 rounded-xl border-border bg-background text-xs font-bold">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="rounded-xl p-1">
+                          {[1, 2, 3, 4].map((n) => (
+                            <SelectItem key={n} value={String(n)} className="rounded-lg font-medium">{n} curso{n > 1 ? "s" : ""}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Curso 1: <strong className="text-foreground">{instruments.find((i: any) => String(i.id) === form.instrumentId)?.name || "—"}</strong> · Prof.{" "}
+                      <strong className="text-foreground">{(professores as any[]).find((p: any) => String(p.userId) === form.professorId)?.name || "—"}</strong>
+                    </p>
+                    {Array.from({ length: Math.max(0, courseCount - 1) }).map((_, i) => (
+                      <div key={i} className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Curso {i + 2}</label>
+                          <Select
+                            value={extraCourses[i]?.instrumentId || ""}
+                            onValueChange={(v) => {
+                              setExtraCourses((prev) => prev.map((c, idx) => (idx === i ? { ...c, instrumentId: v } : c)));
+                              setCoursesDirty(true);
+                            }}
+                          >
+                            <SelectTrigger className="h-12 w-full rounded-xl border-border bg-muted/30 text-sm font-semibold px-4">
+                              <SelectValue placeholder="Selecione" />
+                            </SelectTrigger>
+                            <SelectContent className="rounded-xl p-1">
+                              {instruments.map((instr: any) => (
+                                <SelectItem key={instr.id} value={String(instr.id)} className="rounded-lg font-medium">{instr.name}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Professor do curso {i + 2}</label>
+                          <Select
+                            value={extraCourses[i]?.teacherUserId || ""}
+                            onValueChange={(v) => {
+                              setExtraCourses((prev) => prev.map((c, idx) => (idx === i ? { ...c, teacherUserId: v } : c)));
+                              setCoursesDirty(true);
+                            }}
+                          >
+                            <SelectTrigger className="h-12 w-full rounded-xl border-border bg-muted/30 text-sm font-semibold px-4">
+                              <SelectValue placeholder="Professor atual" />
+                            </SelectTrigger>
+                            <SelectContent className="rounded-xl p-1">
+                              {(professores as any[]).map((p: any) => (
+                                <SelectItem key={p.userId} value={String(p.userId)} className="rounded-lg font-medium">{p.name}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
 
                 {/* PLANOS & BOLSAS: catálogo da escola (somente no cadastro) */}
                 {!isEditMode && schoolPlans.length > 0 && (

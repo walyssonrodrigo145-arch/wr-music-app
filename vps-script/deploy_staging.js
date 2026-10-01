@@ -233,6 +233,8 @@ const filesToUpload = [
   'client/src/pages/financeiro/MensalidadesTab.tsx',
   'client/src/components/alunos/StudentModal.tsx',
   'client/src/components/alunos/types.ts',
+  'client/src/pages/NovoAluno.tsx',
+  'client/src/components/modals/StudentDetailsModal.tsx',
   'PRD_RESPONSAVEL_FINANCEIRO_E_CONCLUSAO_ALUNOS.md',
   // ── Calendário Escolar (feriados/recessos/eventos) ──
   'shared/schoolCalendar.ts',

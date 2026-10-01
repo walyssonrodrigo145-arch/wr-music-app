@@ -33,6 +33,7 @@ export const RELEASES: Release[] = [
     items: [
       { type: "correcao", title: "Arquivados fora do painel", description: "Dívidas de alunos arquivados (Histórico) não aparecem mais no painel de Inadimplentes do dashboard." },
       { type: "correcao", title: "Admin vê todas as dívidas da escola", description: "Antes o painel mostrava apenas as cobranças criadas pelo próprio usuário; agora o admin vê todas as dívidas dos alunos ativos da escola." },
+      { type: "melhoria", title: "Cursos na tela de edição completa e no detalhe do aluno", description: "A seção de múltiplos cursos também está na tela de edição (página inteira) do aluno, e o resumo do aluno lista os cursos com professor e data de conclusão." },
     ],
   },
   {
