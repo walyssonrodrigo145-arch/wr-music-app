@@ -44,10 +44,20 @@ import { MyTicketsList } from "@/components/support/MyTicketsList";
 // ─── Tab types ───────────────────────────────────────────────────────────────
 type Tab = "perfil" | "escola" | "calendario" | "fiscal" | "salas" | "financeiro" | "planos" | "notificacoes" | "aparencia" | "whatsapp" | "integracoes" | "ia" | "prompts" | "reposicoes" | "seguranca" | "ajuda";
 
+// A-7: ids válidos para deep-link ?tab= (inclui fiscal, que existe no render mas faltava na lista)
+const VALID_TABS: Tab[] = ["perfil", "escola", "calendario", "fiscal", "salas", "financeiro", "planos", "notificacoes", "aparencia", "whatsapp", "integracoes", "ia", "prompts", "reposicoes", "seguranca", "ajuda"];
+
+function getInitialTab(): Tab {
+  if (typeof window === "undefined") return "perfil";
+  const tab = new URLSearchParams(window.location.search).get("tab");
+  return tab && (VALID_TABS as string[]).includes(tab) ? (tab as Tab) : "perfil";
+}
+
 const TABS: { id: Tab; label: string; icon: React.ElementType; href?: string }[] = [
   { id: "perfil", label: "Perfil", icon: User },
   { id: "escola", label: "Escola", icon: Building2 },
   { id: "calendario", label: "Calendário", icon: CalendarDays },
+  { id: "fiscal", label: "Fiscal", icon: Receipt },
   { id: "financeiro", label: "Financeiro", icon: DollarSign },
   { id: "planos", label: "Planos & Bolsas", icon: GraduationCap },
   { id: "reposicoes", label: "Reposições", icon: Repeat },
@@ -69,7 +79,7 @@ export default function Configuracoes() {
   const { theme, setTheme, toggleTheme } = useTheme();
   const utils = trpc.useUtils();
 
-  const [activeTab, setActiveTab] = useState<Tab>("perfil");
+  const [activeTab, setActiveTab] = useState<Tab>(getInitialTab);
   const { startTour } = useTour();
 
   const { data: settings, isLoading } = trpc.settings.get.useQuery();

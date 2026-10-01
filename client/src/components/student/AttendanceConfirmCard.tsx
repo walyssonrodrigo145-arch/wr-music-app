@@ -11,6 +11,7 @@ import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
 export function AttendanceConfirmCard() {
+  const utils = trpc.useUtils();
   const confirmParam = useMemo(() => {
     if (typeof window === "undefined") return null;
     const value = new URLSearchParams(window.location.search).get("confirmar");
@@ -39,6 +40,9 @@ export function AttendanceConfirmCard() {
       } else {
         toast.info("Seu professor foi avisado de que você não irá.");
       }
+      // Invalida o cache para o card sumir/atualizar imediatamente após a resposta
+      utils.studentPortal.myPendingConfirmation.invalidate();
+      utils.studentPortal.getLessons.invalidate();
       if (confirmParam) {
         window.history.replaceState({}, "", window.location.pathname);
       }

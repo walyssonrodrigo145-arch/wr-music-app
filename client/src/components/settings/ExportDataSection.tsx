@@ -14,7 +14,7 @@ export function ExportDataSection() {
     setExporting(type);
     try {
       const { data } = await refetch();
-      if (!data) { toast.error('Erro ao carregar os dados'); return; }
+      if (!data) { toast.error('Erro ao carregar os dados'); setExporting(null); return; }
 
       const date = new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
 

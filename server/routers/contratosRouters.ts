@@ -3,7 +3,7 @@ import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "../_core/cookies";
 import { systemRouter } from "../_core/systemRouter";
 import { fcmRouter } from "../fcmRouter";
-import { publicProcedure, protectedProcedure, professorProcedure, studentProcedure, router } from "../_core/trpc";
+import { publicProcedure, protectedProcedure, professorProcedure, studentProcedure, adminProcedure, router } from "../_core/trpc";
 import { slotAdvanceRouter } from "../slotAdvanceRouter";
 import {
   getDashboardStats,
@@ -597,7 +597,7 @@ export const contratosRouters = {
       };
     }),
 
-    connect: protectedProcedure
+    connect: adminProcedure
       .input(z.object({
         apiKey: z.string().min(10),
         environment: z.enum(["sandbox", "production"]),
@@ -710,7 +710,7 @@ export const contratosRouters = {
       }
     }),
 
-    updateApiKey: protectedProcedure
+    updateApiKey: adminProcedure
       .input(z.object({ apiKey: z.string().min(10) }))
       .mutation(async ({ ctx, input }) => {
         const db = await getDb();
@@ -753,7 +753,7 @@ export const contratosRouters = {
         }
       }),
 
-    disconnect: protectedProcedure.mutation(async ({ ctx }) => {
+    disconnect: adminProcedure.mutation(async ({ ctx }) => {
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB indisponível" });
       const orgId = ctx.user.organizationId!;

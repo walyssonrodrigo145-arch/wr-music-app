@@ -27,7 +27,7 @@ export function RescheduleModal({ open, onOpenChange, lessonId, lessonTitle }: R
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const utils = trpc.useContext();
 
-  const { data: scheduleData, isLoading: isLoadingSchedule } = trpc.studentPortal.getTeacherSchedule.useQuery(
+  const { data: scheduleData, isLoading: isLoadingSchedule, isError: isScheduleError, refetch: refetchSchedule } = trpc.studentPortal.getTeacherSchedule.useQuery(
     { lessonId },
     { enabled: open }
   );
@@ -172,6 +172,14 @@ export function RescheduleModal({ open, onOpenChange, lessonId, lessonTitle }: R
           <div className="flex flex-col items-center justify-center py-10 space-y-4">
             <Loader2 className="animate-spin text-primary w-8 h-8" />
             <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Analisando agenda...</p>
+          </div>
+        ) : isScheduleError ? (
+          <div className="flex flex-col items-center justify-center py-10 space-y-4 text-center">
+            <p className="text-sm font-bold text-rose-500">Não foi possível carregar os horários disponíveis.</p>
+            <p className="text-xs text-muted-foreground">Verifique sua conexão e tente novamente.</p>
+            <Button type="button" variant="outline" onClick={() => refetchSchedule()} className="rounded-xl font-bold text-xs">
+              Tentar novamente
+            </Button>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-6 py-2">

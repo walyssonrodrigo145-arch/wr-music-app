@@ -28,6 +28,15 @@ interface HolidayRow {
   type: string;
 }
 
+/** Data padrão de lançamento para o ano visualizado (mesmo mês/dia de hoje, com clamp de dia). */
+function defaultDateForYear(targetYear: number) {
+  const hoje = new Date();
+  const mes = hoje.getMonth() + 1;
+  const ultimoDia = new Date(targetYear, mes, 0).getDate();
+  const dia = Math.min(hoje.getDate(), ultimoDia);
+  return `${targetYear}-${String(mes).padStart(2, "0")}-${String(dia).padStart(2, "0")}`;
+}
+
 export function CalendarioEscolar() {
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
@@ -37,6 +46,7 @@ export function CalendarioEscolar() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [novoNome, setNovoNome] = useState("");
   const [novoTipo, setNovoTipo] = useState<SchoolHolidayType>("feriado_nacional");
+  const [dataLancamento, setDataLancamento] = useState(() => defaultDateForYear(new Date().getFullYear()));
 
   const { data: holidays = [], isLoading } = trpc.schoolHolidays.list.useQuery({ year }, { staleTime: 30_000 });
 
@@ -75,6 +85,7 @@ export function CalendarioEscolar() {
   });
 
   const doAdd = (date: string) => {
+    if (!date) return toast.error("Escolha uma data para o lançamento.");
     if (novoNome.trim().length < 2) return toast.error("Dê um nome para a data (ex.: Aniversário da cidade).");
     createMutation.mutate({ date, name: novoNome.trim(), type: novoTipo });
   };
@@ -120,9 +131,9 @@ export function CalendarioEscolar() {
               <Button
                 className="h-10 rounded-2xl text-xs font-bold gap-2"
                 onClick={() => {
-                  const hoje = new Date();
-                  const date = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, "0")}-${String(hoje.getDate()).padStart(2, "0")}`;
+                  const date = defaultDateForYear(year);
                   setSelectedDate(date);
+                  setDataLancamento(date);
                   setNovoNome("");
                   setNovoTipo("recesso");
                 }}
@@ -169,7 +180,7 @@ export function CalendarioEscolar() {
                 </div>
                 <div className="grid grid-cols-7 gap-1">
                   {cells.map((cell, i) => {
-                    if (!cell) return <span key={i} className="h-8" />;
+                    if (!cell) return <span key={i} className="h-9 sm:h-10" />;
                     const entries = porData.get(cell.date) || [];
                     const principal = entries[0];
                     const style = principal ? TYPE_STYLES[principal.type as SchoolHolidayType] || TYPE_STYLES.feriado_nacional : null;
@@ -181,11 +192,12 @@ export function CalendarioEscolar() {
                         onClick={() => {
                           if (!isAdmin && !entries.length) return;
                           setSelectedDate(cell.date);
+                          setDataLancamento(cell.date);
                           setNovoNome("");
                           setNovoTipo(entries.length ? "evento" : "recesso");
                         }}
                         className={cn(
-                          "h-8 rounded-lg text-xs font-bold tabular-nums transition-colors flex items-center justify-center relative",
+                          "h-9 sm:h-10 rounded-lg text-xs font-bold tabular-nums transition-colors flex items-center justify-center relative",
                           entries.length
                             ? style!.chip
                             : "text-muted-foreground hover:bg-muted/60",
@@ -253,6 +265,18 @@ export function CalendarioEscolar() {
             {isAdmin && (
               <div className="space-y-2 rounded-2xl border border-border/70 bg-muted/20 p-3">
                 <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em]">Adicionar neste dia</p>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em]">Data do lançamento</label>
+                  <Input
+                    type="date"
+                    value={dataLancamento}
+                    onChange={(e) => {
+                      setDataLancamento(e.target.value);
+                      if (e.target.value) setSelectedDate(e.target.value);
+                    }}
+                    className="h-10 rounded-xl"
+                  />
+                </div>
                 <Input value={novoNome} onChange={(e) => setNovoNome(e.target.value)} placeholder="Ex.: Feriado da cidade / Recesso de julho" className="h-10 rounded-xl" />
                 <div className="flex flex-wrap gap-1.5">
                   {SCHOOL_HOLIDAY_TYPES.map((t) => (
@@ -271,7 +295,7 @@ export function CalendarioEscolar() {
                 </div>
                 <Button
                   className="w-full h-10 rounded-xl text-xs font-bold gap-2"
-                  onClick={() => selectedDate && doAdd(selectedDate)}
+                  onClick={() => doAdd(dataLancamento)}
                   disabled={createMutation.isPending}
                 >
                   {createMutation.isPending ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}

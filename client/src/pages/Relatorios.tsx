@@ -194,6 +194,11 @@ const Relatorios: React.FC = () => {
   const inactiveStudents = useMemo(() => studentsQuery.data?.filter((s: any) => s.status === 'inativo').length || 0, [studentsQuery.data]);
   const pausedStudents  = useMemo(() => studentsQuery.data?.filter((s: any) => s.status === 'pausado').length || 0, [studentsQuery.data]);
   const totalStudents   = useMemo(() => (studentsQuery.data?.length || 1), [studentsQuery.data]);
+  const totalStudentsCount = useMemo(() => studentsQuery.data?.length || 0, [studentsQuery.data]);
+  const conversionRate = useMemo(
+    () => (totalStudentsCount > 0 ? Math.round((activeStudents / totalStudentsCount) * 100) : null),
+    [activeStudents, totalStudentsCount],
+  );
 
   const tooltipStyle = {
     backgroundColor: 'var(--card)',
@@ -586,7 +591,7 @@ const Relatorios: React.FC = () => {
             transition={{ delay: 0.3, type: 'spring', stiffness: 150 }}
             className="text-5xl font-black text-primary mt-5 font-outfit"
           >
-            82%
+            {conversionRate != null ? `${conversionRate}%` : "—"}
           </motion.p>
         </ChartCard>
       </div>
@@ -1136,7 +1141,7 @@ const Relatorios: React.FC = () => {
               onChange={e => setSelectedYear(Number(e.target.value))}
               className="bg-muted border border-border rounded-xl text-xs font-bold py-2.5 px-4 text-foreground focus:ring-2 focus:ring-primary/40 focus:border-primary cursor-pointer transition-all outline-none"
             >
-              {[2023, 2024, 2025, 2026].map(y => (
+              {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i).map(y => (
                 <option key={y} value={y}>{y}</option>
               ))}
             </select>
@@ -1150,7 +1155,7 @@ const Relatorios: React.FC = () => {
               <DropdownMenuItem 
                 onClick={() => handleExport('excel', true)} 
                 disabled={generateReport.isPending} 
-                className="text-xs text-primary font-bold cursor-pointer bg-purple-50 flex items-center"
+                className="text-xs text-primary font-bold cursor-pointer bg-muted/40 flex items-center"
               >
                 {generateReport.isPending ? <Loader2 size={14} className="animate-spin mr-2" /> : "✨ "}
                 Gerar Análise com IA (Excel)

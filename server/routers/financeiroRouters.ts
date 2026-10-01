@@ -5,7 +5,7 @@ import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "../_core/cookies";
 import { systemRouter } from "../_core/systemRouter";
 import { fcmRouter } from "../fcmRouter";
-import { publicProcedure, protectedProcedure, professorProcedure, studentProcedure, router } from "../_core/trpc";
+import { publicProcedure, protectedProcedure, professorProcedure, studentProcedure, adminProcedure, router } from "../_core/trpc";
 import { slotAdvanceRouter } from "../slotAdvanceRouter";
 import {
   getDashboardStats,
@@ -1605,7 +1605,15 @@ export const financeiroRouters = {
         .where(and(
           eq(paymentDues.organizationId, orgId),
           // Admin vê todas as dívidas da escola; professor vê apenas as dos seus alunos
-          isUserAdmin ? undefined : eq(paymentDues.userId, ctx.user.id),
+          isUserAdmin
+            ? undefined
+            : inArray(
+                paymentDues.studentId,
+                db.select({ id: students.id }).from(students).where(and(
+                  eq(students.organizationId, orgId),
+                  eq(students.professorId, ctx.user.id),
+                ))
+              ),
           input?.onlyActive ? eq(students.status, 'ativo') : undefined,
           input?.onlyActive ? isNull(students.deletedAt) : undefined,
           sql`${paymentDues.dueDate} < ${today}`,
@@ -2332,6 +2340,7 @@ export const financeiroRouters = {
         const db = await getDb();
         if (!db) return [];
         const orgId = ctx.user.organizationId!;
+        const isUserAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
 
         const payments = await db.select({
           payment: professorPayments,
@@ -2345,6 +2354,7 @@ export const financeiroRouters = {
             eq(professorPayments.organizationId, orgId),
             eq(professorPayments.month, input.month),
             eq(professorPayments.year, input.year),
+            isUserAdmin ? undefined : eq(professores.userId, ctx.user.id),
           ))
           .orderBy(asc(users.name));
 
@@ -2364,12 +2374,22 @@ export const financeiroRouters = {
         if (!db) return [];
         const orgId = ctx.user.organizationId!;
         const targetYear = input.year || new Date().getFullYear();
+        const isUserAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
 
         const payments = await db.select()
           .from(professorPayments)
           .where(and(
             eq(professorPayments.organizationId, orgId),
             eq(professorPayments.year, targetYear),
+            isUserAdmin
+              ? undefined
+              : inArray(
+                  professorPayments.professorId,
+                  db.select({ id: professores.id }).from(professores).where(and(
+                    eq(professores.organizationId, orgId),
+                    eq(professores.userId, ctx.user.id),
+                  ))
+                ),
           ));
 
         // Group totals by month (1..12)
@@ -2396,7 +2416,7 @@ export const financeiroRouters = {
         }));
       }),
 
-    createManual: protectedProcedure
+    createManual: adminProcedure
       .input(z.object({
         professorId: z.number(),
         month: z.number().min(1).max(12),
@@ -2442,7 +2462,7 @@ export const financeiroRouters = {
         return newPayment;
       }),
 
-    calculate: protectedProcedure
+    calculate: adminProcedure
       .input(z.object({
         professorId: z.number(),
         month: z.number().min(1).max(12),
@@ -2475,7 +2495,7 @@ export const financeiroRouters = {
           return handleDbError(error, "calcular pagamento do professor");
         }
       }),
-    calculateAll: protectedProcedure
+    calculateAll: adminProcedure
       .input(z.object({
         month: z.number().min(1).max(12),
         year: z.number().min(2020).max(2100),
@@ -2503,7 +2523,7 @@ export const financeiroRouters = {
           return handleDbError(error, "calcular pagamentos de todos os professores");
         }
       }),
-    approve: protectedProcedure
+    approve: adminProcedure
       .input(z.object({ id: z.number() }))
       .mutation(async ({ ctx, input }) => {
         try {
@@ -2542,7 +2562,7 @@ export const financeiroRouters = {
         }
       }),
 
-    markPaid: protectedProcedure
+    markPaid: adminProcedure
       .input(z.object({ id: z.number() }))
       .mutation(async ({ ctx, input }) => {
         try {
@@ -2603,6 +2623,11 @@ export const financeiroRouters = {
 
         const [prof] = await db.select().from(professores).where(eq(professores.id, payment.professorId)).limit(1);
         if (!prof) throw new TRPCError({ code: "NOT_FOUND", message: "Professor não encontrado" });
+
+        const isUserAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
+        if (!isUserAdmin && prof.userId !== ctx.user.id) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Você não tem permissão para acessar este pagamento." });
+        }
 
         const profStudents = await db.select({ id: students.id }).from(students).where(and(
           eq(students.organizationId, orgId),

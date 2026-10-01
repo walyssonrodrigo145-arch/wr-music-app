@@ -56,6 +56,41 @@ import { FiscalService } from "../services/fiscal/FiscalService";
 import { loginAttempts, safeEqualStr, isReservedSuperAdminEmail, getOrgPlanLimits, syncOrgAsaasSubscription, reconcileOrgAsaasCharges, runCreateAssinafyContract } from "./helpers";
 import { createFileToken } from "../_core/fileTokens";
 
+// A-12: helper central de permissões do PORTAL DO ALUNO (server-side).
+// Reaproveita o parse de students.permissions já usado em getDashboard/getProfile
+// para que ocultar o menu no client não seja a única barreira de acesso.
+type StudentPermissions = {
+  canSeeFinanceiro: boolean;
+  canSeeProgress: boolean;
+  canSeeFiles: boolean;
+  canSeeSchedule: boolean;
+  canSeeMessages: boolean;
+};
+
+const DEFAULT_STUDENT_PERMISSIONS: StudentPermissions = {
+  canSeeFinanceiro: true,
+  canSeeProgress: true,
+  canSeeFiles: true,
+  canSeeSchedule: true,
+  canSeeMessages: true,
+};
+
+async function getStudentPermissions(db: any, studentId: number): Promise<StudentPermissions> {
+  try {
+    const [student] = await db.select({ permissions: students.permissions })
+      .from(students)
+      .where(eq(students.id, studentId))
+      .limit(1);
+    if (student?.permissions) {
+      const parsed = JSON.parse(student.permissions);
+      return { ...DEFAULT_STUDENT_PERMISSIONS, ...parsed };
+    }
+  } catch (e) {
+    console.error("[studentPortal] Error parsing permissions for student", studentId, e);
+  }
+  return { ...DEFAULT_STUDENT_PERMISSIONS };
+}
+
 export const portalRouters = {
   chat: router({
     getMessages: protectedProcedure.input(z.object({ withUserId: z.number() })).query(async ({ ctx, input }) => {
@@ -83,6 +118,36 @@ export const portalRouters = {
        const db = await getDb();
        if (!db) throw new Error("Database not available");
        const orgId = ctx.user.organizationId!;
+
+       // B-chat: destinatário precisa existir na mesma organização
+       const [receiver] = await db.select({ id: users.id, role: users.role })
+         .from(users)
+         .where(and(eq(users.id, input.receiverId), eq(users.organizationId, orgId)))
+         .limit(1);
+       if (!receiver) {
+         throw new TRPCError({ code: "FORBIDDEN", message: "Destinatário não encontrado nesta escola." });
+       }
+
+       // B-chat: se o remetente for aluno, só pode falar com o professor efetivo ou admin
+       let senderStudentId = ctx.user.studentId;
+       if (!senderStudentId) {
+         const [found] = await db.select({ id: students.id }).from(students)
+           .where(and(eq(students.studentUserId, ctx.user.id), eq(students.organizationId, orgId)))
+           .limit(1);
+         if (found) senderStudentId = found.id;
+       }
+       if (senderStudentId) {
+         const [senderStudent] = await db.select({ professorId: students.professorId })
+           .from(students)
+           .where(eq(students.id, senderStudentId))
+           .limit(1);
+         const isAdminReceiver = receiver.role === "admin";
+         const isProfessorReceiver = !!senderStudent?.professorId && receiver.id === senderStudent.professorId;
+         if (!isAdminReceiver && !isProfessorReceiver) {
+           throw new TRPCError({ code: "FORBIDDEN", message: "Você só pode enviar mensagens ao seu professor." });
+         }
+       }
+
        await db.insert(chatMessages).values({
          organizationId: orgId,
          senderId: ctx.user.id,
@@ -383,6 +448,10 @@ export const portalRouters = {
       const studentId = ctx.user.studentId || (await db.select({ id: students.id }).from(students).where(eq(students.studentUserId, ctx.user.id)).limit(1).then(res => res[0]?.id));
       if (!studentId) throw new Error("Acesso não autorizado");
 
+      // A-12: permissão canSeeSchedule validada no server
+      const permissions = await getStudentPermissions(db, studentId);
+      if (!permissions.canSeeSchedule) return [];
+
       const orgId = ctx.user.organizationId!;
       const profUsers = aliasedTable(users, "less_prof_users");
       const creatorUsers = aliasedTable(users, "less_creator_users");
@@ -443,6 +512,10 @@ export const portalRouters = {
       const studentId = ctx.user.studentId || (await db.select({ id: students.id }).from(students).where(eq(students.studentUserId, ctx.user.id)).limit(1).then(res => res[0]?.id));
       if (!studentId) throw new Error("Acesso não autorizado");
 
+      // A-12: permissão canSeeFiles validada no server
+      const permissions = await getStudentPermissions(db, studentId);
+      if (!permissions.canSeeFiles) return [];
+
       const orgId = ctx.user.organizationId!;
       return db.select().from(studentFiles).where(and(eq(studentFiles.studentId, studentId), eq(studentFiles.organizationId, orgId))).orderBy(desc(studentFiles.createdAt)).limit(100);
     }),
@@ -474,6 +547,12 @@ export const portalRouters = {
 
       let studentId = ctx.user.studentId || (await db.select({ id: students.id }).from(students).where(eq(students.studentUserId, ctx.user.id)).limit(1).then(res => res[0]?.id));
       if (!studentId) throw new TRPCError({ code: "UNAUTHORIZED", message: "Acesso não autorizado" });
+
+      // A-12: permissão canSeeFiles validada no server (acesso indevido → FORBIDDEN)
+      const permissions = await getStudentPermissions(db, studentId);
+      if (!permissions.canSeeFiles) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Recurso não liberado pelo seu professor." });
+      }
 
       const [file] = await db.select({ id: studentFiles.id, fileUrl: studentFiles.fileUrl, fileName: studentFiles.fileName })
         .from(studentFiles)
@@ -520,6 +599,10 @@ export const portalRouters = {
       const studentId = ctx.user.studentId || (await db.select({ id: students.id }).from(students).where(eq(students.studentUserId, ctx.user.id)).limit(1).then(res => res[0]?.id));
       if (!studentId) throw new Error("Acesso não autorizado");
 
+      // A-12: permissão canSeeProgress validada no server
+      const permissions = await getStudentPermissions(db, studentId);
+      if (!permissions.canSeeProgress) return [];
+
       const orgId = ctx.user.organizationId!;
       return db.select().from(studentGoals).where(and(eq(studentGoals.studentId, studentId), eq(studentGoals.organizationId, orgId))).orderBy(desc(studentGoals.createdAt));
     }),
@@ -529,6 +612,12 @@ export const portalRouters = {
       
       const studentId = ctx.user.studentId || (await db.select({ id: students.id }).from(students).where(eq(students.studentUserId, ctx.user.id)).limit(1).then(res => res[0]?.id));
       if (!studentId) throw new Error("Acesso não autorizado");
+
+      // A-12: permissão canSeeProgress validada no server
+      const permissions = await getStudentPermissions(db, studentId);
+      if (!permissions.canSeeProgress) {
+        return { timeline: [], stats: { lessonsDone: 0, averageGrade: 0 } };
+      }
 
       const orgId = ctx.user.organizationId!;
       const [timeline, done] = await Promise.all([
@@ -550,6 +639,10 @@ export const portalRouters = {
       
       const studentId = ctx.user.studentId || (await db.select({ id: students.id }).from(students).where(eq(students.studentUserId, ctx.user.id)).limit(1).then(res => res[0]?.id));
       if (!studentId) throw new Error("Acesso não autorizado");
+
+      // A-12: permissão canSeeFinanceiro validada no server
+      const permissions = await getStudentPermissions(db, studentId);
+      if (!permissions.canSeeFinanceiro) return [];
 
       const orgId = ctx.user.organizationId!;
       return db.select().from(paymentDues).where(and(eq(paymentDues.studentId, studentId), eq(paymentDues.organizationId, orgId))).orderBy(desc(paymentDues.dueDate));
@@ -595,12 +688,13 @@ export const portalRouters = {
        if (!db) throw new Error("Database not available");
 
        let studentId = ctx.user.studentId;
-       let [student] = studentId ? await db.select({ permissions: students.permissions }).from(students).where(eq(students.id, studentId)).limit(1) : [null];
+       let [student] = studentId ? await db.select({ permissions: students.permissions, professorId: students.professorId }).from(students).where(eq(students.id, studentId)).limit(1) : [null];
        if (!student) {
-         [student] = await db.select({ permissions: students.permissions }).from(students).where(eq(students.studentUserId, ctx.user.id)).limit(1);
+         [student] = await db.select({ permissions: students.permissions, professorId: students.professorId }).from(students).where(eq(students.studentUserId, ctx.user.id)).limit(1);
        }
+       if (!student) throw new TRPCError({ code: "FORBIDDEN", message: "Perfil de aluno não encontrado." });
 
-       if (student?.permissions) {
+       if (student.permissions) {
          try {
            const parsed = JSON.parse(student.permissions);
            if (parsed.canSeeMessages === false) {
@@ -616,6 +710,21 @@ export const portalRouters = {
        }
 
        const orgId = ctx.user.organizationId!;
+
+       // B-chat: aluno só pode enviar mensagem ao professor efetivo ou admin da org
+       const [receiver] = await db.select({ id: users.id, role: users.role })
+         .from(users)
+         .where(and(eq(users.id, input.receiverId), eq(users.organizationId, orgId)))
+         .limit(1);
+       if (!receiver) {
+         throw new TRPCError({ code: "FORBIDDEN", message: "Destinatário não encontrado nesta escola." });
+       }
+       const isAdminReceiver = receiver.role === "admin";
+       const isProfessorReceiver = !!student.professorId && receiver.id === student.professorId;
+       if (!isAdminReceiver && !isProfessorReceiver) {
+         throw new TRPCError({ code: "FORBIDDEN", message: "Você só pode enviar mensagens ao seu professor." });
+       }
+
        await db.insert(chatMessages).values({
          organizationId: orgId,
          senderId: ctx.user.id,
@@ -988,8 +1097,21 @@ export const portalRouters = {
         if (!db) throw new Error("Database not available");
         const orgId = ctx.user.organizationId!;
 
-        // Find lesson
-        const [lesson] = await db.select().from(lessons).where(and(eq(lessons.id, input.lessonId), eq(lessons.organizationId, orgId))).limit(1);
+        // A-13: resolve o aluno pelo mesmo fallback das demais procedures do portal
+        let studentId = ctx.user.studentId;
+        if (!studentId) {
+          const [found] = await db.select({ id: students.id }).from(students)
+            .where(eq(students.studentUserId, ctx.user.id)).limit(1);
+          if (found) studentId = found.id;
+        }
+        if (!studentId) throw new TRPCError({ code: "UNAUTHORIZED", message: "Acesso não autorizado" });
+
+        // Find lesson — A-13: a aula precisa pertencer AO aluno logado (antes só id+org)
+        const [lesson] = await db.select().from(lessons).where(and(
+          eq(lessons.id, input.lessonId),
+          eq(lessons.organizationId, orgId),
+          eq(lessons.studentId, studentId)
+        )).limit(1);
         if (!lesson) throw new Error("Lesson not found");
 
         // AGENDA FIX: professor EFETIVO — aulas criadas pelo admin têm userId do
@@ -1722,7 +1844,17 @@ Instruções de análise:
       try {
         const db = await getDb();
         if (!db) throw new Error("Database not available");
-        const [student] = await db.select({ professorId: students.professorId, name: students.name, instrumentId: students.instrumentId }).from(students).where(eq(students.id, ctx.user.studentId!));
+
+        // Fallback de vínculo (students.studentUserId) — ctx.user.studentId pode vir nulo
+        let studentId = ctx.user.studentId;
+        if (!studentId) {
+          const [found] = await db.select({ id: students.id }).from(students)
+            .where(eq(students.studentUserId, ctx.user.id)).limit(1);
+          if (found) studentId = found.id;
+        }
+        const [student] = studentId
+          ? await db.select({ professorId: students.professorId, name: students.name, instrumentId: students.instrumentId }).from(students).where(eq(students.id, studentId))
+          : [undefined];
 
         // FIX: extrair o primeiro nome do aluno (era usado no prompt mas nunca definido → ReferenceError)
         const firstName = (student?.name || "Aluno").trim().split(" ")[0];

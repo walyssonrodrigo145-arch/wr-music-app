@@ -140,6 +140,11 @@ export default function PaymentDueDetailPanel({ paymentId, onClose, gateway, onE
                 Mensalidade {due ? `${String(due.month).padStart(2, "0")}/${due.year}` : ""}
                 {due?.dueDate ? ` • Vence ${format(new Date(String(due.dueDate) + "T12:00:00"), "dd/MM/yyyy")}` : ""}
               </p>
+              {due?.guardianName && String(due.guardianName).trim() !== "" && (
+                <p className="text-[10px] text-amber-600 dark:text-amber-400 font-bold truncate mt-0.5">
+                  Responsável: {String(due.guardianName).trim()}
+                </p>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">

@@ -341,6 +341,10 @@ export default function NovoAluno() {
         setIsMinor(age < 18);
       }
     }
+
+    if (isEditMode && (field === 'instrumentId' || field === 'professorId')) {
+      setCoursesDirty(true);
+    }
   };
 
   // ─── PLANOS & BOLSAS: catálogo da escola (preenche valores automaticamente) ──
@@ -835,12 +839,13 @@ export default function NovoAluno() {
         setIsSaving(false);
         return;
       }
-      const primary = (studentData as any)?.courses?.[0];
+      const cs: any[] = (studentData as any)?.courses || [];
+      const primary = cs.find((c: any) => String(c.instrumentId) === form.instrumentId) || cs[0];
       const cursos = [
         {
           id: primary?.id as number | undefined,
           instrumentId: form.instrumentId ? Number(form.instrumentId) : Number(primary?.instrumentId || 0),
-          teacherUserId: (primary?.teacherUserId as number | undefined) ?? (form.professorId ? Number(form.professorId) : null),
+          teacherUserId: form.professorId ? Number(form.professorId) : ((primary?.teacherUserId as number | undefined) ?? null),
         },
         ...extras.map((c) => ({ id: c.id, instrumentId: Number(c.instrumentId), teacherUserId: c.teacherUserId ? Number(c.teacherUserId) : null })),
       ];

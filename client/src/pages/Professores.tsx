@@ -233,7 +233,7 @@ function ProfessoresPanel() {
     [professores]
   );
   const arquivadosCount = professores.filter((p: any) => p.archivedAt).length;
-  const baseProfessores = showArchived ? professores : professores.filter((p: any) => !p.archivedAt);
+  const baseProfessores = showArchived ? professores.filter((p: any) => p.archivedAt) : professores.filter((p: any) => !p.archivedAt);
   const filtered = baseProfessores.filter((p) => {
     const matchSearch =
       !search.trim() ||

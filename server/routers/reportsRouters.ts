@@ -652,6 +652,23 @@ export const reportsRouters = {
           // Reatribui dados órfãos antes de apagar o usuário
           await tx.update(students).set({ professorId: orgOwnerSubstitute })
             .where(and(eq(students.organizationId, orgId), eq(students.professorId, prof.userId)));
+          // A-6: preserva o histórico de aulas do professor excluído no admin que executa
+          await tx.update(lessons).set({ userId: ctx.user.id })
+            .where(and(eq(lessons.organizationId, orgId), eq(lessons.userId, prof.userId)));
+
+          // A-6: professor_payments.professorId aponta para professores.id — move a
+          // folha para o registro de professor do admin (cria se ainda não existir)
+          if (prof.userId !== ctx.user.id) {
+            const [adminProf] = await tx.select({ id: professores.id }).from(professores)
+              .where(and(eq(professores.organizationId, orgId), eq(professores.userId, ctx.user.id)))
+              .limit(1);
+            const adminProfessorId = adminProf
+              ? adminProf.id
+              : (await tx.insert(professores).values({ organizationId: orgId, userId: ctx.user.id }).returning({ id: professores.id }))[0].id;
+            await tx.update(professorPayments).set({ professorId: adminProfessorId })
+              .where(and(eq(professorPayments.organizationId, orgId), eq(professorPayments.professorId, input.id)));
+          }
+
           await tx.delete(reminders).where(and(eq(reminders.organizationId, orgId), eq(reminders.userId, prof.userId)));
           await tx.delete(settings).where(eq(settings.userId, prof.userId));
           await tx.delete(professores).where(eq(professores.id, input.id));

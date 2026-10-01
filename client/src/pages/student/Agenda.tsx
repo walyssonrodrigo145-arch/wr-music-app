@@ -159,7 +159,7 @@ export default function StudentAgenda() {
                             animate={{ opacity: 1, scale: 1 }}
                             key={lesson.id} 
                             className={cn(
-                              "p-3 rounded-2xl border-l-4 text-[10px] font-bold cursor-pointer hover:shadow-lg transition-all group/item relative overflow-hidden",
+                              "p-3 rounded-2xl border-l-4 text-[10px] font-bold transition-all group/item relative overflow-hidden",
                               lesson.status === 'concluida' 
                                 ? "bg-green-500/5 border-green-500/30 text-green-700" 
                                 : "bg-primary/5 border-primary text-primary"
@@ -191,7 +191,7 @@ export default function StudentAgenda() {
                              
                               <div className="flex items-center gap-1.5 opacity-80 text-[9px]">
                                 <MapPin size={10} className="text-primary shrink-0" />
-                                {lesson.lessonType === 'online' ? (
+                                {((lesson as any).studentLessonType ?? lesson.lessonType) === 'online' ? (
                                   <span className="truncate text-indigo-400 font-semibold">Online</span>
                                 ) : (
                                   <span className="flex items-center gap-1 truncate max-w-[90%] font-medium">

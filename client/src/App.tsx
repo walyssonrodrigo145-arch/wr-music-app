@@ -84,6 +84,13 @@ function AssinaturaAdminOnly() {
   return <Assinatura />;
 }
 
+function NotasFiscaisAdminOnly() {
+  const { user, loading } = useAuth();
+  if (loading) return <PageLoader />;
+  if (user && user.role !== "admin") return <Redirect to="/dashboard" />;
+  return <NotasFiscais />;
+}
+
 const PublicEnrollmentPage = lazy(() => import("./pages/PublicEnrollment"));
 
 function Router() {
@@ -282,14 +289,13 @@ function Router() {
           <Route path="/comercial" component={LeadsApp} />
           <Route path="/leads" component={LeadsApp} />
           <Route path="/contratos" component={Contratos} />
+          <Route path="/notas-fiscais" component={NotasFiscaisAdminOnly} />
           <Route path="/tutoriais" component={Tutoriais} />
           <Route path="/novidades" component={Novidades} />
           <Route path="/salas" component={SalasEstudio} />
           <Route path="/salas-estudio" component={SalasEstudio} />
           <Route path="/checkout" component={Checkout} />
-          <Route>
-            <Redirect to="/dashboard" />
-          </Route>
+          <Route component={NotFound} />
         </Switch>
       </Suspense>
     </MusicLayout>

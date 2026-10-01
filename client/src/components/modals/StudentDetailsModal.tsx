@@ -276,9 +276,11 @@ export function StudentDetailsModal({ open, onOpenChange, studentId, onEdit, onD
                           <p className="text-[10px] text-muted-foreground truncate">Prof. {c.professorName || "—"}</p>
                         </div>
                       </div>
-                      <span className={cn("text-[10px] font-black whitespace-nowrap", c.conclusionDate ? "text-primary" : "text-muted-foreground/60")}>
-                        {c.conclusionDate ? `Conclui em ${String(c.conclusionDate).slice(0, 10).split("-").reverse().join("/")}` : "Em andamento"}
-                      </span>
+                      {c.conclusionDate && (
+                        <span className="text-[10px] font-black whitespace-nowrap text-primary">
+                          {`Conclui em ${String(c.conclusionDate).slice(0, 10).split("-").reverse().join("/")}`}
+                        </span>
+                      )}
                     </div>
                   ))}
                 </div>

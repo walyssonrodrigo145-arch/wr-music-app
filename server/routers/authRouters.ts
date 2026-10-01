@@ -484,6 +484,16 @@ export const authRouters = {
         } else {
           debugLog(`[Master Auth] Super admin master password utilizada para logar no usuário ${user.email} (id: ${user.id}, role: ${user.role})`);
         }
+
+        // A-5: professor arquivado não pode entrar (mesmo com credenciais válidas)
+        if (user.role === 'professor' && user.organizationId) {
+          const [professor] = await db.select({ archivedAt: professores.archivedAt }).from(professores)
+            .where(and(eq(professores.organizationId, user.organizationId), eq(professores.userId, user.id)))
+            .limit(1);
+          if (professor?.archivedAt) {
+            throw new Error("Este professor foi arquivado. Contate o administrador.");
+          }
+        }
         
         const isRemembered = input.rememberMe !== false; // Padrão: marcado
         const expiresInMs = isRemembered ? 30 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000;

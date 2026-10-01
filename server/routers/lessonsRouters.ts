@@ -18,7 +18,7 @@ import {
   updateUserProfile,
   getExperimentalStats,
 } from "../db";
-import { organizations, users, students, lessons, instruments, reminders, reminderTemplates, paymentDues, asaasCustomers, settings, studentGoals, studentTimeline, studentFiles, announcements, chatMessages, rescheduleRequests, extraLessonRequests, studentEvolution, aiConversations, aiMessages, aiDocuments, expenses, dailyStudyPlans, notifications, professores, professorPayments, attendanceTokens, attendanceLogs, contracts, fileComments, studioRooms, schoolIntegrations, contractTemplates, contractEvents, crmLeads, crmGoals, crmActivities, fiscalCompanies, fiscalInvoices, fiscalServices, fiscalJobs, fiscalLogs, lessonRepositions, repositionEvents, migrationRuns } from "../../drizzle/schema";
+import { organizations, users, students, lessons, instruments, reminders, reminderTemplates, paymentDues, asaasCustomers, settings, studentGoals, studentTimeline, studentFiles, announcements, chatMessages, rescheduleRequests, extraLessonRequests, studentEvolution, aiConversations, aiMessages, aiDocuments, expenses, dailyStudyPlans, notifications, professores, professorPayments, attendanceTokens, attendanceLogs, contracts, fileComments, studioRooms, schoolIntegrations, contractTemplates, contractEvents, crmLeads, crmGoals, crmActivities, fiscalCompanies, fiscalInvoices, fiscalServices, fiscalJobs, fiscalLogs, lessonRepositions, repositionEvents, migrationRuns, studentEnrollments } from "../../drizzle/schema";
 import { eq, desc, sql, and, gte, lt, lte, asc, ne, or, inArray, aliasedTable, ilike, isNull } from "drizzle-orm";
 import { notifyOwner, notifyUser } from "../_core/notification";
 import { handleDbError } from "../utils/error_handler";
@@ -342,6 +342,21 @@ export const lessonsRouters = {
         if (input?.studentId) {
           const db = await getDb();
           if (!db) return [];
+          if (!isUserAdmin && !isProfessor) {
+            throw new TRPCError({ code: "FORBIDDEN", message: "Acesso restrito a administradores e professores." });
+          }
+          // A-1/A-17: professor só acessa aulas de alunos vinculados a ele
+          // (dono do aluno OU professor de matrícula ativa); aluno nunca.
+          const studentAccess = isUserAdmin
+            ? undefined
+            : or(
+                eq(students.professorId, ctx.user.id),
+                inArray(students.id, db.select({ id: studentEnrollments.studentId }).from(studentEnrollments).where(and(
+                  eq(studentEnrollments.organizationId, orgId),
+                  eq(studentEnrollments.teacherUserId, ctx.user.id),
+                  eq(studentEnrollments.status, "ativo"),
+                )))
+              );
           const profUsers = aliasedTable(users, "prof_users");
           const creatorUsers = aliasedTable(users, "creator_users");
           return db.select({
@@ -375,6 +390,7 @@ export const lessonsRouters = {
             .where(and(
               eq(lessons.organizationId, orgId),
               eq(lessons.studentId, input.studentId),
+              studentAccess,
             ))
             .orderBy(asc(lessons.scheduledAt));
         }
@@ -2179,7 +2195,7 @@ export const lessonsRouters = {
   }),
 
   attendance: router({
-    generateToken: protectedProcedure
+    generateToken: professorProcedure
       .mutation(async ({ ctx }) => {
         try {
           const db = await getDb();
@@ -2215,7 +2231,7 @@ export const lessonsRouters = {
         }
       }),
 
-    getActiveToken: protectedProcedure
+    getActiveToken: professorProcedure
       .query(async ({ ctx }) => {
         const db = await getDb();
         if (!db) return null;
@@ -2461,6 +2477,20 @@ export const lessonsRouters = {
       const db = await getDb();
       if (!db) throw new Error("Database not available");
       const orgId = ctx.user.organizationId!;
+      const isUserAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
+
+      const [request] = await db.select({
+        id: rescheduleRequests.id,
+        professorId: students.professorId,
+      }).from(rescheduleRequests)
+        .leftJoin(students, eq(rescheduleRequests.studentId, students.id))
+        .where(and(eq(rescheduleRequests.id, input.id), eq(rescheduleRequests.organizationId, orgId)))
+        .limit(1);
+      if (!request) throw new TRPCError({ code: "NOT_FOUND", message: "Solicitação não encontrada." });
+      if (!isUserAdmin && request.professorId !== ctx.user.id) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Você não tem permissão para responder esta solicitação." });
+      }
+
       await db.update(rescheduleRequests).set({ status: input.status }).where(and(eq(rescheduleRequests.id, input.id), eq(rescheduleRequests.organizationId, orgId)));
       return { success: true };
     }),
@@ -2468,6 +2498,20 @@ export const lessonsRouters = {
       const db = await getDb();
       if (!db) throw new Error("Database not available");
       const orgId = ctx.user.organizationId!;
+      const isUserAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
+
+      const [request] = await db.select({
+        id: rescheduleRequests.id,
+        professorId: students.professorId,
+      }).from(rescheduleRequests)
+        .leftJoin(students, eq(rescheduleRequests.studentId, students.id))
+        .where(and(eq(rescheduleRequests.id, input.id), eq(rescheduleRequests.organizationId, orgId)))
+        .limit(1);
+      if (!request) throw new TRPCError({ code: "NOT_FOUND", message: "Solicitação não encontrada." });
+      if (!isUserAdmin && request.professorId !== ctx.user.id) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Você não tem permissão para excluir esta solicitação." });
+      }
+
       await db.delete(rescheduleRequests).where(and(eq(rescheduleRequests.id, input.id), eq(rescheduleRequests.organizationId, orgId)));
       return { success: true };
     }),
@@ -2554,6 +2598,20 @@ export const lessonsRouters = {
       const db = await getDb();
       if (!db) throw new Error("Database not available");
       const orgId = ctx.user.organizationId!;
+      const isUserAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
+
+      const [request] = await db.select({
+        id: extraLessonRequests.id,
+        professorId: students.professorId,
+      }).from(extraLessonRequests)
+        .leftJoin(students, eq(extraLessonRequests.studentId, students.id))
+        .where(and(eq(extraLessonRequests.id, input.id), eq(extraLessonRequests.organizationId, orgId)))
+        .limit(1);
+      if (!request) throw new TRPCError({ code: "NOT_FOUND", message: "Solicitação não encontrada." });
+      if (!isUserAdmin && request.professorId !== ctx.user.id) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Você não tem permissão para excluir esta solicitação." });
+      }
+
       await db.delete(extraLessonRequests).where(and(eq(extraLessonRequests.id, input.id), eq(extraLessonRequests.organizationId, orgId)));
       return { success: true };
     }),

@@ -487,11 +487,31 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
         collapsed && "justify-center p-2"
       )}>
         {collapsed ? (
-          <Avatar className="w-9 h-9 cursor-pointer border border-indigo-500/30" title={user?.name ?? "Perfil"}>
-            <AvatarFallback className="bg-indigo-600 text-white text-xs font-extrabold">
-              {initials}
-            </AvatarFallback>
-          </Avatar>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                className="rounded-full outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/60"
+                title={user?.name ?? "Perfil"}
+                aria-label="Menu do usuário"
+              >
+                <Avatar className="w-9 h-9 border border-indigo-500/30">
+                  <AvatarFallback className="bg-indigo-600 text-white text-xs font-extrabold">
+                    {initials}
+                  </AvatarFallback>
+                </Avatar>
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="bg-[#13102B] text-slate-200 border-indigo-950 text-xs w-44">
+              {canSeePage("/configuracoes") && (
+                <DropdownMenuItem onClick={() => (window.location.href = "/configuracoes")} className="cursor-pointer hover:bg-white/5">
+                  <Settings size={14} className="mr-2 text-indigo-400" /> Configurações
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuItem onClick={() => logoutMutation.mutate()} className="cursor-pointer text-rose-400 hover:bg-rose-500/10">
+                <LogOut size={14} className="mr-2" /> Sair
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         ) : (
           <div className="flex items-center justify-between w-full">
             <div className="flex items-center gap-3">

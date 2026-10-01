@@ -95,7 +95,7 @@ export default function Alunos() {
   const canSeeMensalidade = !isProfessor || userPerms.includes('alunos_mensalidade');
   // ────────────────────────────────────────────────────────────────────────────
 
-  const { data: overduePayments = [] } = trpc.paymentDues.overdue.useQuery();
+  const { data: overduePayments = [] } = trpc.paymentDues.overdue.useQuery({ onlyActive: true });
   const { data: upcomingLessons = [] } = trpc.lessons.upcoming.useQuery();
 
   const updateStatusMutation = trpc.students.updateStatus.useMutation({
@@ -617,11 +617,39 @@ export default function Alunos() {
                         </Avatar>
                         <div className="min-w-0 flex-1">
                           <p className="text-sm font-bold text-foreground truncate">{student.name}</p>
-                          <div className="flex items-center gap-1.5 mt-0.5 min-w-0">
-                            <div className="w-2 h-2 rounded-full shrink-0" style={{ background: student.instrumentColor || "#6366f1" }} />
-                            <span className="text-[10px] font-bold text-muted-foreground uppercase truncate">{student.instrumentName}</span>
-                            {student.lessonType === 'turma' && (
-                              <Badge className="h-4 px-1 text-[8px] bg-purple-500/10 text-purple-600 border-none uppercase font-black shrink-0">Turma</Badge>
+                          <div className="flex flex-col gap-1 mt-1">
+                            {Array.isArray((student as any).courses) && (student as any).courses.length > 0 ? (
+                              <>
+                                {(student as any).courses.slice(0, 3).map((c: any, ci: number) => (
+                                  <div key={c.id ?? ci} className="flex flex-col gap-0.5">
+                                    <div className="flex items-center gap-1.5 min-w-0">
+                                      <div className="w-2 h-2 rounded-full shrink-0" style={{ background: c.instrumentColor || student.instrumentColor || "#6366f1" }} />
+                                      <span className="text-[10px] font-bold text-muted-foreground uppercase truncate">{c.instrumentName || "Curso"}</span>
+                                      {ci === 0 && student.lessonType === 'turma' && (
+                                        <Badge className="h-4 px-1 text-[8px] bg-purple-500/10 text-purple-600 border-none uppercase font-black shrink-0">Turma</Badge>
+                                      )}
+                                    </div>
+                                    <span className="text-[10px] text-muted-foreground pl-3.5 truncate">
+                                      Prof. {c.professorName || student.professorName || "—"}
+                                      {c.conclusionDate ? ` · Conclui em ${String(c.conclusionDate).slice(0, 10).split("-").reverse().join("/")}` : ""}
+                                    </span>
+                                  </div>
+                                ))}
+                                {(student as any).courses.length > 3 && (
+                                  <span className="text-[10px] font-bold text-blue-600 pl-1">+{(student as any).courses.length - 3} curso(s)</span>
+                                )}
+                              </>
+                            ) : (
+                              <>
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                  <div className="w-2 h-2 rounded-full shrink-0" style={{ background: student.instrumentColor || "#6366f1" }} />
+                                  <span className="text-[10px] font-bold text-muted-foreground uppercase truncate">{student.instrumentName}</span>
+                                  {student.lessonType === 'turma' && (
+                                    <Badge className="h-4 px-1 text-[8px] bg-purple-500/10 text-purple-600 border-none uppercase font-black shrink-0">Turma</Badge>
+                                  )}
+                                </div>
+                                <span className="text-[10px] text-muted-foreground pl-3.5 truncate">Prof. {student.professorName || "Sem professor"}</span>
+                              </>
                             )}
                           </div>
                         </div>

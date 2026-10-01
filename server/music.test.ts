@@ -519,11 +519,11 @@ describe("students.syncCourses (multiplos cursos)", () => {
   it("cria/atualiza/encerra cursos do aluno", async () => {
     const ctx = createAuthContext();
     const caller = appRouter.createCaller(ctx);
-    // Fila: [aluno], [instrumentos da org], [professores da org], [matriculas ativas existentes]
+    // Fila: [aluno], [instrumentos da org], [matriculas ativas existentes], [professores da org]
     enqueueSelectResult([{ id: 1, professorId: 1652, monthlyFee: "180.00" }]);
     enqueueSelectResult([{ id: 10 }, { id: 11 }]);
-    enqueueSelectResult([{ userId: 1652 }, { userId: 1655 }]);
     enqueueSelectResult([{ id: 50, instrumentId: 10, teacherUserId: 1652, status: "ativo" }]);
+    enqueueSelectResult([{ userId: 1652, archivedAt: null }, { userId: 1655, archivedAt: null }]);
     const result = await caller.students.syncCourses({
       studentId: 1,
       courses: [

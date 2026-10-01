@@ -4,7 +4,7 @@ import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "../_core/cookies";
 import { systemRouter } from "../_core/systemRouter";
 import { fcmRouter } from "../fcmRouter";
-import { publicProcedure, protectedProcedure, professorProcedure, studentProcedure, router } from "../_core/trpc";
+import { publicProcedure, protectedProcedure, professorProcedure, studentProcedure, adminProcedure, router } from "../_core/trpc";
 import { slotAdvanceRouter } from "../slotAdvanceRouter";
 import {
   getDashboardStats,
@@ -95,7 +95,20 @@ export const plataformaRouters = {
   settings: router({
     get: protectedProcedure.query(async ({ ctx }) => {
       const orgId = ctx.user.organizationId!;
-      return getSettingsByUserId(orgId, ctx.user.id);
+      const data: any = await getSettingsByUserId(orgId, ctx.user.id);
+      if (!data) return data;
+
+      const isUserAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
+      if (isUserAdmin) return data;
+
+      // C-3: nunca expor segredos para não-admin (professor/aluno)
+      const masked: Record<string, any> = { ...data };
+      for (const key of Object.keys(masked)) {
+        if (/(api_?key|token|secret)/i.test(key) && typeof masked[key] === "string" && masked[key]) {
+          masked[key] = "";
+        }
+      }
+      return masked;
     }),
 
     // Horários de funcionamento da ESCOLA (organização) — professores leem o mesmo
@@ -181,7 +194,7 @@ export const plataformaRouters = {
         return { success: true };
       }),
 
-    updateSchool: protectedProcedure.input(z.object({
+    updateSchool: adminProcedure.input(z.object({
       schoolName: z.string().optional(),
       schoolCnpj: z.string().optional(),
       schoolAddress: z.string().optional(),
@@ -264,7 +277,7 @@ export const plataformaRouters = {
       return { success: true };
     }),
 
-    updateIA: protectedProcedure.input(z.object({
+    updateIA: adminProcedure.input(z.object({
       aiProvider: z.string().optional(),
       geminiApiKey: z.string().optional(),
       geminiModel: z.string().optional(),
@@ -601,7 +614,7 @@ export const plataformaRouters = {
       return { success: true };
     }),
 
-    updateAsaasIntegration: protectedProcedure.input(z.object({
+    updateAsaasIntegration: adminProcedure.input(z.object({
       asaasApiKey: z.string().optional(),
       asaasEnabled: z.boolean().optional(),
       paymentGateway: z.enum(["asaas", "mercadopago", "infinitepay"]).optional(),
@@ -637,7 +650,7 @@ export const plataformaRouters = {
       return { success: true };
     }),
 
-    updateFinancialSettings: protectedProcedure.input(z.object({
+    updateFinancialSettings: adminProcedure.input(z.object({
       lateFeeEnabled: z.boolean().optional(),
       lateFeeType: z.enum(["fixed", "percentage"]).optional(),
       lateFeeValue: z.number().optional(),

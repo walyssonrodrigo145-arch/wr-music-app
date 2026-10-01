@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { protectedProcedure, professorProcedure, router } from "./_core/trpc";
+import { protectedProcedure, professorProcedure, adminProcedure, router } from "./_core/trpc";
 import { getDb } from "./db";
 import {
   fiscalCompanies,
@@ -17,7 +17,7 @@ import { FiscalService } from "./services/fiscal/FiscalService";
 export const fiscalRouter = router({
   // ─── EMPRESA / CONFIGURAÇÃO FISCAL ───────────────────────────────────────────
   company: router({
-    get: protectedProcedure.query(async ({ ctx }) => {
+    get: adminProcedure.query(async ({ ctx }) => {
       const orgId = ctx.user.organizationId;
       if (!orgId) throw new TRPCError({ code: "UNAUTHORIZED" });
 
@@ -30,10 +30,16 @@ export const fiscalRouter = router({
         .where(eq(fiscalCompanies.organizationId, orgId))
         .limit(1);
 
-      return company || null;
+      if (!company) return null;
+      // C-3: nunca devolver a chave Focus NFe em claro — expõe apenas a existência
+      return {
+        ...company,
+        focusApiKey: "",
+        hasFocusApiKey: Boolean(company.focusApiKey),
+      };
     }),
 
-    save: protectedProcedure
+    save: adminProcedure
       .input(
         z.object({
           cnpj: z.string().min(14, "CNPJ inválido"),
@@ -113,7 +119,7 @@ export const fiscalRouter = router({
         .orderBy(desc(fiscalServices.id));
     }),
 
-    create: protectedProcedure
+    create: adminProcedure
       .input(
         z.object({
           nome: z.string().min(2, "Nome obrigatório"),
@@ -145,7 +151,7 @@ export const fiscalRouter = router({
         return created;
       }),
 
-    update: protectedProcedure
+    update: adminProcedure
       .input(
         z.object({
           id: z.number(),
@@ -177,7 +183,7 @@ export const fiscalRouter = router({
         return updated;
       }),
 
-    delete: protectedProcedure
+    delete: adminProcedure
       .input(z.object({ id: z.number() }))
       .mutation(async ({ ctx, input }) => {
         const orgId = ctx.user.organizationId;

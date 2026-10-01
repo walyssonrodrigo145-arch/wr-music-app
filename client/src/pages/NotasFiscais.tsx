@@ -49,7 +49,6 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { Link } from "wouter";
 
 export default function NotasFiscais() {
   const [search, setSearch] = useState("");
@@ -278,12 +277,14 @@ export default function NotasFiscais() {
         </div>
 
         <div className="flex items-center gap-3">
-          <Link href="/configuracoes">
-            <Button variant="outline" className="rounded-2xl border-border h-11 px-4 font-bold text-xs gap-2">
-              <Building2 size={16} />
-              Configurar Fiscal
-            </Button>
-          </Link>
+          <Button
+            variant="outline"
+            onClick={() => { window.location.href = '/configuracoes?tab=fiscal'; }}
+            className="rounded-2xl border-border h-11 px-4 font-bold text-xs gap-2"
+          >
+            <Building2 size={16} />
+            Configurar Fiscal
+          </Button>
           <Button
             onClick={() => setEmitModalOpen(true)}
             className="rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold h-11 px-5 shadow-lg shadow-emerald-950/20 text-xs gap-2"
@@ -308,11 +309,13 @@ export default function NotasFiscais() {
               </p>
             </div>
           </div>
-          <Link href="/configuracoes">
-            <Button size="sm" className="rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs shrink-0">
-              Completar Cadastro
-            </Button>
-          </Link>
+          <Button
+            size="sm"
+            onClick={() => { window.location.href = '/configuracoes?tab=fiscal'; }}
+            className="rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs shrink-0"
+          >
+            Completar Cadastro
+          </Button>
         </div>
       )}
 

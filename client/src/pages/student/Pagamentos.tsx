@@ -18,7 +18,8 @@ import {
   UploadCloud,
   Sparkles,
   Loader2,
-  XCircle
+  XCircle,
+  ExternalLink
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -50,6 +51,13 @@ const item = {
   show: { x: 0, opacity: 1 }
 };
 
+// O Asaas pode devolver o payload PIX "copia e cola" (começa com 000201) OU
+// apenas uma URL de cobrança. Nunca tratar URL como se fosse payload PIX.
+const isPixPayload = (value?: string | null): boolean => !!value && value.startsWith("000201");
+
+const MAX_RECEIPT_BYTES = 5 * 1024 * 1024;
+const ALLOWED_RECEIPT_TYPES = ["image/jpeg", "image/png", "application/pdf"];
+
 export default function StudentPayments() {
   const utils = trpc.useContext();
   const { data: payments, isLoading } = trpc.studentPortal.getPayments.useQuery();
@@ -67,6 +75,17 @@ export default function StudentPayments() {
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !selectedPayment) return;
+
+    if (file.size > MAX_RECEIPT_BYTES) {
+      toast.error("Arquivo muito grande. Envie um comprovante de até 5 MB.");
+      e.target.value = "";
+      return;
+    }
+    if (!ALLOWED_RECEIPT_TYPES.includes(file.type)) {
+      toast.error("Formato inválido. Envie uma imagem JPG/PNG ou um PDF.");
+      e.target.value = "";
+      return;
+    }
 
     const reader = new FileReader();
     reader.onloadend = async () => {
@@ -206,6 +225,7 @@ export default function StudentPayments() {
                       <div className="flex items-center gap-2">
                         {payment.status === 'pago' ? (
                           <button 
+                            disabled={!payment.receiptUrl}
                             onClick={async () => {
                               if (!payment.receiptUrl) return;
                               await downloadUrl(
@@ -262,7 +282,7 @@ export default function StudentPayments() {
                                   });
                                 }
                               } else if (gateway === "asaas") {
-                                if (payment.asaasBillingType === "PIX" && payment.asaasPaymentLink) {
+                                if (isPixPayload(payment.asaasPaymentLink)) {
                                   setPixCopiaECola(payment.asaasPaymentLink);
                                   setSelectedPayment(payment);
                                   setIsPixModalOpen(true);
@@ -374,7 +394,7 @@ export default function StudentPayments() {
                            });
                          }
                        } else if (gateway === "asaas") {
-                         if (nextPayment?.asaasBillingType === "PIX" && nextPayment?.asaasPaymentLink) {
+                         if (isPixPayload(nextPayment?.asaasPaymentLink)) {
                            setPixCopiaECola(nextPayment.asaasPaymentLink);
                            setSelectedPayment(nextPayment);
                            setIsPixModalOpen(true);
@@ -462,13 +482,14 @@ export default function StudentPayments() {
           </div>
 
           <div className="p-8 space-y-6 max-h-[60vh] overflow-y-auto">
-             {pixCopiaECola ? (
+             {isPixPayload(pixCopiaECola) ? (
                <div className="p-6 bg-muted/50 rounded-3xl border-2 border-dashed border-primary/20 space-y-3">
                   <p className="text-[10px] font-black text-primary uppercase tracking-[0.2em] text-center">PIX Copia e Cola (Asaas)</p>
                   <div className="bg-card border border-border p-4 rounded-2xl flex items-center justify-between gap-4 group">
                      <p className="text-xs font-mono text-foreground truncate flex-1">{pixCopiaECola}</p>
                      <button 
                        onClick={() => {
+                         if (!pixCopiaECola) return;
                          navigator.clipboard.writeText(pixCopiaECola);
                          toast.success("PIX Copia e Cola copiado!");
                        }}
@@ -477,10 +498,23 @@ export default function StudentPayments() {
                         <Copy size={16} />
                      </button>
                   </div>
-                  <p className="text-xs text-center text-muted-foreground mt-4">
-                    Pague no seu aplicativo de banco. A confirmação é automática.
+                   <p className="text-xs text-center text-muted-foreground mt-4">
+                     Pague no seu aplicativo de banco. A confirmação é automática.
+                   </p>
+                </div>
+             ) : pixCopiaECola ? (
+               <div className="p-6 bg-muted/50 rounded-3xl border-2 border-dashed border-primary/20 space-y-4 text-center">
+                  <p className="text-sm font-bold text-foreground">Cobrança gerada pelo Asaas</p>
+                  <p className="text-xs text-muted-foreground">
+                    Esta cobrança está disponível como link de pagamento. Abra para concluir.
                   </p>
-               </div>
+                  <Button
+                    onClick={() => window.open(pixCopiaECola, "_blank")}
+                    className="w-full h-12 rounded-2xl bg-primary hover:bg-primary/90 text-white font-black uppercase tracking-widest text-xs gap-2"
+                  >
+                    <ExternalLink size={16} /> Abrir cobrança
+                  </Button>
+                </div>
              ) : !uploadedImageUrl ? (
                <>
                  <div className="p-6 bg-muted/50 rounded-3xl border-2 border-dashed border-primary/20 space-y-3">
@@ -504,7 +538,7 @@ export default function StudentPayments() {
                  <div className="relative group cursor-pointer">
                     <input 
                       type="file" 
-                      accept="image/*"
+                      accept="image/jpeg,image/png,application/pdf"
                       onChange={handleFileUpload}
                       className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                     />

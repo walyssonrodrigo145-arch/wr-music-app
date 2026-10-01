@@ -38,7 +38,7 @@ export function ExtraLessonModal({ open, onOpenChange }: ExtraLessonModalProps) 
   const [freeText, setFreeText] = useState("");
   const [reason, setReason] = useState("");
 
-  const { data: scheduleData, isLoading: isLoadingSchedule } = trpc.studentPortal.getExtraLessonSchedule.useQuery(
+  const { data: scheduleData, isLoading: isLoadingSchedule, isError: isScheduleError, refetch: refetchSchedule } = trpc.studentPortal.getExtraLessonSchedule.useQuery(
     undefined,
     { enabled: open }
   );
@@ -157,6 +157,14 @@ export function ExtraLessonModal({ open, onOpenChange }: ExtraLessonModalProps) 
           <div className="flex flex-col items-center justify-center py-10 space-y-4">
             <Loader2 className="animate-spin text-primary w-8 h-8" />
             <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Consultando agenda...</p>
+          </div>
+        ) : isScheduleError ? (
+          <div className="flex flex-col items-center justify-center py-10 space-y-4 text-center">
+            <p className="text-sm font-bold text-rose-500">Não foi possível carregar os horários disponíveis.</p>
+            <p className="text-xs text-muted-foreground">Verifique sua conexão e tente novamente.</p>
+            <Button type="button" variant="outline" onClick={() => refetchSchedule()} className="rounded-xl font-bold text-xs">
+              Tentar novamente
+            </Button>
           </div>
         ) : (
           <div className="space-y-6 py-2">

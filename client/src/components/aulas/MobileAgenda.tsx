@@ -327,7 +327,7 @@ export default function MobileAgenda({ lessons, isLoading, onOpenLesson, onOpenA
         <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-0.5">
           {filters.teacherId != null && (
             <FilterChip
-              label={`Prof.: ${(professoresList as any[]).find((p) => p.id === filters.teacherId)?.name || "selecionado"}`}
+              label={`Prof.: ${(professoresList as any[]).find((p) => p.userId === filters.teacherId)?.name || "selecionado"}`}
               onRemove={() => setFilters((c) => ({ ...c, teacherId: undefined }))}
             />
           )}
@@ -483,7 +483,7 @@ export default function MobileAgenda({ lessons, isLoading, onOpenLesson, onOpenA
                 >
                   <option value="">Todos os professores</option>
                   {(professoresList as any[]).map((p) => (
-                    <option key={p.id} value={p.id}>
+                    <option key={p.userId} value={p.userId}>
                       {p.name}
                     </option>
                   ))}

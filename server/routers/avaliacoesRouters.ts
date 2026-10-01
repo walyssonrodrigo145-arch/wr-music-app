@@ -5,7 +5,7 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { and, desc, eq, sql, gte, lte, lt } from "drizzle-orm";
-import { protectedProcedure, studentProcedure, router } from "../_core/trpc";
+import { protectedProcedure, studentProcedure, adminProcedure, router } from "../_core/trpc";
 import { getDb } from "../db";
 import {
   professorEvaluationPeriods,
@@ -106,7 +106,7 @@ export const avaliacoesRouter = router({
   }),
 
   /** Admin define de quanto em quanto tempo o ciclo abre (RF-001). */
-  configure: protectedProcedure
+  configure: adminProcedure
     .input(z.object({
       frequency: z.enum(FREQUENCIES),
       windowDays: z.number().int().min(3).max(30),
@@ -128,7 +128,7 @@ export const avaliacoesRouter = router({
     }),
 
   /** Admin abre um ciclo manualmente (RN-003: único aberto por escola). */
-  openPeriod: protectedProcedure.mutation(async ({ ctx }) => {
+  openPeriod: adminProcedure.mutation(async ({ ctx }) => {
     assertAdmin(ctx);
     const db = await getDb();
     if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Banco de dados não disponível" });
@@ -142,7 +142,7 @@ export const avaliacoesRouter = router({
   }),
 
   /** Admin fecha o ciclo antecipadamente (quem não avaliou perde a chance). */
-  closePeriod: protectedProcedure.input(z.object({ periodId: z.number() })).mutation(async ({ ctx, input }) => {
+  closePeriod: adminProcedure.input(z.object({ periodId: z.number() })).mutation(async ({ ctx, input }) => {
     assertAdmin(ctx);
     const db = await getDb();
     if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Banco de dados não disponível" });
@@ -239,7 +239,7 @@ export const avaliacoesRouter = router({
   }),
 
   /** Admin exclui avaliação (comentário ofensivo etc). */
-  deleteEvaluation: protectedProcedure.input(z.object({ id: z.number() })).mutation(async ({ ctx, input }) => {
+  deleteEvaluation: adminProcedure.input(z.object({ id: z.number() })).mutation(async ({ ctx, input }) => {
     assertAdmin(ctx);
     const db = await getDb();
     if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Banco de dados não disponível" });

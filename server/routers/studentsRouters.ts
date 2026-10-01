@@ -76,7 +76,8 @@ async function getActiveCoursesForStudent(db: any, orgId: number, studentId: num
       eq(studentEnrollments.organizationId, orgId),
       eq(studentEnrollments.studentId, studentId),
       eq(studentEnrollments.status, "ativo"),
-    ));
+    ))
+    .orderBy(asc(studentEnrollments.id));
 
   const addMonthsClamped = (iso: string, months: number) => {
     const [y, m, d] = String(iso).slice(0, 10).split("-").map(Number);
@@ -118,6 +119,23 @@ async function assertCanImportStudents(db: any, ctx: any) {
       role: ctx.user.role,
     });
     throw new TRPCError({ code: "FORBIDDEN", message: "Você não tem permissão para importar alunos." });
+  }
+}
+
+/**
+ * A-4: edição de dados de aluno — admin/dono sempre pode; professor precisa
+ * da permissão de dados `alunos_editar`.
+ */
+async function assertCanEditStudentData(db: any, ctx: any) {
+  if (ctx.user.role === "admin" || ctx.user.openId === ENV.ownerOpenId) return;
+  const orgId = ctx.user.organizationId!;
+  const [prof] = await db.select({ permissions: professores.permissions }).from(professores)
+    .where(and(eq(professores.organizationId, orgId), eq(professores.userId, ctx.user.id)))
+    .limit(1);
+  const raw = Array.isArray(prof?.permissions) ? (prof!.permissions as string[]) : [];
+  const allowed = raw.some((p) => String(p).replace(/^\//, "") === "alunos_editar");
+  if (!allowed) {
+    throw new TRPCError({ code: "FORBIDDEN", message: "Você não tem permissão para editar alunos." });
   }
 }
 
@@ -653,6 +671,10 @@ export const studentsRouters = {
         if (!db) throw new Error("Banco de dados não disponível");
         
         const orgId = ctx.user.organizationId!;
+        if (ctx.user.role === "aluno") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Você não tem permissão para cadastrar alunos." });
+        }
+        await assertCanEditStudentData(db, ctx);
 
         // --- Verificação de limite de plano ---
         const planInfo = await getOrgPlanLimits(db, orgId);
@@ -871,6 +893,7 @@ export const studentsRouters = {
         if (!db) throw new Error("Banco de dados não disponível");
         
         const orgId = ctx.user.organizationId!;
+        await assertCanEditStudentData(db, ctx);
         const { id, updateFutureDues, ...data } = input;
         
         // Converte strings vazias para null para evitar erros do Postgres (como em datas ou email)
@@ -986,16 +1009,23 @@ export const studentsRouters = {
         id: z.number().optional(),
         instrumentId: z.number(),
         teacherUserId: z.number().nullable().optional(),
-      })).min(1).max(4),
+      })).min(1).max(4).refine(
+        (courses) => {
+          const ids = courses.map((c) => c.id).filter((v): v is number => typeof v === "number");
+          return new Set(ids).size === ids.length;
+        },
+        { message: "Curso duplicado na lista." }
+      ),
     })).mutation(async ({ ctx, input }) => {
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
       const orgId = ctx.user.organizationId!;
+      await assertCanEditStudentData(db, ctx);
 
       const isUserAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
       const condition = isUserAdmin
-        ? and(eq(students.id, input.studentId), eq(students.organizationId, orgId))
-        : and(eq(students.id, input.studentId), eq(students.organizationId, orgId), eq(students.professorId, ctx.user.id));
+        ? and(eq(students.id, input.studentId), eq(students.organizationId, orgId), isNull(students.deletedAt))
+        : and(eq(students.id, input.studentId), eq(students.organizationId, orgId), eq(students.professorId, ctx.user.id), isNull(students.deletedAt));
       const [student] = await db.select().from(students).where(condition).limit(1);
       if (!student) throw new TRPCError({ code: "FORBIDDEN", message: "Aluno não encontrado ou sem permissão" });
 
@@ -1010,30 +1040,44 @@ export const studentsRouters = {
       if (new Set(instrs.map((i) => i.id)).size !== new Set(instrIds).size) {
         throw new TRPCError({ code: "BAD_REQUEST", message: "Instrumento inválido para esta escola." });
       }
+
+      const existing = await db.select({
+        id: studentEnrollments.id,
+        instrumentId: studentEnrollments.instrumentId,
+        teacherUserId: studentEnrollments.teacherUserId,
+        status: studentEnrollments.status,
+      }).from(studentEnrollments).where(and(
+        eq(studentEnrollments.organizationId, orgId),
+        eq(studentEnrollments.studentId, input.studentId),
+        eq(studentEnrollments.status, "ativo"),
+      ));
+
       const teacherIds = Array.from(new Set(input.courses.map((c) => c.teacherUserId).filter((v): v is number => typeof v === "number")));
       if (teacherIds.length) {
-        const profs = await db.select({ userId: professores.userId }).from(professores)
-          .where(and(eq(professores.organizationId, orgId), inArray(professores.userId, teacherIds), isNull(professores.archivedAt)));
-        if (new Set(profs.map((p) => p.userId)).size !== teacherIds.length) {
+        // M-2/M-6/B-2/B-3: professor arquivado só é aceito quando já é o professor
+        // atual de uma matrícula existente do payload (o vínculo não muda).
+        const archivedTeacherAllowed = new Set(
+          input.courses
+            .filter((c) => typeof c.id === "number" && existing.some((e) => e.id === c.id && e.teacherUserId === c.teacherUserId))
+            .map((c) => c.teacherUserId)
+            .filter((v): v is number => typeof v === "number")
+        );
+        const profs = await db.select({ userId: professores.userId, archivedAt: professores.archivedAt }).from(professores)
+          .where(and(eq(professores.organizationId, orgId), inArray(professores.userId, teacherIds)));
+        const validTeachers = new Set(
+          profs
+            .filter((p) => !p.archivedAt || archivedTeacherAllowed.has(p.userId))
+            .map((p) => p.userId)
+        );
+        if (validTeachers.size !== teacherIds.length) {
           throw new TRPCError({ code: "BAD_REQUEST", message: "Professor inválido ou arquivado." });
         }
       }
 
+      const keepIds = new Set(input.courses.map((c) => c.id).filter((v): v is number => typeof v === "number"));
+      const today = new Date().toISOString().slice(0, 10);
+
       await db.transaction(async (tx) => {
-        const existing = await tx.select({
-          id: studentEnrollments.id,
-          instrumentId: studentEnrollments.instrumentId,
-          teacherUserId: studentEnrollments.teacherUserId,
-          status: studentEnrollments.status,
-        }).from(studentEnrollments).where(and(
-          eq(studentEnrollments.organizationId, orgId),
-          eq(studentEnrollments.studentId, input.studentId),
-          eq(studentEnrollments.status, "ativo"),
-        ));
-
-        const keepIds = new Set(input.courses.map((c) => c.id).filter((v): v is number => typeof v === "number"));
-        const today = new Date().toISOString().slice(0, 10);
-
         for (const course of input.courses) {
           const teacher = course.teacherUserId ?? student.professorId ?? null;
           if (course.id && existing.some((e) => e.id === course.id)) {
@@ -1062,11 +1106,28 @@ export const studentsRouters = {
           }
         }
 
+        // Idempotência: encerra matrículas ativas duplicadas do mesmo instrumento,
+        // mantendo a de menor id (protege contra duplicatas antigas/reenvios).
+        await tx.execute(sql`
+          UPDATE "student_enrollments"
+          SET "status" = 'encerrado'
+          WHERE "organizationId" = ${orgId}
+            AND "studentId" = ${input.studentId}
+            AND "status" = 'ativo'
+            AND "id" NOT IN (
+              SELECT MIN("id") FROM "student_enrollments"
+              WHERE "organizationId" = ${orgId}
+                AND "studentId" = ${input.studentId}
+                AND "status" = 'ativo'
+              GROUP BY "instrumentId"
+            )
+        `);
+
         // Curso 1 = principal (RN-008/009)
         await tx.update(students).set({
           instrumentId: input.courses[0].instrumentId,
           professorId: input.courses[0].teacherUserId ?? student.professorId,
-        }).where(eq(students.id, input.studentId));
+        }).where(and(eq(students.id, input.studentId), eq(students.organizationId, orgId)));
       });
 
       return { success: true };
@@ -1081,6 +1142,7 @@ export const studentsRouters = {
         const db = await getDb();
         if (!db) throw new Error("Database not available");
         const orgId = ctx.user.organizationId!;
+        await assertCanEditStudentData(db, ctx);
 
         // --- Verificação de limite de plano na reativação ---
         const [existing] = await db.select({ status: students.status }).from(students)
@@ -1151,6 +1213,7 @@ export const studentsRouters = {
         const db = await getDb();
         if (!db) throw new Error("Banco de dados não disponível");
         const orgId = ctx.user.organizationId!;
+        await assertCanEditStudentData(db, ctx);
         const isAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
 
         const [student] = await db.select().from(students)

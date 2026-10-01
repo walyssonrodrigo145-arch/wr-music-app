@@ -179,7 +179,7 @@ export function StudentModal({
           {
             id: primary?.id as number | undefined,
             instrumentId: form.instrumentId ? Number(form.instrumentId) : Number(primary?.instrumentId || 0),
-            teacherUserId: (primary?.teacherUserId as number | undefined) ?? (editData as any).professorId ?? null,
+            teacherUserId: (primary?.teacherUserId as number | undefined) ?? null,
           },
           ...extras.map((c) => ({
             id: c.id,
@@ -270,7 +270,10 @@ export function StudentModal({
               <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60">Instrumento</label>
               <select
                 value={form.instrumentId}
-                onChange={e => set("instrumentId", e.target.value)}
+                onChange={e => {
+                  set("instrumentId", e.target.value);
+                  if (editData) setCoursesDirty(true);
+                }}
                 className="w-full h-9 text-xs rounded-lg border border-border/40 bg-muted/10 px-3 focus:outline-none focus:ring-1 focus:ring-primary/30 text-foreground"
               >
                 <option value="">Selecionar...</option>

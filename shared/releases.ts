@@ -26,6 +26,19 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: "2026.10.01.4",
+    date: "2026-10-01",
+    title: "Auditoria: segurança de permissões, portal protegido e ajustes do cadastro",
+    summary: "Rodamos uma auditoria completa (4 frentes) e corrigimos os achados: permissões passam a valer no servidor (folha, escola, planos, salas, integrações e edição de alunos), o portal do aluno respeita as liberações do professor, segredos não são mais expostos, professor arquivado não loga e vária correções de UX (Leads funcional, Fiscal acessível, agenda mobile, cursos/conclusão no celular).",
+    items: [
+      { type: "correcao", title: "Permissões valendo no servidor", description: "Folha de pagamento só para admin; professor não altera dados da escola, planos, salas, integrações nem segredos; edição/arquivamento de aluno exige a permissão de editar alunos; aluno não cria cadastros." },
+      { type: "correcao", title: "Aulas e solicitações protegidas", description: "Aulas só do professor responsável (ou das matrículas dele), remarcações/extras só quem cuida do aluno, QR de presença restrito à equipe e permissões do portal do aluno valendo de verdade no servidor." },
+      { type: "correcao", title: "Professor arquivado não acessa mais", description: "Ao ser arquivado, o professor perde o login; ao excluir, aulas e folha são preservadas/reatribuídas." },
+      { type: "melhoria", title: "Cursos e conclusão em todo lugar", description: "Conclusão por contrato (quando não há matrícula), cursos em ordem correta, card do celular com cursos/professor e responsável também no detalhe da mensalidade." },
+      { type: "correcao", title: "Leads, Fiscal e agenda mobile", description: "Botões de follow-up/metas/WhatsApp dos Leads funcionando de verdade (sem dados fictícios), módulo Fiscal acessível de novo e filtro de professor da agenda no celular corrigido." },
+    ],
+  },
+  {
     version: "2026.10.01.3",
     date: "2026-10-01",
     title: "Painel de Inadimplentes mostra só alunos ativos",

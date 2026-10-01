@@ -861,6 +861,7 @@ async function ensureSchemaConsistency(db: any) {
     await safeExecute(sql`ALTER TABLE "contracts" ADD COLUMN IF NOT EXISTS "sentAt" timestamp`, "contracts.sentAt");
     await safeExecute(sql`ALTER TABLE "contracts" ADD COLUMN IF NOT EXISTS "cancelledAt" timestamp`, "contracts.cancelledAt");
     await safeExecute(sql`ALTER TABLE "contracts" ADD COLUMN IF NOT EXISTS "expiresAt" timestamp`, "contracts.expiresAt");
+    await safeExecute(sql`CREATE INDEX IF NOT EXISTS "contracts_student_id_idx" ON "contracts" ("studentId")`, "contracts_student_id_idx");
 
     // Tabela school_integrations (BYOK — uma integração ativa por escola+provedor)
     await safeExecute(sql`
@@ -1778,6 +1779,7 @@ export async function getStudentsWithInstrument(organizationId: number, userId?:
     instrumentColor: instruments.color,
     instrumentIcon: instruments.icon,
     studentUserId: sql<number | null>`COALESCE(${students.studentUserId}, ${users.id})`,
+    contractEndDate: sql<string | null>`(SELECT MAX("endDate")::text FROM "contracts" WHERE "studentId" = ${students.id} AND status IN ('assinado', 'enviado', 'aguardando_assinatura'))`,
   }).from(students)
     .leftJoin(instruments, eq(students.instrumentId, instruments.id))
     .leftJoin(users, eq(users.studentId, students.id))
@@ -1785,7 +1787,16 @@ export async function getStudentsWithInstrument(organizationId: number, userId?:
     .where(and(
         eq(students.organizationId, organizationId),
         isNull(students.deletedAt),
-        userId ? eq(students.professorId, userId) : undefined
+        userId
+          ? or(
+              eq(students.professorId, userId),
+              inArray(students.id, db.select({ id: studentEnrollments.studentId }).from(studentEnrollments).where(and(
+                eq(studentEnrollments.organizationId, organizationId),
+                eq(studentEnrollments.teacherUserId, userId),
+                eq(studentEnrollments.status, 'ativo'),
+              )))
+            )
+          : undefined
     ))
     .orderBy(desc(students.createdAt));
   const rows: any[] = limit ? await (query as any).limit(limit) : await query;
@@ -1815,7 +1826,8 @@ export async function getStudentsWithInstrument(organizationId: number, userId?:
         eq(studentEnrollments.organizationId, organizationId),
         inArray(studentEnrollments.studentId, ids),
         eq(studentEnrollments.status, "ativo"),
-      ));
+      ))
+      .orderBy(asc(studentEnrollments.id));
     const addMonthsClamped = (iso: string, months: number) => {
       const [y, m, d] = String(iso).slice(0, 10).split("-").map(Number);
       if (!y || !m || !d) return null;
@@ -1833,7 +1845,30 @@ export async function getStudentsWithInstrument(organizationId: number, userId?:
       byStudent.get(e.studentId)!.push(item);
     }
   }
-  return rows.map((r) => ({ ...r, courses: byStudent.get(r.id) || [] }));
+  return rows.map((r) => {
+    const courses = byStudent.get(r.id) || [];
+    const contractEndDate = r.contractEndDate ? String(r.contractEndDate).slice(0, 10) : null;
+    // CA-004/RN-001/RN-007: aluno sem matrícula ativa, mas com contrato vigente,
+    // usa a vigência do contrato como curso/validade (fallback).
+    if (courses.length === 0 && contractEndDate) {
+      courses.push({
+        id: -1,
+        instrumentId: null,
+        instrumentName: null,
+        instrumentColor: null,
+        teacherUserId: null,
+        professorName: r.professorName,
+        conclusionDate: contractEndDate,
+        startDate: null,
+        durationMonths: null,
+        endDate: contractEndDate,
+        planId: null,
+        status: 'ativo',
+        fromContract: true,
+      });
+    }
+    return { ...r, courses };
+  });
 }
 
 // Recent lessons with student info — fetches a date range suitable for the full calendar
@@ -1859,15 +1894,29 @@ export async function getRecentLessons(
   // Isso resolve o caso onde o admin cria aulas para alunos de um professor
   let professorStudentIds: number[] | undefined = undefined;
   if (professorId) {
-    const profStudents = await db
-      .select({ id: students.id })
-      .from(students)
-      .where(and(
-        eq(students.organizationId, organizationId),
-        eq(students.professorId, professorId),
-        eq(students.status, 'ativo'),
-      ));
-    professorStudentIds = profStudents.map(s => s.id);
+    const [profStudents, enrolledStudents] = await Promise.all([
+      db
+        .select({ id: students.id })
+        .from(students)
+        .where(and(
+          eq(students.organizationId, organizationId),
+          eq(students.professorId, professorId),
+          eq(students.status, 'ativo'),
+        )),
+      // A-18: inclui alunos em que o professor é o teacherUserId de matrícula ativa
+      db
+        .select({ id: studentEnrollments.studentId })
+        .from(studentEnrollments)
+        .where(and(
+          eq(studentEnrollments.organizationId, organizationId),
+          eq(studentEnrollments.teacherUserId, professorId),
+          eq(studentEnrollments.status, 'ativo'),
+        )),
+    ]);
+    professorStudentIds = Array.from(new Set([
+      ...profStudents.map(s => s.id),
+      ...enrolledStudents.map(s => s.id),
+    ]));
   }
 
   const profUsers = aliasedTable(users, "prof_users");

@@ -896,7 +896,9 @@ export const contracts = pgTable("contracts", {
   expiresAt: timestamp("expiresAt"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
-});
+}, (table) => [
+  index("contracts_student_id_idx").on(table.studentId),
+]);
 
 export type Contract = typeof contracts.$inferSelect;
 export type InsertContract = typeof contracts.$inferInsert;

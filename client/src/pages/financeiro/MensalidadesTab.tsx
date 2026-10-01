@@ -744,6 +744,14 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
     onError: (e: any) => toast.error("Erro: " + e.message),
   });
 
+  const cancelMPMutation = trpc.paymentDues.cancelMPCharge.useMutation({
+    onSuccess: () => {
+      toast.success("Cobrança Mercado Pago cancelada!");
+      utils.paymentDues.invalidate();
+    },
+    onError: (e: any) => toast.error("Erro: " + e.message),
+  });
+
   const emitNfseMutation = trpc.fiscal.invoices.emitForPayment.useMutation({
     onSuccess: (data) => {
       if (data.alreadyExists) {
@@ -842,7 +850,7 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
 
   const filtered = useMemo(() => {
     return payments.filter((p) => {
-      const nameMatch = p.studentName?.toLowerCase().includes(search.toLowerCase());
+      const nameMatch = (p.studentName || "").toLowerCase().includes(search.toLowerCase());
       const statusMatch = filterStatus === "todas" || p.status === filterStatus;
       const lessonTypeMatch = lessonTypeFilter === "todos" || p.lessonType === lessonTypeFilter;
       return nameMatch && statusMatch && lessonTypeMatch;
@@ -966,11 +974,11 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
 
            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
               {useMemo(() => {
-                const dueDaysString = settings?.dueDaysForecast ?? "5,10,15,20";
-                const days = dueDaysString.split(",").map(d => Number(d.trim())).filter(n => !isNaN(n) && n > 0 && n <= 31);
+                const dueDaysString: string = settings?.dueDaysForecast ?? "5,10,15,20";
+                const days = dueDaysString.split(",").map((d: string) => Number(d.trim())).filter((n: number) => !isNaN(n) && n > 0 && n <= 31);
                 
                 const dayMap: Record<string, number> = { "OUTROS": 0 };
-                days.forEach(d => {
+                days.forEach((d: number) => {
                   dayMap[String(d).padStart(2, '0')] = 0;
                 });
                 
@@ -987,14 +995,14 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
                   }
                 });
                 
-                const result = days.map(d => {
+                const result = days.map((d: number) => {
                   const strDay = String(d).padStart(2, '0');
                   return { label: `Dia ${strDay}`, amount: dayMap[strDay] };
                 });
                 
                 result.push({ label: "Outros", amount: dayMap["OUTROS"] });
                 return result;
-              }, [payments, settings?.dueDaysForecast]).map((item, i) => (
+              }, [payments, settings?.dueDaysForecast]).map((item: { label: string; amount: number }, i: number) => (
                 <div key={i} className="p-3.5 lg:p-4 rounded-2xl bg-muted/50 border border-border group hover:border-blue-200 transition-all">
                    <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-1.5 group-hover:text-blue-500 transition-colors">{item.label}</p>
                    <p className="text-sm font-black text-foreground tracking-tighter">
@@ -1088,8 +1096,8 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
                                   </span>
                                 )}
                               </div>
-                              {payment.guardianName && (
-                                <p className="text-[10px] text-amber-600 dark:text-amber-400 font-bold truncate mt-0.5">Responsável: {payment.guardianName}</p>
+                              {String(payment.guardianName || "").trim() !== "" && (
+                                <p className="text-[10px] text-amber-600 dark:text-amber-400 font-bold truncate mt-0.5">Responsável: {String(payment.guardianName).trim()}</p>
                               )}
                               <p className="text-[10px] text-muted-foreground font-medium truncate mt-0.5">{payment.email}</p>
                             </div>
@@ -1208,7 +1216,7 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
                                      <span className="text-xs font-bold text-muted-foreground">Enviar Recibo por WhatsApp</span>
                                   </DropdownMenuItem>
                                  <DropdownMenuSeparator className="bg-muted" />
-                                  {!payment.asaasId && !payment.mpPaymentId && !payment.infinitepayPaymentLink ? (
+                                  {!payment.asaasId && !payment.mpPaymentId && !payment.mpPaymentLink && !payment.infinitepayPaymentLink ? (
                                      isGatewayEnabled && (
                                       <DropdownMenuItem className="gap-2 rounded-lg" onClick={() => setAsaasPayment(payment)}>
                                         <Zap className="w-4 h-4 text-violet-500" />
@@ -1230,10 +1238,25 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
                                         <span className="text-xs font-bold">Cancelar no InfinitePay</span>
                                       </DropdownMenuItem>
                                     </>
-                                  ) : (
-                                    <>
-                                      <DropdownMenuItem className="gap-2 rounded-lg" onClick={() => {
-                                        if (payment.asaasPaymentLink) navigator.clipboard.writeText(payment.asaasPaymentLink).then(() => toast.success("Link copiado!"));
+                                   ) : payment.mpPaymentId || payment.mpPaymentLink ? (
+                                     <>
+                                       <DropdownMenuItem className="gap-2 rounded-lg" onClick={() => {
+                                         if (payment.mpPaymentLink) navigator.clipboard.writeText(payment.mpPaymentLink).then(() => toast.success("Link copiado!"));
+                                       }}>
+                                         <Copy className="w-4 h-4 text-blue-500" />
+                                         <span className="text-xs font-bold text-muted-foreground">Copiar Link Mercado Pago</span>
+                                       </DropdownMenuItem>
+                                       <DropdownMenuItem className="gap-2 rounded-lg text-rose-500" onClick={() => {
+                                         if (confirm("Cancelar a cobrança no Mercado Pago?")) cancelMPMutation.mutate({ paymentDueId: payment.id });
+                                       }}>
+                                         <Ban className="w-4 h-4" />
+                                         <span className="text-xs font-bold">Cancelar no Mercado Pago</span>
+                                       </DropdownMenuItem>
+                                     </>
+                                   ) : (
+                                     <>
+                                       <DropdownMenuItem className="gap-2 rounded-lg" onClick={() => {
+                                         if (payment.asaasPaymentLink) navigator.clipboard.writeText(payment.asaasPaymentLink).then(() => toast.success("Link copiado!"));
                                       }}>
                                         <Copy className="w-4 h-4 text-violet-500" />
                                         <span className="text-xs font-bold text-muted-foreground">Copiar Link Asaas</span>
@@ -1294,8 +1317,8 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
                               </span>
                             )}
                           </div>
-                          {payment.guardianName && (
-                            <p className="text-[10px] text-amber-600 dark:text-amber-400 font-bold truncate">Responsável: {payment.guardianName}</p>
+                          {String(payment.guardianName || "").trim() !== "" && (
+                            <p className="text-[10px] text-amber-600 dark:text-amber-400 font-bold truncate">Responsável: {String(payment.guardianName).trim()}</p>
                           )}
                           <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest truncate">{MONTHS_PT[payment.month-1]} {payment.year}</p>
                         </div>
@@ -1383,13 +1406,23 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
                         <FileText size={12} className="mr-1" /> Obs
                       </Button>
 
-                      {!payment.asaasId && !payment.infinitepayPaymentLink ? (
+                      {!payment.asaasId && !payment.mpPaymentId && !payment.mpPaymentLink && !payment.infinitepayPaymentLink ? (
+                         isGatewayEnabled && (
+                           <Button
+                             variant="outline" size="sm"
+                             className="h-9 px-3 rounded-lg border-violet-200 text-[10px] font-black uppercase gap-1.5 text-violet-600 hover:bg-violet-500/10 shrink-0"
+                             onClick={(e) => { e.preventDefault(); e.stopPropagation(); setAsaasPayment(payment); }}
+                           >
+                             <Zap size={12} /> Gerar Link
+                           </Button>
+                         )
+                       ) : payment.mpPaymentId || payment.mpPaymentLink ? (
                          <Button
                            variant="outline" size="sm"
-                           className="h-9 px-3 rounded-lg border-violet-200 text-[10px] font-black uppercase gap-1.5 text-violet-600 hover:bg-violet-500/10 shrink-0"
-                           onClick={(e) => { e.preventDefault(); e.stopPropagation(); setAsaasPayment(payment); }}
+                           className="h-9 px-3 rounded-lg border-blue-200 text-[10px] font-black uppercase gap-1.5 text-blue-600 hover:bg-blue-500/10 shrink-0"
+                           onClick={() => payment.mpPaymentLink && navigator.clipboard.writeText(payment.mpPaymentLink).then(() => toast.success("Link copiado!"))}
                          >
-                           <Zap size={12} /> Gerar Link
+                           <Copy size={12} /> Copiar Link MP
                          </Button>
                        ) : payment.infinitepayPaymentLink ? (
                          <Button
@@ -1478,9 +1511,15 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
             </Button>
             <Button 
               size="sm" 
-              onClick={() => {
-                selectedPaymentIds.forEach(id => markPaidMutation.mutate({ id }));
-                toast.success(`${selectedPaymentIds.length} mensalidades marcadas como pagas!`);
+              onClick={async () => {
+                const ids = [...selectedPaymentIds];
+                const results = await Promise.allSettled(ids.map((id) => markPaidMutation.mutateAsync({ id })));
+                const failed = results.filter((r) => r.status === "rejected").length;
+                if (failed === 0) {
+                  toast.success(`${ids.length} mensalidades marcadas como pagas!`);
+                } else {
+                  toast.error(`${failed} de ${ids.length} mensalidades não puderam ser marcadas como pagas.`);
+                }
                 setSelectedPaymentIds([]);
               }}
               className="h-8 text-xs font-bold gap-1 bg-emerald-600 hover:bg-emerald-500 text-white"

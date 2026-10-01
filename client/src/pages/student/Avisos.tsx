@@ -21,7 +21,6 @@ import { format } from "date-fns";
 export default function StudentAnnouncements() {
   const { user } = useAuth();
   const { data: announcements = [], isLoading: isLoadingAnnouncements } = trpc.studentPortal.getAnnouncements.useQuery();
-  const { data: profile } = trpc.studentPortal.getProfile.useQuery();
   const [search, setSearch] = useState("");
   const readStorageKey = `mp_read_announcements_${user?.id ?? "anon"}`;
   const [readIds, setReadIds] = useState<Set<number>>(() => {
@@ -108,9 +107,8 @@ export default function StudentAnnouncements() {
                       </div>
                       <span className="text-xs font-bold text-muted-foreground whitespace-nowrap">{aviso.date}</span>
                     </div>
-                    <p className="text-sm font-medium text-muted-foreground leading-relaxed">
-                      Este é um aviso enviado para todos os alunos da modalidade de {profile?.teacherName}. 
-                      Por favor, atente-se às datas e horários mencionados.
+                    <p className="text-sm font-medium text-muted-foreground leading-relaxed whitespace-pre-wrap">
+                      {aviso.content || "Sem detalhes adicionais."}
                     </p>
                     <div className="flex items-center gap-4 pt-2">
                       <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground">

@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { downloadBlob } from "@/lib/nativeDownload";
@@ -28,17 +28,6 @@ const DEFAULT_STAGES = [
   { key: "fez_aula", label: "Fez Aula Experim.", color: "bg-amber-500", text: "text-amber-400", bgLight: "bg-amber-500/10", border: "border-amber-500/30" },
   { key: "proposta", label: "Proposta Enviada", color: "bg-blue-500", text: "text-blue-400", bgLight: "bg-blue-500/10", border: "border-blue-500/30" },
   { key: "fechado", label: "Matriculado (Ganho)", color: "bg-emerald-500", text: "text-emerald-400", bgLight: "bg-emerald-500/10", border: "border-emerald-500/30" },
-];
-
-// Dados ricos para visualização e demonstração completa do sistema
-const SAMPLE_LEADS = [
-  { id: 101, name: "Mariana Silva", phone: "(11) 98765-4321", email: "mariana.silva@email.com", instrument: "Violão", modality: "Presencial", level: "Iniciante", value: "320.00", stage: "novo", temperature: "quente", source: "Instagram", createdAt: new Date() },
-  { id: 102, name: "Gabriel Santos", phone: "(11) 97711-2233", email: "gabriel.piano@email.com", instrument: "Piano / Teclado", modality: "Presencial", level: "Intermediário", value: "380.00", stage: "contato", temperature: "quente", source: "WhatsApp", createdAt: new Date() },
-  { id: 103, name: "Bruno Mendes", phone: "(19) 99888-7766", email: "bruno.rock@email.com", instrument: "Guitarra", modality: "Híbrido", level: "Avançado", value: "350.00", stage: "aula_experimental", temperature: "quente", source: "Google", createdAt: new Date() },
-  { id: 104, name: "Julia Lima", phone: "(21) 98123-4567", email: "julia.canto@email.com", instrument: "Canto / Técnica Vocal", modality: "Online", level: "Iniciante", value: "290.00", stage: "fez_aula", temperature: "morno", source: "Indicação", createdAt: new Date() },
-  { id: 105, name: "Pedro Rocha", phone: "(31) 99234-5678", email: "pedro.sax@email.com", instrument: "Saxofone", modality: "Presencial", level: "Iniciante", value: "420.00", stage: "proposta", temperature: "quente", source: "Instagram", createdAt: new Date() },
-  { id: 106, name: "Lucas Ferreira", phone: "(41) 98877-6655", email: "lucas.drums@email.com", instrument: "Bateria", modality: "Presencial", level: "Iniciante", value: "360.00", stage: "fechado", temperature: "ganho", source: "Site", createdAt: new Date() },
-  { id: 107, name: "Camila Ribeiro", phone: "(51) 97654-3210", email: "camila.violino@email.com", instrument: "Violino", modality: "Presencial", level: "Iniciante", value: "390.00", stage: "fechado", temperature: "ganho", source: "WhatsApp", createdAt: new Date() },
 ];
 
 export default function LeadsApp() {
@@ -105,10 +94,44 @@ export default function LeadsApp() {
     onError: (err) => toast.error(err.message),
   });
 
-  // Amostragem inteligente
+  const completeFollowUpMutation = trpc.crm.completeFollowUp.useMutation({
+    onSuccess: () => {
+      toast.success("Follow-up concluído!");
+      utils.crm.listFollowUps.invalidate();
+      utils.crm.getDashboardMetrics.invalidate();
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  // Contadores reais dos follow-ups (antes eram números fixos de demonstração)
+  const followUpStats = useMemo(() => {
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+    const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+    const next7 = new Date(todayEnd.getTime() + 7 * 24 * 60 * 60 * 1000);
+    let hoje = 0;
+    let proximos = 0;
+    let concluidos = 0;
+    for (const entry of (followUps as any[])) {
+      const fu = entry?.followUp;
+      if (!fu) continue;
+      if (fu.completed) {
+        const doneAt = fu.completedAt ? new Date(fu.completedAt) : null;
+        if (doneAt && doneAt.getMonth() === now.getMonth() && doneAt.getFullYear() === now.getFullYear()) {
+          concluidos++;
+        }
+        continue;
+      }
+      const due = new Date(fu.dueDate);
+      if (due >= todayStart && due <= todayEnd) hoje++;
+      else if (due > todayEnd && due <= next7) proximos++;
+    }
+    return { hoje, proximos, concluidos };
+  }, [followUps]);
+
+  // Filtragem local (sem dados fictícios: a lista vem 100% do banco)
   const leadsDisplayList = useMemo(() => {
-    const base = dbLeads.length > 0 ? dbLeads : SAMPLE_LEADS;
-    return base.filter((lead: any) => {
+    return dbLeads.filter((lead: any) => {
       if (searchTerm.trim() !== "") {
         const q = searchTerm.toLowerCase();
         const mName = lead.name?.toLowerCase().includes(q);
@@ -154,6 +177,17 @@ export default function LeadsApp() {
       `Olá ${name || ""}! Tudo bem? Sou da escola de música MusicPro. Vi seu interesse no curso de ${instrument || "música"}! Gostaria de agendar uma Aula Experimental gratuita?`
     );
     return `https://wa.me/${num}?text=${text}`;
+  };
+
+  // Abre o WhatsApp do lead em nova aba. Retorna false quando não há telefone.
+  const openLeadWhatsApp = (phone?: string | null, message?: string) => {
+    if (!phone) return false;
+    const clean = phone.replace(/\D/g, "");
+    if (!clean) return false;
+    const num = clean.startsWith("55") ? clean : `55${clean}`;
+    const url = `https://wa.me/${num}${message ? `?text=${encodeURIComponent(message)}` : ""}`;
+    window.open(url, "_blank");
+    return true;
   };
 
   const userInitials = user?.name
@@ -493,6 +527,15 @@ export default function LeadsApp() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-indigo-950/40">
+                      {leadsDisplayList.length === 0 && (
+                        <tr>
+                          <td colSpan={7} className="py-16 text-center">
+                            <Users className="mx-auto mb-3 text-slate-600 opacity-40" size={32} />
+                            <p className="font-bold text-sm text-slate-400">Nenhum lead ainda</p>
+                            <p className="text-xs text-slate-500 mt-1">Cadastre o primeiro lead para começar a usar o funil comercial.</p>
+                          </td>
+                        </tr>
+                      )}
                       {leadsDisplayList.map((lead: any) => (
                         <tr key={lead.id} className="hover:bg-white/5 transition-colors group">
                           <td className="py-3.5 px-4">
@@ -679,42 +722,55 @@ export default function LeadsApp() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="p-4 rounded-xl bg-[#0B091A] border border-indigo-950/50 space-y-2">
                     <p className="text-xs font-bold text-slate-400 uppercase">Hoje</p>
-                    <p className="text-2xl font-black font-outfit text-cyan-400">2 Pendentes</p>
+                    <p className="text-2xl font-black font-outfit text-cyan-400">{followUpStats.hoje} Pendentes</p>
                   </div>
                   <div className="p-4 rounded-xl bg-[#0B091A] border border-indigo-950/50 space-y-2">
                     <p className="text-xs font-bold text-slate-400 uppercase">Próximos 7 Dias</p>
-                    <p className="text-2xl font-black font-outfit text-purple-400">5 Agendados</p>
+                    <p className="text-2xl font-black font-outfit text-purple-400">{followUpStats.proximos} Agendados</p>
                   </div>
                   <div className="p-4 rounded-xl bg-[#0B091A] border border-indigo-950/50 space-y-2">
                     <p className="text-xs font-bold text-slate-400 uppercase">Concluídos este Mês</p>
-                    <p className="text-2xl font-black font-outfit text-emerald-400">18 Realizados</p>
+                    <p className="text-2xl font-black font-outfit text-emerald-400">{followUpStats.concluidos} Realizados</p>
                   </div>
                 </div>
 
                 <div className="space-y-3">
-                  {[
-                    { id: 1, lead: "Mariana Silva (Violão)", task: "Ligar para confirmar presença na aula experimental de sábado", time: "Hoje, 14:00", type: "ligacao" },
-                    { id: 2, lead: "Gabriel Santos (Piano)", task: "Enviar proposta com desconto de matrícula via WhatsApp", time: "Hoje, 16:30", type: "whatsapp" },
-                    { id: 3, lead: "Bruno Mendes (Guitarra)", task: "Acompanhamento pós-aula experimental (Feedback)", time: "Amanhã, 10:00", type: "whatsapp" },
-                  ].map((item) => (
-                    <div key={item.id} className="flex items-center justify-between p-4 rounded-xl bg-[#0B091A] border border-indigo-950/50 hover:border-cyan-500/40 transition-all">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-xl bg-cyan-500/10 text-cyan-400 flex items-center justify-center border border-cyan-500/20">
-                          {item.type === "whatsapp" ? <MessageSquare size={16} /> : <PhoneCall size={16} />}
-                        </div>
-                        <div>
-                          <p className="font-bold text-xs text-white">{item.task}</p>
-                          <p className="text-[11px] text-slate-400">{item.lead} • <span className="text-cyan-400 font-bold">{item.time}</span></p>
-                        </div>
-                      </div>
-                      <Button
-                        onClick={() => toast.success("Follow-up marcado como concluído!")}
-                        className="h-8 px-3 text-xs bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-600 hover:text-white font-bold rounded-lg gap-1"
-                      >
-                        <Check size={14} /> Concluir
-                      </Button>
+                  {(followUps as any[]).length === 0 ? (
+                    <div className="p-8 text-center text-xs text-slate-500 italic bg-[#0B091A] rounded-xl border border-indigo-950/50">
+                      Nenhum follow-up agendado. Use "Novo Follow-up" para criar tarefas.
                     </div>
-                  ))}
+                  ) : (
+                    (followUps as any[]).map((entry: any) => {
+                      const fu = entry.followUp;
+                      if (!fu) return null;
+                      const dueLabel = fu.dueDate
+                        ? `${new Date(fu.dueDate).toLocaleDateString("pt-BR")}${fu.dueTime ? ` às ${fu.dueTime}` : ""}`
+                        : "Sem data";
+                      return (
+                        <div key={fu.id} className="flex items-center justify-between p-4 rounded-xl bg-[#0B091A] border border-indigo-950/50 hover:border-cyan-500/40 transition-all">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-xl bg-cyan-500/10 text-cyan-400 flex items-center justify-center border border-cyan-500/20">
+                              {(fu.contactType === "whatsapp") ? <MessageSquare size={16} /> : <PhoneCall size={16} />}
+                            </div>
+                            <div>
+                              <p className="font-bold text-xs text-white">{fu.title}</p>
+                              <p className="text-[11px] text-slate-400">
+                                {entry.leadName || "Lead"} • <span className="text-cyan-400 font-bold">{dueLabel}</span>
+                                {fu.completed && <span className="text-emerald-400 font-bold"> • Concluído</span>}
+                              </p>
+                            </div>
+                          </div>
+                          <Button
+                            disabled={fu.completed || completeFollowUpMutation.isPending}
+                            onClick={() => completeFollowUpMutation.mutate({ followUpId: fu.id })}
+                            className="h-8 px-3 text-xs bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-600 hover:text-white font-bold rounded-lg gap-1 disabled:opacity-50"
+                          >
+                            <Check size={14} /> {fu.completed ? "Concluído" : "Concluir"}
+                          </Button>
+                        </div>
+                      );
+                    })
+                  )}
                 </div>
               </div>
             </div>
@@ -729,7 +785,7 @@ export default function LeadsApp() {
                     <h3 className="font-bold text-base font-outfit text-white">Propostas Comerciais & Fechamentos</h3>
                     <p className="text-xs text-slate-400">Acompanhe orçamentos enviados e links de contratos digitais.</p>
                   </div>
-                  <Button onClick={() => toast.success("Nova Proposta Comercial gerada com sucesso!")} className="h-9 px-3 text-xs bg-blue-600 hover:bg-blue-700 font-bold rounded-xl gap-1.5 text-white">
+                  <Button disabled title="em breve" className="h-9 px-3 text-xs bg-blue-600 hover:bg-blue-700 font-bold rounded-xl gap-1.5 text-white disabled:opacity-50">
                     <Plus size={14} /> Gerar Proposta
                   </Button>
                 </div>
@@ -757,7 +813,7 @@ export default function LeadsApp() {
 
                       <div className="flex items-center justify-between pt-2 border-t border-indigo-950/50 text-xs">
                         <span className="text-[11px] text-slate-500">{prop.date}</span>
-                        <Button onClick={() => toast.success("Link do Contrato ZapSign reenviado via WhatsApp!")} className="h-7 px-2 text-[11px] bg-indigo-600 hover:bg-indigo-700 font-bold rounded-lg">
+                        <Button disabled title="em breve" className="h-7 px-2 text-[11px] bg-indigo-600 hover:bg-indigo-700 font-bold rounded-lg disabled:opacity-50">
                           Reenviar Contrato
                         </Button>
                       </div>
@@ -950,7 +1006,16 @@ export default function LeadsApp() {
                         </label>
                       </div>
 
-                      <Button onClick={() => toast.success("Mensagem de boas-vindas enviada para o aluno!")} className="w-full h-8 text-xs bg-indigo-600/20 text-indigo-300 border border-indigo-500/30 hover:bg-indigo-600 hover:text-white font-bold rounded-xl gap-2">
+                      <Button
+                        onClick={() => {
+                          const lead = (dbLeads as any[]).find((l: any) => l.name === std.name);
+                          const msg = `Olá ${std.name}! Seja bem-vindo(a) à escola MusicPro! 🎵 Sua jornada musical começa agora — qualquer dúvida sobre as aulas, estamos à disposição.`;
+                          if (!lead || !openLeadWhatsApp(lead.phone, msg)) {
+                            toast.warning("Este aluno não possui telefone cadastrado para o envio.");
+                          }
+                        }}
+                        className="w-full h-8 text-xs bg-indigo-600/20 text-indigo-300 border border-indigo-500/30 hover:bg-indigo-600 hover:text-white font-bold rounded-xl gap-2"
+                      >
                         <Send size={13} /> Enviar Mensagem de Boas-Vindas
                       </Button>
                     </div>
@@ -986,7 +1051,15 @@ export default function LeadsApp() {
                         </div>
                         <p className="text-xs text-slate-300 italic">"{atend.msg}"</p>
                       </div>
-                      <Button onClick={() => toast.success("Conversa aberta no WhatsApp Web!")} className="h-8 px-3 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg gap-1.5 shrink-0">
+                      <Button
+                        onClick={() => {
+                          const lead = (dbLeads as any[]).find((l: any) => l.name === atend.lead);
+                          if (!lead || !openLeadWhatsApp(lead.phone, `Olá ${atend.lead}! Recebemos sua mensagem: "${atend.msg}". Como podemos ajudar?`)) {
+                            toast.warning("Nenhum telefone cadastrado para este lead.");
+                          }
+                        }}
+                        className="h-8 px-3 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg gap-1.5 shrink-0"
+                      >
                         <MessageCircle size={14} /> Responder no WhatsApp
                       </Button>
                     </div>
@@ -1085,35 +1158,7 @@ export default function LeadsApp() {
           )}
 
           {/* ── 11. ABA: CONFIGURAÇÕES GERAIS ── */}
-          {activeMenu === "configuracoes" && (
-            <div className="space-y-6">
-              <div className="bg-[#110E29]/80 border border-indigo-950/50 rounded-2xl p-6 space-y-5 shadow-xl">
-                <div className="flex items-center justify-between border-b border-indigo-950/50 pb-4">
-                  <div>
-                    <h3 className="font-bold text-base font-outfit text-white">Configurações do Funil & CRM</h3>
-                    <p className="text-xs text-slate-400">Personalize canais de captação, tags de classificação e regras de negócios.</p>
-                  </div>
-                  <Button onClick={() => toast.success("Configurações salvas com sucesso!")} className="h-9 px-4 text-xs bg-indigo-600 hover:bg-indigo-700 font-bold rounded-xl text-white">
-                    Salvar Alterações
-                  </Button>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs">
-                  <div className="space-y-2 bg-[#0B091A] p-4 rounded-xl border border-indigo-950/50">
-                    <label className="font-bold text-white">Canais de Origem Personalizados</label>
-                    <p className="text-[11px] text-slate-400">Separados por vírgula</p>
-                    <Input defaultValue="Instagram, WhatsApp, Google, Indicação, Site, Evento Local" className="bg-[#13102B] border-indigo-950 text-white" />
-                  </div>
-
-                  <div className="space-y-2 bg-[#0B091A] p-4 rounded-xl border border-indigo-950/50">
-                    <label className="font-bold text-white">Motivos de Perda Cadastrados</label>
-                    <p className="text-[11px] text-slate-400">Opções para quando um lead desistir</p>
-                    <Input defaultValue="Horário incompatível, Preço/Orçamento, Distância da escola, Optou por concorrente" className="bg-[#13102B] border-indigo-950 text-white" />
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
+          {activeMenu === "configuracoes" && <CrmSettingsPanel />}
 
         </main>
       </div>
@@ -1129,7 +1174,7 @@ export default function LeadsApp() {
       {convertLead && (
         <ConvertToStudentModal lead={convertLead} open={isConvertToStudentModalOpen} onClose={() => { setIsConvertToStudentModalOpen(false); setConvertLead(null); }} />
       )}
-      <CreateFollowUpModal open={isCreateFollowUpOpen} onClose={() => setIsCreateFollowUpOpen(false)} />
+      <CreateFollowUpModal open={isCreateFollowUpOpen} onClose={() => setIsCreateFollowUpOpen(false)} leads={dbLeads} />
       <GoalsModal open={isGoalsModalOpen} onClose={() => setIsGoalsModalOpen(false)} />
     </div>
   );
@@ -1270,13 +1315,12 @@ function CreateLeadModal({ open, onClose }: any) {
 // ── MODAL: AGENDAR AULA EXPERIMENTAL ──
 function ScheduleTrialModal({ lead, open, onClose }: any) {
   const utils = trpc.useUtils();
-  const [trialDate, setTrialDate] = useState(new Date().toISOString().slice(0, 10));
-  const [trialTime, setTrialTime] = useState("14:00");
 
   const moveStageMutation = trpc.crm.moveStage.useMutation({
     onSuccess: () => {
-      toast.success(`🎸 Aula experimental de ${lead?.name} agendada para ${trialDate} às ${trialTime}!`);
+      toast.success(`🎸 Aula experimental de ${lead?.name} marcada no funil!`);
       utils.crm.listLeads.invalidate();
+      utils.crm.getDashboardMetrics.invalidate();
       onClose();
     },
     onError: (err) => toast.error(err.message),
@@ -1299,24 +1343,16 @@ function ScheduleTrialModal({ lead, open, onClose }: any) {
           className="space-y-3 py-2"
         >
           <p className="text-slate-300">
-            Confirme o agendamento da aula experimental para <strong className="text-white">{lead?.name}</strong> ({lead?.instrument || "Música"}).
+            Marque <strong className="text-white">{lead?.name}</strong> ({lead?.instrument || "Música"}) como <strong className="text-cyan-300">Aula Experimental</strong> no funil comercial.
           </p>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <label className="font-bold text-slate-400">Data da Aula</label>
-              <Input type="date" value={trialDate} onChange={(e) => setTrialDate(e.target.value)} required className="h-9 text-xs bg-[#0B091A] border-indigo-950 text-white" />
-            </div>
-            <div className="space-y-1">
-              <label className="font-bold text-slate-400">Horário</label>
-              <Input type="time" value={trialTime} onChange={(e) => setTrialTime(e.target.value)} required className="h-9 text-xs bg-[#0B091A] border-indigo-950 text-white" />
-            </div>
-          </div>
+          <p className="text-[11px] text-slate-500">
+            A data e o horário da aula serão combinados com o lead na agenda da escola.
+          </p>
 
           <DialogFooter className="pt-3">
             <Button type="button" variant="outline" onClick={onClose} className="h-9 text-xs border-indigo-950 text-slate-300 hover:bg-white/5">Cancelar</Button>
             <Button type="submit" disabled={moveStageMutation.isPending} className="h-9 text-xs bg-cyan-600 hover:bg-cyan-700 text-white font-bold">
-              {moveStageMutation.isPending && <Loader2 size={14} className="animate-spin mr-1" />} Confirmar Agendamento
+              {moveStageMutation.isPending && <Loader2 size={14} className="animate-spin mr-1" />} Confirmar
             </Button>
           </DialogFooter>
         </form>
@@ -1398,11 +1434,22 @@ function ConvertToStudentModal({ lead, open, onClose }: any) {
 }
 
 // ── MODAL: CRIAR FOLLOW-UP ──
-function CreateFollowUpModal({ open, onClose }: any) {
+function CreateFollowUpModal({ open, onClose, leads = [] }: any) {
   const utils = trpc.useUtils();
+  const [leadId, setLeadId] = useState("");
   const [title, setTitle] = useState("");
   const [dueDate, setDueDate] = useState(new Date().toISOString().slice(0, 10));
   const [contactType, setContactType] = useState<"whatsapp" | "ligacao">("whatsapp");
+
+  const createMutation = trpc.crm.createFollowUp.useMutation({
+    onSuccess: () => {
+      toast.success("Follow-up agendado com sucesso!");
+      utils.crm.listFollowUps.invalidate();
+      utils.crm.getDashboardMetrics.invalidate();
+      onClose();
+    },
+    onError: (err) => toast.error(err.message),
+  });
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -1416,11 +1463,34 @@ function CreateFollowUpModal({ open, onClose }: any) {
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            toast.success("Follow-up agendado com sucesso!");
-            onClose();
+            if (!leadId) {
+              toast.error("Selecione o lead deste follow-up.");
+              return;
+            }
+            createMutation.mutate({
+              leadId: Number(leadId),
+              title,
+              dueDate,
+              contactType,
+            });
           }}
           className="space-y-3 py-2"
         >
+          <div className="space-y-1">
+            <label className="font-bold text-slate-400">Lead *</label>
+            <select
+              value={leadId}
+              onChange={(e) => setLeadId(e.target.value)}
+              required
+              className="w-full h-9 rounded-md bg-[#0B091A] border border-indigo-950 px-2.5 text-xs text-white focus:outline-none focus:border-indigo-500"
+            >
+              <option value="">Selecione o lead...</option>
+              {(leads as any[]).map((lead: any) => (
+                <option key={lead.id} value={lead.id}>{lead.name}</option>
+              ))}
+            </select>
+          </div>
+
           <div className="space-y-1">
             <label className="font-bold text-slate-400">Descrição da Tarefa</label>
             <Input placeholder="Ex: Enviar proposta de violão" value={title} onChange={(e) => setTitle(e.target.value)} required className="h-9 text-xs bg-[#0B091A] border-indigo-950 text-white" />
@@ -1446,7 +1516,9 @@ function CreateFollowUpModal({ open, onClose }: any) {
 
           <DialogFooter className="pt-3">
             <Button type="button" variant="outline" onClick={onClose} className="h-9 text-xs border-indigo-950 text-slate-300">Cancelar</Button>
-            <Button type="submit" className="h-9 text-xs bg-cyan-600 hover:bg-cyan-700 text-white font-bold">Agendar</Button>
+            <Button type="submit" disabled={createMutation.isPending} className="h-9 text-xs bg-cyan-600 hover:bg-cyan-700 text-white font-bold">
+              {createMutation.isPending && <Loader2 size={14} className="animate-spin mr-1" />} Agendar
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>
@@ -1456,9 +1528,36 @@ function CreateFollowUpModal({ open, onClose }: any) {
 
 // ── MODAL: AJUSTAR METAS COMERCIAIS ──
 function GoalsModal({ open, onClose }: any) {
+  const utils = trpc.useUtils();
   const [studentsGoal, setStudentsGoal] = useState("15");
   const [demosGoal, setDemosGoal] = useState("25");
+  const [proposalsGoal, setProposalsGoal] = useState("20");
+  const [dealsGoal, setDealsGoal] = useState("10");
   const [mrrGoal, setMrrGoal] = useState("5000");
+  const [initialized, setInitialized] = useState(false);
+
+  const { data: goal } = trpc.crm.getGoals.useQuery(undefined, { enabled: open });
+
+  useEffect(() => {
+    if (goal && !initialized) {
+      setStudentsGoal(String(goal.targetNewStudents ?? 0));
+      setDemosGoal(String(goal.targetDemos ?? 0));
+      setProposalsGoal(String(goal.targetProposals ?? 0));
+      setDealsGoal(String(goal.targetDeals ?? 0));
+      setMrrGoal(String(goal.targetMrr ?? "0"));
+      setInitialized(true);
+    }
+  }, [goal, initialized]);
+
+  const saveMutation = trpc.crm.saveGoal.useMutation({
+    onSuccess: () => {
+      toast.success("Metas mensais salvas com sucesso!");
+      utils.crm.getGoals.invalidate();
+      utils.crm.getDashboardMetrics.invalidate();
+      onClose();
+    },
+    onError: (err) => toast.error(err.message),
+  });
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -1472,8 +1571,13 @@ function GoalsModal({ open, onClose }: any) {
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            toast.success("Metas mensais salvas com sucesso!");
-            onClose();
+            saveMutation.mutate({
+              targetNewStudents: Number(studentsGoal) || 0,
+              targetDemos: Number(demosGoal) || 0,
+              targetProposals: Number(proposalsGoal) || 0,
+              targetDeals: Number(dealsGoal) || 0,
+              targetMrr: String(mrrGoal),
+            });
           }}
           className="space-y-3.5 py-2"
         >
@@ -1487,6 +1591,17 @@ function GoalsModal({ open, onClose }: any) {
             <Input type="number" value={demosGoal} onChange={(e) => setDemosGoal(e.target.value)} className="h-9 text-xs bg-[#0B091A] border-indigo-950 text-white" />
           </div>
 
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <label className="font-bold text-slate-400">Meta de Propostas</label>
+              <Input type="number" value={proposalsGoal} onChange={(e) => setProposalsGoal(e.target.value)} className="h-9 text-xs bg-[#0B091A] border-indigo-950 text-white" />
+            </div>
+            <div className="space-y-1">
+              <label className="font-bold text-slate-400">Meta de Fechamentos</label>
+              <Input type="number" value={dealsGoal} onChange={(e) => setDealsGoal(e.target.value)} className="h-9 text-xs bg-[#0B091A] border-indigo-950 text-white" />
+            </div>
+          </div>
+
           <div className="space-y-1">
             <label className="font-bold text-slate-400">Meta de Novo MRR em R$</label>
             <Input type="number" value={mrrGoal} onChange={(e) => setMrrGoal(e.target.value)} className="h-9 text-xs bg-[#0B091A] border-indigo-950 text-white" />
@@ -1494,7 +1609,9 @@ function GoalsModal({ open, onClose }: any) {
 
           <DialogFooter className="pt-3">
             <Button type="button" variant="outline" onClick={onClose} className="h-9 text-xs border-indigo-950 text-slate-300">Cancelar</Button>
-            <Button type="submit" className="h-9 text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-bold">Salvar Metas</Button>
+            <Button type="submit" disabled={saveMutation.isPending} className="h-9 text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-bold">
+              {saveMutation.isPending && <Loader2 size={14} className="animate-spin mr-1" />} Salvar Metas
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>
@@ -1505,8 +1622,7 @@ function GoalsModal({ open, onClose }: any) {
 // ── MODAL: PERFIL DO LEAD ──
 function LeadProfileModal({ leadId, open, onClose, onDelete }: any) {
   const { data: dbLeads = [] } = trpc.crm.listLeads.useQuery({});
-  const allLeads = dbLeads.length > 0 ? dbLeads : SAMPLE_LEADS;
-  const lead = (allLeads as any[]).find((l: any) => l.id === leadId);
+  const lead = (dbLeads as any[]).find((l: any) => l.id === leadId);
 
   if (!lead) return null;
 
@@ -1547,6 +1663,85 @@ function LeadProfileModal({ leadId, open, onClose, onDelete }: any) {
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+// ── ABA: CONFIGURAÇÕES DO CRM (persistidas via crm.updateSettings) ──
+function CrmSettingsPanel() {
+  const utils = trpc.useUtils();
+  const { data: crmSettings, isLoading } = trpc.crm.getSettings.useQuery();
+  const [origins, setOrigins] = useState("");
+  const [lossReasons, setLossReasons] = useState("");
+  const [initialized, setInitialized] = useState(false);
+
+  useEffect(() => {
+    if (crmSettings && !initialized) {
+      setOrigins((crmSettings.customOrigins || []).join(", "));
+      setLossReasons((crmSettings.customLossReasons || []).join(", "));
+      setInitialized(true);
+    }
+  }, [crmSettings, initialized]);
+
+  const saveMutation = trpc.crm.updateSettings.useMutation({
+    onSuccess: () => {
+      toast.success("Configurações salvas com sucesso!");
+      utils.crm.getSettings.invalidate();
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const parseList = (value: string) =>
+    value.split(",").map((item) => item.trim()).filter(Boolean);
+
+  return (
+    <div className="space-y-6">
+      <div className="bg-[#110E29]/80 border border-indigo-950/50 rounded-2xl p-6 space-y-5 shadow-xl">
+        <div className="flex items-center justify-between border-b border-indigo-950/50 pb-4">
+          <div>
+            <h3 className="font-bold text-base font-outfit text-white">Configurações do Funil & CRM</h3>
+            <p className="text-xs text-slate-400">Personalize canais de captação e motivos de perda usados no cadastro de leads.</p>
+          </div>
+          <Button
+            disabled={isLoading || saveMutation.isPending}
+            onClick={() =>
+              saveMutation.mutate({
+                customOrigins: parseList(origins),
+                customLossReasons: parseList(lossReasons),
+                customTags: crmSettings?.customTags || [],
+              })
+            }
+            className="h-9 px-4 text-xs bg-indigo-600 hover:bg-indigo-700 font-bold rounded-xl text-white disabled:opacity-50"
+          >
+            {saveMutation.isPending && <Loader2 size={14} className="animate-spin mr-1" />}
+            Salvar Alterações
+          </Button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs">
+          <div className="space-y-2 bg-[#0B091A] p-4 rounded-xl border border-indigo-950/50">
+            <label className="font-bold text-white">Canais de Origem Personalizados</label>
+            <p className="text-[11px] text-slate-400">Separados por vírgula</p>
+            <Input
+              value={origins}
+              onChange={(e) => setOrigins(e.target.value)}
+              placeholder="Instagram, WhatsApp, Google..."
+              className="bg-[#13102B] border-indigo-950 text-white"
+            />
+          </div>
+
+          <div className="space-y-2 bg-[#0B091A] p-4 rounded-xl border border-indigo-950/50">
+            <label className="font-bold text-white">Motivos de Perda Cadastrados</label>
+            <p className="text-[11px] text-slate-400">Opções para quando um lead desistir</p>
+            <Input
+              value={lossReasons}
+              onChange={(e) => setLossReasons(e.target.value)}
+              placeholder="Horário incompatível, Preço/Orçamento..."
+              className="bg-[#13102B] border-indigo-950 text-white"
+            />
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 

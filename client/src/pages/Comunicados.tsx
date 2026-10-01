@@ -57,6 +57,9 @@ export default function Comunicados() {
       toast.success("Comunicado enviado com sucesso!");
       setIsModalOpen(false);
       utils.announcements.list.invalidate();
+    },
+    onError: (e: any) => {
+      toast.error("Erro ao enviar comunicado: " + (e?.message || "tente novamente."));
     }
   });
 
@@ -64,6 +67,9 @@ export default function Comunicados() {
     onSuccess: () => {
       toast.success("Comunicado excluído.");
       utils.announcements.list.invalidate();
+    },
+    onError: (e: any) => {
+      toast.error("Erro ao excluir comunicado: " + (e?.message || "tente novamente."));
     }
   });
 
@@ -255,7 +261,7 @@ export default function Comunicados() {
                             <Button 
                               variant="ghost" 
                               onClick={() => deleteMutation.mutate({ id: ann.id })}
-                              className="w-12 h-12 rounded-2xl text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 transition-all opacity-0 group-hover:opacity-100"
+                              className="w-12 h-12 rounded-2xl text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 transition-all opacity-100 md:opacity-0 md:group-hover:opacity-100"
                             >
                               <Trash2 size={20} />
                             </Button>

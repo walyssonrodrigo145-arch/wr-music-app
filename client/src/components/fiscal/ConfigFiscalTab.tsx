@@ -71,6 +71,7 @@ export function ConfigFiscalTab() {
   const utils = trpc.useUtils();
   const { data: company, isLoading: isLoadingCompany } = trpc.fiscal.company.get.useQuery();
   const { data: services = [], isLoading: isLoadingServices } = trpc.fiscal.services.list.useQuery();
+  const hasStoredApiKey = Boolean(company?.hasFocusApiKey);
 
   const [showApiKey, setShowApiKey] = useState(false);
 
@@ -179,11 +180,16 @@ export function ConfigFiscalTab() {
       toast.error("Informe a Razão Social da escola");
       return;
     }
-    if (!form.focusApiKey.trim()) {
+    if (!form.focusApiKey.trim() && !hasStoredApiKey) {
       toast.error("Informe a API Key da Focus NFe para habilitar a emissão");
       return;
     }
-    saveCompanyMutation.mutate({ ...form, cnpj: cnpjClean });
+    const payload: typeof form = { ...form, cnpj: cnpjClean };
+    // Chave já salva e não alterada: não reenviar vazio (o servidor mantém a atual)
+    if (!payload.focusApiKey.trim() && hasStoredApiKey) {
+      delete (payload as Partial<typeof form>).focusApiKey;
+    }
+    saveCompanyMutation.mutate(payload);
   };
 
   const handleSaveService = () => {
@@ -221,7 +227,7 @@ export function ConfigFiscalTab() {
   };
 
   // ─── Indicadores de completude ─────────────────────────────────────────────
-  const isMissingApiKey = !form.focusApiKey.trim();
+  const isMissingApiKey = !form.focusApiKey.trim() && !hasStoredApiKey;
   const isMissingCnpj = sanitizeCnpj(form.cnpj).length < 14;
   const isMissingIM = !form.inscricaoMunicipal.trim();
   const hasConfigWarning = isMissingApiKey || isMissingCnpj || isMissingIM;
@@ -482,7 +488,7 @@ export function ConfigFiscalTab() {
               value={form.focusApiKey}
               onChange={(e) => setForm({ ...form, focusApiKey: e.target.value })}
               type={showApiKey ? "text" : "password"}
-              placeholder="Ex: cPzdMhCTVuAnOXiKJjb8Wl..."
+              placeholder={hasStoredApiKey ? "Chave salva — deixe em branco para manter" : "Ex: cPzdMhCTVuAnOXiKJjb8Wl..."}
               className="h-11 rounded-2xl bg-background border-border text-xs font-mono pr-12"
             />
             <button

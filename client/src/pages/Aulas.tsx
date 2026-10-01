@@ -50,7 +50,6 @@ export default function Aulas() {
   // Desktop specific states
   const [currentDate, setCurrentDate] = useState(new Date());
   const [view, setView] = useState<CalendarView>("mes");
-  const [animateToday, setAnimateToday] = useState(false);
   const [instrumentFilter, setInstrumentFilter] = useState("todos");
   const [teacherFilter, setTeacherFilter] = useState("todos");
   const [statusFilterDesktop, setStatusFilterDesktop] = useState("geral");
@@ -78,7 +77,6 @@ export default function Aulas() {
   const { data: instruments = [] } = trpc.instruments.list.useQuery();
   const { data: professoresList = [] } = trpc.professores.list.useQuery();
   const { data: studioRoomsList = [] } = trpc.studioRooms.list.useQuery(undefined, { refetchInterval: 10_000 });
-  const { data: pendingReminders = [] } = trpc.reminders.list.useQuery({ status: "pendente" });
   const { data: schoolSettings } = trpc.settings.getSchoolHours.useQuery();
 
   // ─── LÓGICA DE HORÁRIOS LIVRES DO DIA ────────────────────────────────────────
@@ -297,19 +295,8 @@ export default function Aulas() {
   // Unused stats removed for expanded calendar layout
 
   const handleDeleteRequest = (id: number) => {
-    const target = lessons.find(l => l.id === id);
-    if (!target) return;
-    const hasMultiple = !!target.recurringGroupId || (
-      target.studentId ? lessons.some(l => l.id !== id && l.studentId === target.studentId && l.status === 'agendada' && new Date(l.scheduledAt) >= new Date(target.scheduledAt)) : false
-    ) || (
-      target.lessonType === 'turma' ? lessons.some(l => l.id !== id && l.title === target.title && l.lessonType === 'turma' && l.status === 'agendada' && new Date(l.scheduledAt) >= new Date(target.scheduledAt)) : false
-    );
-
-    if (hasMultiple) {
-      setRecurringAction({ type: 'delete', id });
-    } else {
-      deleteMutation.mutate({ id, deleteSeries: false });
-    }
+    if (!lessons.some(l => l.id === id)) return;
+    setRecurringAction({ type: 'delete', id });
   };
 
   const handleStatusChange = (id: number, status: string, newDate?: string) => {
@@ -408,8 +395,6 @@ export default function Aulas() {
               <button
                 onClick={() => {
                   setCurrentDate(new Date());
-                  setAnimateToday(true);
-                  setTimeout(() => setAnimateToday(false), 1000);
                 }}
                 className="h-9 px-3 rounded-xl bg-card border border-border/60 text-xs font-bold text-foreground hover:bg-muted transition-all shadow-sm"
               >
@@ -927,7 +912,7 @@ export default function Aulas() {
           open={agendarOpen}
           onOpenChange={(open) => { setAgendarOpen(open); if (!open) setEditingLesson(null); }}
           editingLesson={editingLesson}
-          initialDate={selectedDate || currentDate}
+          initialDate={currentDate}
         />
 
         <LessonDetailModal 

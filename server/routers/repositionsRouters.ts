@@ -1077,7 +1077,15 @@ export const repositionsRouters = {
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
       const orgId = ctx.user.organizationId!;
-      const studentId = ctx.user.studentId;
+
+      // B: mesmo fallback de vínculo (students.studentUserId) usado nas demais procedures do portal
+      let studentId = ctx.user.studentId;
+      if (!studentId) {
+        const [found] = await db.select({ id: students.id }).from(students)
+          .where(and(eq(students.studentUserId, ctx.user.id), eq(students.organizationId, orgId)))
+          .limit(1);
+        if (found) studentId = found.id;
+      }
       if (!studentId) return [];
       await sweepRepositions(db, orgId);
       const rows = await db
