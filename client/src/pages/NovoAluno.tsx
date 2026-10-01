@@ -2283,25 +2283,51 @@ export default function NovoAluno() {
             variants={containerVariants}
             initial="hidden"
             animate="visible"
-            className="grid grid-cols-1 lg:grid-cols-2 gap-8"
+            className="grid grid-cols-1 lg:grid-cols-2 gap-5 lg:gap-6 items-start"
           >
-            <div className="space-y-8">
-              <motion.div variants={cardVariants} className="bg-card rounded-[2rem] p-8 shadow-sm border border-border/50 relative overflow-hidden group">
-                <div className="flex items-center gap-4 mb-6 relative z-10">
-                  <div className="w-12 h-12 rounded-2xl bg-violet-600 text-white flex items-center justify-center shadow-lg shadow-violet-500/10">
-                    <GraduationCap size={24} />
+            <div className="space-y-5 lg:space-y-6">
+              <motion.div variants={cardVariants} className="bg-card rounded-3xl p-5 sm:p-6 shadow-sm border border-border/50 transition-shadow hover:shadow-md">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-lg shadow-indigo-500/10">
+                    <User size={20} />
                   </div>
                   <div>
-                    <h3 className="text-lg font-black text-foreground tracking-tight">Cursos</h3>
-                    <p className="text-[10px] text-muted-foreground/70 font-bold uppercase tracking-[0.2em]">Instrumentos e professores</p>
+                    <h3 className="text-base font-black text-foreground tracking-tight">Dados do Aluno</h3>
+                    <p className="text-[10px] text-muted-foreground/70 font-bold uppercase tracking-[0.15em]">Informações cadastrais</p>
                   </div>
                 </div>
-                <div className="space-y-3 relative z-10">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 relative z-10">
+                  {[
+                    { label: "Nome", value: form.name },
+                    { label: "Data de Nascimento", value: form.birthDate && isValid(parseISO(form.birthDate)) ? format(parseISO(form.birthDate), "dd/MM/yyyy") : "" },
+                    { label: "CPF", value: form.cpf },
+                    { label: "E-mail", value: form.email },
+                    { label: "Telefone", value: form.phone },
+                    ...(form.guardianName.trim() ? [{ label: "Responsável", value: form.guardianName }] : []),
+                  ].map((item) => (
+                    <div key={item.label} className="rounded-xl border border-border/50 bg-muted/20 px-3.5 py-2.5">
+                      <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em]">{item.label}</p>
+                      <p className="text-sm font-bold text-foreground mt-0.5 break-words">{item.value || "—"}</p>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+              <motion.div variants={cardVariants} className="bg-card rounded-3xl p-5 sm:p-6 shadow-sm border border-border/50 transition-shadow hover:shadow-md">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 rounded-xl bg-violet-600 text-white flex items-center justify-center shadow-lg shadow-violet-500/10">
+                    <GraduationCap size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-black text-foreground tracking-tight">Cursos</h3>
+                    <p className="text-[10px] text-muted-foreground/70 font-bold uppercase tracking-[0.15em]">Instrumentos e professores</p>
+                  </div>
+                </div>
+                <div className="space-y-2.5 relative z-10">
                   {summaryCourses.length === 0 ? (
                     <p className="text-sm text-muted-foreground rounded-xl border border-dashed border-border/60 bg-muted/20 px-4 py-3">Nenhum curso selecionado.</p>
                   ) : (
                     summaryCourses.map((c: any, index: number) => (
-                      <div key={c.id ?? index} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/50 bg-muted/20 px-4 py-3">
+                      <div key={c.id ?? index} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/50 bg-muted/20 px-3.5 py-2.5">
                         <span className="text-sm font-black text-foreground">
                           {instruments.find((i: any) => String(i.id) === String(c.instrumentId))?.name || "—"}
                         </span>
@@ -2313,20 +2339,20 @@ export default function NovoAluno() {
                   )}
                 </div>
               </motion.div>
-              <motion.div variants={cardVariants} className="bg-card rounded-[2rem] p-8 shadow-sm border border-border/50 relative overflow-hidden group">
-                <div className="flex items-center gap-4 mb-6 relative z-10">
-                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-violet-600 to-indigo-600 text-white flex items-center justify-center shadow-lg shadow-violet-500/20">
-                    <CalendarDays size={24} />
+              <motion.div variants={cardVariants} className="bg-card rounded-3xl p-5 sm:p-6 shadow-sm border border-border/50 transition-shadow hover:shadow-md">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-600 to-indigo-600 text-white flex items-center justify-center shadow-lg shadow-violet-500/20">
+                    <CalendarDays size={20} />
                   </div>
                   <div>
-                    <h3 className="text-lg font-black text-foreground tracking-tight">Agenda</h3>
-                    <p className="text-[10px] text-muted-foreground/70 font-bold uppercase tracking-[0.2em]">Horários semanais</p>
+                    <h3 className="text-base font-black text-foreground tracking-tight">Agenda</h3>
+                    <p className="text-[10px] text-muted-foreground/70 font-bold uppercase tracking-[0.15em]">Horários semanais</p>
                   </div>
                 </div>
                 {scheduleTouched && scheduleForm.weeklySlots.length > 0 ? (
-                  <div className="space-y-3 relative z-10">
+                  <div className="space-y-2.5 relative z-10">
                     {scheduleForm.weeklySlots.map((slot, index) => (
-                      <div key={index} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/50 bg-muted/20 px-4 py-3">
+                      <div key={index} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/50 bg-muted/20 px-3.5 py-2.5">
                         <span className="text-sm font-black text-foreground">{weekDayLabels[slot.dayOfWeek] || "—"}</span>
                         <span className="text-xs font-semibold text-muted-foreground">
                           {slot.time || "—"} · {studioRooms.find((r: any) => String(r.id) === String(slot.studioRoomId || form.studioRoomId))?.name || "Sem sala"}
@@ -2338,15 +2364,46 @@ export default function NovoAluno() {
                   <p className="text-sm text-muted-foreground rounded-xl border border-dashed border-border/60 bg-muted/20 px-4 py-3">Nenhum horário semanal definido.</p>
                 )}
               </motion.div>
+            </div>
+            <div className="space-y-5 lg:space-y-6">
+              <motion.div variants={cardVariants} className="bg-card rounded-3xl p-5 sm:p-6 shadow-sm border border-border/50 transition-shadow hover:shadow-md">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-lg shadow-emerald-500/10">
+                    <FileText size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-black text-foreground tracking-tight">Financeiro</h3>
+                    <p className="text-[10px] text-muted-foreground/70 font-bold uppercase tracking-[0.15em]">Cobrança</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 relative z-10">
+                  <div className="rounded-xl border border-border/50 bg-muted/20 px-3.5 py-2.5">
+                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em]">Plano</p>
+                    <p className="text-sm font-bold text-foreground mt-0.5 break-words">{selectedPlan?.nome || "Sem plano"}</p>
+                  </div>
+                  <div className="rounded-xl border border-border/50 bg-muted/20 px-3.5 py-2.5">
+                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em]">Mensalidade</p>
+                    <p className="text-sm font-bold text-foreground mt-0.5 break-words">{formatBRL(parseBRL(form.monthlyFee))}</p>
+                  </div>
+                  <div className="rounded-xl border border-border/50 bg-muted/20 px-3.5 py-2.5">
+                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em]">Periodicidade</p>
+                    <p className="text-sm font-bold text-foreground mt-0.5 break-words capitalize">{form.billingPeriodicity || "—"}</p>
+                  </div>
+                  <div className="rounded-xl border border-border/50 bg-muted/20 px-3.5 py-2.5">
+                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em]">Vencimento (Dia)</p>
+                    <p className="text-sm font-bold text-foreground mt-0.5 break-words">{form.dueDay || "—"}</p>
+                  </div>
+                </div>
+              </motion.div>
               {/* PRD_AGENDAMENTO_VISIVEL: painel de aulas agendadas do aluno */}
               {panelStudentId && (
-                <motion.div variants={cardVariants} className="bg-card rounded-[2rem] p-6 sm:p-8 shadow-sm border border-border/50 space-y-4">
+                <motion.div variants={cardVariants} className="bg-card rounded-3xl p-5 sm:p-6 shadow-sm border border-border/50 space-y-3 transition-shadow hover:shadow-md">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div>
-                      <h3 className="text-lg font-black text-foreground tracking-tight flex items-center gap-2">
+                      <h3 className="text-base font-black text-foreground tracking-tight flex items-center gap-2">
                         <CalendarCheck size={18} className="text-emerald-600" /> Aulas agendadas
                       </h3>
-                      <p className="text-[10px] text-muted-foreground/70 font-bold uppercase tracking-[0.2em]">Próximas aulas deste aluno</p>
+                      <p className="text-[10px] text-muted-foreground/70 font-bold uppercase tracking-[0.15em]">Próximas aulas deste aluno</p>
                     </div>
                     {studentUpcomingLessons.length > 5 && (
                       <button type="button" onClick={() => setLocation("/aulas")} className="text-xs font-bold text-primary hover:underline">
@@ -2366,7 +2423,7 @@ export default function NovoAluno() {
                   ) : (
                     <ul className="space-y-2">
                       {panelPreviewLessons.map((lesson: any) => (
-                        <li key={lesson.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/50 bg-muted/20 px-3 py-2.5">
+                        <li key={lesson.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/50 bg-muted/20 px-3 py-2">
                           <div className="flex flex-wrap items-center gap-2">
                             <span className="text-sm font-black text-foreground">{format(new Date(lesson.scheduledAt), "dd/MM/yyyy")}</span>
                             <span className="text-sm font-bold text-muted-foreground">{format(new Date(lesson.scheduledAt), "HH:mm")}</span>
@@ -2399,63 +2456,6 @@ export default function NovoAluno() {
                   )}
                 </motion.div>
               )}
-            </div>
-            <div className="space-y-8">
-              <motion.div variants={cardVariants} className="bg-card rounded-[2rem] p-8 shadow-sm border border-border/50 relative overflow-hidden group">
-                <div className="flex items-center gap-4 mb-6 relative z-10">
-                  <div className="w-12 h-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shadow-lg shadow-emerald-500/10">
-                    <FileText size={24} />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-black text-foreground tracking-tight">Financeiro</h3>
-                    <p className="text-[10px] text-muted-foreground/70 font-bold uppercase tracking-[0.2em]">Cobrança</p>
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 relative z-10">
-                  <div className="rounded-xl border border-border/50 bg-muted/20 px-4 py-3">
-                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em]">Plano</p>
-                    <p className="text-sm font-bold text-foreground mt-0.5 break-words">{selectedPlan?.nome || "Sem plano"}</p>
-                  </div>
-                  <div className="rounded-xl border border-border/50 bg-muted/20 px-4 py-3">
-                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em]">Mensalidade</p>
-                    <p className="text-sm font-bold text-foreground mt-0.5 break-words">{formatBRL(parseBRL(form.monthlyFee))}</p>
-                  </div>
-                  <div className="rounded-xl border border-border/50 bg-muted/20 px-4 py-3">
-                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em]">Periodicidade</p>
-                    <p className="text-sm font-bold text-foreground mt-0.5 break-words capitalize">{form.billingPeriodicity || "—"}</p>
-                  </div>
-                  <div className="rounded-xl border border-border/50 bg-muted/20 px-4 py-3">
-                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em]">Vencimento (Dia)</p>
-                    <p className="text-sm font-bold text-foreground mt-0.5 break-words">{form.dueDay || "—"}</p>
-                  </div>
-                </div>
-              </motion.div>
-              <motion.div variants={cardVariants} className="bg-card rounded-[2rem] p-8 shadow-sm border border-border/50 relative overflow-hidden group">
-                <div className="flex items-center gap-4 mb-6 relative z-10">
-                  <div className="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-lg shadow-indigo-500/10">
-                    <User size={24} />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-black text-foreground tracking-tight">Dados do Aluno</h3>
-                    <p className="text-[10px] text-muted-foreground/70 font-bold uppercase tracking-[0.2em]">Informações cadastrais</p>
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 relative z-10">
-                  {[
-                    { label: "Nome", value: form.name },
-                    { label: "Data de Nascimento", value: form.birthDate && isValid(parseISO(form.birthDate)) ? format(parseISO(form.birthDate), "dd/MM/yyyy") : "" },
-                    { label: "CPF", value: form.cpf },
-                    { label: "E-mail", value: form.email },
-                    { label: "Telefone", value: form.phone },
-                    ...(form.guardianName.trim() ? [{ label: "Responsável", value: form.guardianName }] : []),
-                  ].map((item) => (
-                    <div key={item.label} className="rounded-xl border border-border/50 bg-muted/20 px-4 py-3">
-                      <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em]">{item.label}</p>
-                      <p className="text-sm font-bold text-foreground mt-0.5 break-words">{item.value || "—"}</p>
-                    </div>
-                  ))}
-                </div>
-              </motion.div>
             </div>
           </motion.div>
         )}

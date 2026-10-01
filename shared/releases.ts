@@ -26,6 +26,16 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: "2026.10.01.8",
+    date: "2026-10-01",
+    title: "Resumo do cadastro: dados pessoais primeiro e visual mais enxuto",
+    summary: "A tela de resumo do cadastro do aluno ficou mais limpa e na ordem certa: Dados do Aluno vem primeiro, seguido de Cursos e Agenda (à esquerda) e Financeiro e Aulas agendadas (à direita). Os cartões ficaram mais compactos, com espaçamentos menores e ícones proporcionais.",
+    items: [
+      { type: "melhoria", title: "Dados do Aluno primeiro", description: "A ordem do resumo agora começa pelas informações cadastrais, como no passo a passo do cadastro." },
+      { type: "melhoria", title: "Layout mais compacto", description: "Cartões, ícones e espaçamentos reduzidos para aproveitar melhor a tela, sem perder o visual premium." },
+    ],
+  },
+  {
     version: "2026.10.01.7",
     date: "2026-10-01",
     title: "Horários das aulas importadas corrigidos + Próximas aulas mais limpas",
