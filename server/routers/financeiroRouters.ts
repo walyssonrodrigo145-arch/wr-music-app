@@ -1578,10 +1578,16 @@ export const financeiroRouters = {
     }),
 
     // ─ Mensalidades vencidas (não pagas, data já passou) ────────────
-    overdue: protectedProcedure.query(async ({ ctx }) => {
+    overdue: protectedProcedure
+      .input(z.object({
+        // Painel do dashboard: apenas dívidas de alunos ATIVOS (arquivados nunca aparecem)
+        onlyActive: z.boolean().optional(),
+      }).optional())
+      .query(async ({ ctx, input }) => {
       const db = await getDb();
       if (!db) return [];
       const orgId = ctx.user.organizationId!;
+      const isUserAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
       const today = new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
       const rows = await db.select({
         id: paymentDues.id,
@@ -1598,7 +1604,10 @@ export const financeiroRouters = {
         .leftJoin(students, and(eq(paymentDues.studentId, students.id), eq(paymentDues.organizationId, orgId)))
         .where(and(
           eq(paymentDues.organizationId, orgId),
-          eq(paymentDues.userId, ctx.user.id),
+          // Admin vê todas as dívidas da escola; professor vê apenas as dos seus alunos
+          isUserAdmin ? undefined : eq(paymentDues.userId, ctx.user.id),
+          input?.onlyActive ? eq(students.status, 'ativo') : undefined,
+          input?.onlyActive ? isNull(students.deletedAt) : undefined,
           sql`${paymentDues.dueDate} < ${today}`,
           sql`${paymentDues.status} != 'pago'`
         ))

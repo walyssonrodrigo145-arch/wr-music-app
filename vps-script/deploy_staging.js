@@ -222,6 +222,8 @@ const filesToUpload = [
   'shared/agenda.ts',
   'shared/schoolCalendar.ts',
   'client/src/lib/printAgenda.ts',
+  // ── Painel Inadimplentes: só alunos ativos ──
+  'client/src/pages/Dashboard.tsx',
   // ── Múltiplos cursos + responsável no financeiro + professor/conclusão em alunos (PRD v1.1) ──
   'server/routers/financeiroRouters.ts',
   'server/routers/studentsRouters.ts',

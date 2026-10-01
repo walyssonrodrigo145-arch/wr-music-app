@@ -26,6 +26,16 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: "2026.10.01.3",
+    date: "2026-10-01",
+    title: "Painel de Inadimplentes mostra só alunos ativos",
+    summary: "O card 'Inadimplentes' do dashboard deixou de listar dívidas antigas de ex-alunos arquivados: agora aparecem apenas cobranças em atraso de alunos ativos. As dívidas históricas continuam preservadas nos relatórios e no Histórico. O admin passou a ver todas as dívidas da escola nesse painel (o professor continua vendo só as dos seus alunos).",
+    items: [
+      { type: "correcao", title: "Arquivados fora do painel", description: "Dívidas de alunos arquivados (Histórico) não aparecem mais no painel de Inadimplentes do dashboard." },
+      { type: "correcao", title: "Admin vê todas as dívidas da escola", description: "Antes o painel mostrava apenas as cobranças criadas pelo próprio usuário; agora o admin vê todas as dívidas dos alunos ativos da escola." },
+    ],
+  },
+  {
     version: "2026.10.01.2",
     date: "2026-10-01",
     title: "Múltiplos cursos por aluno + responsável no Financeiro + professor e conclusão na lista",

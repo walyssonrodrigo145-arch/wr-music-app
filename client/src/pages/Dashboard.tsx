@@ -118,7 +118,7 @@ export default function Dashboard() {
   const { data: stats, isLoading: statsLoading } = trpc.dashboard.stats.useQuery(undefined, { staleTime: 5 * 60 * 1000 });
   const { data: monthlyDataRaw } = trpc.dashboard.monthlyStats.useQuery(undefined, { staleTime: 5 * 60 * 1000 });
   const { data: upcomingLessons } = trpc.lessons.upcoming.useQuery(undefined, { staleTime: 2 * 60 * 1000 });
-  const { data: overduePayments = [] } = trpc.paymentDues.overdue.useQuery(undefined, { staleTime: 2 * 60 * 1000 });
+  const { data: overduePayments = [] } = trpc.paymentDues.overdue.useQuery({ onlyActive: true }, { staleTime: 2 * 60 * 1000 });
   const { data: todaySummaryData, error: todaySummaryError } = trpc.dashboard.todaySummary.useQuery(undefined, { staleTime: 2 * 60 * 1000 });
   const { data: mySubscription } = trpc.platform.mySubscription.useQuery(undefined, { staleTime: 5 * 60 * 1000 });
   const { data: allPlans } = trpc.platform.getPublicPlans.useQuery(undefined, { staleTime: 10 * 60 * 1000 });
