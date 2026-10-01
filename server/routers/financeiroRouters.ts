@@ -185,6 +185,7 @@ export const financeiroRouters = {
           receiptUrl: paymentDues.receiptUrl,
           studentName: students.name,
           studentPhone: students.phone,
+          guardianName: students.guardianName,
           email: students.email,
           lessonType: students.lessonType,
           studentStatus: students.status,

@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { X, Loader2, Pencil, CheckCircle2 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { parseDueDaysOptions } from "@/lib/settings";
@@ -114,10 +114,45 @@ export function StudentModal({
     },
   });
 
-  const handleSubmit = () => {
+  // ── Múltiplos cursos (PRD v1.1) ─────────────────────────────────────────────
+  const { data: professoresModal = [] } = trpc.professores.list.useQuery(undefined, { enabled: open && !!editData });
+  const syncCoursesMutation = trpc.students.syncCourses.useMutation({
+    onError: (e) => toast.error(formatFriendlyError(e, "Não foi possível salvar os cursos")),
+  });
+  const [courseCount, setCourseCount] = useState(1);
+  const [extraCourses, setExtraCourses] = useState<Array<{ id?: number; instrumentId: string; teacherUserId: string }>>([]);
+  const [coursesDirty, setCoursesDirty] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    const cs: any[] = (editData as any)?.courses || [];
+    setCourseCount(Math.max(1, Math.min(4, cs.length || 1)));
+    setExtraCourses(cs.slice(1).map((c: any) => ({ id: c.id, instrumentId: String(c.instrumentId || ""), teacherUserId: c.teacherUserId ? String(c.teacherUserId) : "" })));
+    setCoursesDirty(false);
+  }, [open, editData]);
+
+  const updateExtraCourse = (index: number, patch: Partial<{ instrumentId: string; teacherUserId: string }>) => {
+    setExtraCourses((prev) => prev.map((c, i) => (i === index ? { ...c, ...patch } : c)));
+    setCoursesDirty(true);
+  };
+
+  const handleSubmit = async () => {
     if (!form.name.trim() || !form.phone.trim()) {
       toast.error("Nome e telefone são obrigatórios");
       return;
+    }
+    // Múltiplos cursos: validar antes de salvar (PRD v1.1)
+    if (editData && coursesDirty) {
+      const extras = extraCourses.slice(0, Math.max(0, courseCount - 1));
+      if (extras.some((c) => !c.instrumentId)) {
+        toast.error("Escolha o curso/instrumento de cada aula extra.");
+        return;
+      }
+      const todos = [form.instrumentId, ...extras.map((c) => c.instrumentId)].filter(Boolean);
+      if (new Set(todos).size !== todos.length) {
+        toast.error("Instrumento já selecionado em outro curso.");
+        return;
+      }
     }
     // AUDIT FIX: usar parseBRL compartilhado — o parser antigo (replace(',','.'))
     // convertia "1.234,56" em 1.234 (perda de 3 ordens de magnitude)
@@ -136,6 +171,28 @@ export function StudentModal({
       avatar: form.avatar || undefined,
     };
     if (editData) {
+      // Sincroniza os cursos ANTES de atualizar o aluno (se a seção foi alterada)
+      if (coursesDirty) {
+        const primary = (editData as any)?.courses?.[0];
+        const extras = extraCourses.slice(0, Math.max(0, courseCount - 1));
+        const cursos = [
+          {
+            id: primary?.id as number | undefined,
+            instrumentId: form.instrumentId ? Number(form.instrumentId) : Number(primary?.instrumentId || 0),
+            teacherUserId: (primary?.teacherUserId as number | undefined) ?? (editData as any).professorId ?? null,
+          },
+          ...extras.map((c) => ({
+            id: c.id,
+            instrumentId: Number(c.instrumentId),
+            teacherUserId: c.teacherUserId ? Number(c.teacherUserId) : null,
+          })),
+        ];
+        try {
+          await syncCoursesMutation.mutateAsync({ studentId: editData.id, courses: cursos as any });
+        } catch {
+          return; // erro já foi exibido pelo onError
+        }
+      }
       updateMutation.mutate({ 
         id: editData.id, 
         ...payload,
@@ -152,7 +209,7 @@ export function StudentModal({
     }
   };
 
-  const isPending = createMutation.isPending || updateMutation.isPending;
+  const isPending = createMutation.isPending || updateMutation.isPending || syncCoursesMutation.isPending;
 
   if (!open) return null;
 
@@ -233,6 +290,63 @@ export function StudentModal({
               </select>
             </div>
           </div>
+
+          {/* Múltiplos cursos (PRD v1.1): aparece só na edição do aluno */}
+          {editData && (
+            <div className="space-y-3 rounded-xl border border-border/40 bg-muted/5 p-3">
+              <div className="flex items-center justify-between gap-2">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60">Cursos do aluno</label>
+                <select
+                  value={courseCount}
+                  onChange={(e) => {
+                    const n = Number(e.target.value);
+                    setCourseCount(n);
+                    setExtraCourses((prev) => {
+                      const next = prev.slice(0, Math.max(0, n - 1));
+                      while (next.length < n - 1) next.push({ instrumentId: "", teacherUserId: "" });
+                      return next;
+                    });
+                    setCoursesDirty(true);
+                  }}
+                  className="h-8 text-xs rounded-lg border border-border/40 bg-muted/10 px-2 focus:outline-none"
+                >
+                  {[1, 2, 3, 4].map((n) => <option key={n} value={n}>{n} curso{n > 1 ? "s" : ""}</option>)}
+                </select>
+              </div>
+              <p className="text-[10px] text-muted-foreground">
+                Curso 1: <strong className="text-foreground">{(editData as any).instrumentName || "—"}</strong> · Prof. <strong className="text-foreground">{(editData as any).professorName || "—"}</strong>
+              </p>
+              {Array.from({ length: Math.max(0, courseCount - 1) }).map((_, i) => (
+                <div key={i} className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground/50 pl-1">Curso {i + 2}</label>
+                    <select
+                      value={extraCourses[i]?.instrumentId || ""}
+                      onChange={(e) => updateExtraCourse(i, { instrumentId: e.target.value })}
+                      className="w-full h-9 text-xs rounded-lg border border-border/40 bg-muted/10 px-2 focus:outline-none"
+                    >
+                      <option value="">Selecionar...</option>
+                      {instruments.map((instr) => <option key={instr.id} value={instr.id}>{instr.name}</option>)}
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground/50 pl-1">Professor</label>
+                    <select
+                      value={extraCourses[i]?.teacherUserId || ""}
+                      onChange={(e) => updateExtraCourse(i, { teacherUserId: e.target.value })}
+                      className="w-full h-9 text-xs rounded-lg border border-border/40 bg-muted/10 px-2 focus:outline-none"
+                    >
+                      <option value="">Professor atual</option>
+                      {(professoresModal as any[]).map((p) => <option key={p.userId} value={p.userId}>{p.name}</option>)}
+                    </select>
+                  </div>
+                </div>
+              ))}
+              {courseCount > 1 && (
+                <p className="text-[9px] text-muted-foreground/70">Cada curso extra vira uma matrícula ativa com o professor escolhido. Horários e valores podem ser ajustados depois.</p>
+              )}
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60">Mensalidade (R$)</label>

@@ -509,3 +509,52 @@ describe("professores (arquivamento)", () => {
     await expect(caller.professores.archive({ id: 999 })).rejects.toThrow(/n.o encontrado/i);
   });
 });
+
+
+describe("students.syncCourses (multiplos cursos)", () => {
+  beforeEach(() => {
+    selectQueue.length = 0;
+  });
+
+  it("cria/atualiza/encerra cursos do aluno", async () => {
+    const ctx = createAuthContext();
+    const caller = appRouter.createCaller(ctx);
+    // Fila: [aluno], [instrumentos da org], [professores da org], [matriculas ativas existentes]
+    enqueueSelectResult([{ id: 1, professorId: 1652, monthlyFee: "180.00" }]);
+    enqueueSelectResult([{ id: 10 }, { id: 11 }]);
+    enqueueSelectResult([{ userId: 1652 }, { userId: 1655 }]);
+    enqueueSelectResult([{ id: 50, instrumentId: 10, teacherUserId: 1652, status: "ativo" }]);
+    const result = await caller.students.syncCourses({
+      studentId: 1,
+      courses: [
+        { id: 50, instrumentId: 10, teacherUserId: 1652 },
+        { instrumentId: 11, teacherUserId: 1655 },
+      ],
+    });
+    expect(result).toHaveProperty("success", true);
+  });
+
+  it("bloqueia instrumento repetido em dois cursos", async () => {
+    const ctx = createAuthContext();
+    const caller = appRouter.createCaller(ctx);
+    enqueueSelectResult([{ id: 1, professorId: 1652, monthlyFee: "180.00" }]);
+    await expect(
+      caller.students.syncCourses({
+        studentId: 1,
+        courses: [
+          { instrumentId: 10, teacherUserId: 1652 },
+          { instrumentId: 10, teacherUserId: 1655 },
+        ],
+      })
+    ).rejects.toThrow(/outro curso/i);
+  });
+
+  it("aluno inexistente/sem permissao e bloqueado", async () => {
+    const ctx = createAuthContext();
+    const caller = appRouter.createCaller(ctx);
+    enqueueSelectResult([]);
+    await expect(
+      caller.students.syncCourses({ studentId: 999, courses: [{ instrumentId: 10 }] })
+    ).rejects.toThrow(/permiss/i);
+  });
+});

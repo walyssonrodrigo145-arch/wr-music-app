@@ -39,7 +39,7 @@ type PaymentRow = {
   id: number; studentId: number | null; amount: string | number;
   dueDate: string | Date; paidAt?: Date | string | null;
   status: string; month: number; year: number;
-  notes?: string | null; studentName?: string | null; studentPhone?: string | null;
+  notes?: string | null; studentName?: string | null; studentPhone?: string | null; guardianName?: string | null;
   email?: string | null;
   asaasId?: string | null;
   asaasPaymentLink?: string | null;
@@ -1088,6 +1088,9 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
                                   </span>
                                 )}
                               </div>
+                              {payment.guardianName && (
+                                <p className="text-[10px] text-amber-600 dark:text-amber-400 font-bold truncate mt-0.5">Responsável: {payment.guardianName}</p>
+                              )}
                               <p className="text-[10px] text-muted-foreground font-medium truncate mt-0.5">{payment.email}</p>
                             </div>
                           </div>
@@ -1291,6 +1294,9 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
                               </span>
                             )}
                           </div>
+                          {payment.guardianName && (
+                            <p className="text-[10px] text-amber-600 dark:text-amber-400 font-bold truncate">Responsável: {payment.guardianName}</p>
+                          )}
                           <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest truncate">{MONTHS_PT[payment.month-1]} {payment.year}</p>
                         </div>
                       </div>

@@ -26,6 +26,17 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: "2026.10.01.2",
+    date: "2026-10-01",
+    title: "Múltiplos cursos por aluno + responsável no Financeiro + professor e conclusão na lista",
+    summary: "Agora o aluno pode ter mais de um curso (com professor e instrumento próprios de cada aula), o Financeiro mostra o responsável pela mensalidade e a lista de Alunos exibe o professor e a data de conclusão de cada curso — quando há contrato com data ou plano definido.",
+    items: [
+      { type: "novo", title: "Aluno com vários cursos", description: "Na edição do aluno, escolha de 1 a 4 cursos: cada curso extra tem seu instrumento e seu professor (útil quando o professor principal não atende aquele curso)." },
+      { type: "novo", title: "Conclusão por curso na lista de Alunos", description: "Cada curso do aluno aparece com o professor e a conclusão ('Conclui em DD/MM/AAAA'). A data só aparece quando há contrato com data de expiração ou plano/matrícula com duração; sem isso, não é exibida." },
+      { type: "novo", title: "Responsável nas mensalidades", description: "O Financeiro passa a mostrar 'Responsável: Nome' abaixo do aluno, para o financeiro saber com quem falar sobre a cobrança." },
+    ],
+  },
+  {
     version: "2026.10.01.1",
     date: "2026-10-01",
     title: "Professores: arquivar e reativar + legenda completa na agenda",

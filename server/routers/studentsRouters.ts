@@ -19,7 +19,7 @@ import {
   updateUserProfile,
   getExperimentalStats,
 } from "../db";
-import { organizations, users, students, lessons, instruments, reminders, reminderTemplates, paymentDues, asaasCustomers, settings, studentGoals, studentTimeline, studentFiles, announcements, chatMessages, rescheduleRequests, schoolPlans, studentEvolution, aiConversations, aiMessages, aiDocuments, expenses, dailyStudyPlans, notifications, professores, professorPayments, attendanceTokens, attendanceLogs, contracts, fileComments, studioRooms, schoolIntegrations, contractTemplates, contractEvents, crmLeads, crmGoals, crmActivities, fiscalCompanies, fiscalInvoices, fiscalServices, fiscalJobs, fiscalLogs } from "../../drizzle/schema";
+import { organizations, users, students, lessons, instruments, reminders, reminderTemplates, paymentDues, asaasCustomers, settings, studentGoals, studentTimeline, studentFiles, announcements, chatMessages, rescheduleRequests, schoolPlans, studentEvolution, aiConversations, aiMessages, aiDocuments, expenses, dailyStudyPlans, notifications, professores, professorPayments, attendanceTokens, attendanceLogs, contracts, fileComments, studioRooms, schoolIntegrations, contractTemplates, contractEvents, crmLeads, crmGoals, crmActivities, fiscalCompanies, fiscalInvoices, fiscalServices, fiscalJobs, fiscalLogs, studentEnrollments } from "../../drizzle/schema";
 import { eq, desc, sql, and, gte, lt, lte, asc, ne, or, inArray, aliasedTable, ilike, isNull, isNotNull } from "drizzle-orm";
 import { notifyOwner, notifyUser } from "../_core/notification";
 import { handleDbError } from "../utils/error_handler";
@@ -928,6 +928,105 @@ export const studentsRouters = {
         return handleDbError(error, "atualizar o aluno");
       }
     }),
+    /**
+     * Múltiplos cursos do aluno (PRD v1.1): sincroniza as matrículas ativas.
+     * - linhas com id: atualiza instrumento/professor
+     * - linhas novas: cria matrícula ativa (12 meses, hoje, mensalidade do aluno)
+     * - matrículas ativas que saíram da lista: status 'encerrado' (não apaga nada)
+     * - curso 1 define students.instrumentId (curso principal) e professorId (dono)
+     */
+    syncCourses: protectedProcedure.input(z.object({
+      studentId: z.number(),
+      courses: z.array(z.object({
+        id: z.number().optional(),
+        instrumentId: z.number(),
+        teacherUserId: z.number().nullable().optional(),
+      })).min(1).max(4),
+    })).mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
+      const orgId = ctx.user.organizationId!;
+
+      const isUserAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
+      const condition = isUserAdmin
+        ? and(eq(students.id, input.studentId), eq(students.organizationId, orgId))
+        : and(eq(students.id, input.studentId), eq(students.organizationId, orgId), eq(students.professorId, ctx.user.id));
+      const [student] = await db.select().from(students).where(condition).limit(1);
+      if (!student) throw new TRPCError({ code: "FORBIDDEN", message: "Aluno não encontrado ou sem permissão" });
+
+      // RN: sem curso repetido
+      const instrIds = input.courses.map((c) => c.instrumentId);
+      if (new Set(instrIds).size !== instrIds.length) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Instrumento já selecionado em outro curso." });
+      }
+      // integridade: instrumentos e professores pertencem à organização
+      const instrs = await db.select({ id: instruments.id }).from(instruments)
+        .where(and(eq(instruments.organizationId, orgId), inArray(instruments.id, instrIds)));
+      if (new Set(instrs.map((i) => i.id)).size !== new Set(instrIds).size) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Instrumento inválido para esta escola." });
+      }
+      const teacherIds = Array.from(new Set(input.courses.map((c) => c.teacherUserId).filter((v): v is number => typeof v === "number")));
+      if (teacherIds.length) {
+        const profs = await db.select({ userId: professores.userId }).from(professores)
+          .where(and(eq(professores.organizationId, orgId), inArray(professores.userId, teacherIds), isNull(professores.archivedAt)));
+        if (new Set(profs.map((p) => p.userId)).size !== teacherIds.length) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Professor inválido ou arquivado." });
+        }
+      }
+
+      await db.transaction(async (tx) => {
+        const existing = await tx.select({
+          id: studentEnrollments.id,
+          instrumentId: studentEnrollments.instrumentId,
+          teacherUserId: studentEnrollments.teacherUserId,
+          status: studentEnrollments.status,
+        }).from(studentEnrollments).where(and(
+          eq(studentEnrollments.organizationId, orgId),
+          eq(studentEnrollments.studentId, input.studentId),
+          eq(studentEnrollments.status, "ativo"),
+        ));
+
+        const keepIds = new Set(input.courses.map((c) => c.id).filter((v): v is number => typeof v === "number"));
+        const today = new Date().toISOString().slice(0, 10);
+
+        for (const course of input.courses) {
+          const teacher = course.teacherUserId ?? student.professorId ?? null;
+          if (course.id && existing.some((e) => e.id === course.id)) {
+            await tx.update(studentEnrollments)
+              .set({ instrumentId: course.instrumentId, teacherUserId: teacher })
+              .where(and(eq(studentEnrollments.id, course.id), eq(studentEnrollments.organizationId, orgId)));
+          } else {
+            await tx.insert(studentEnrollments).values({
+              organizationId: orgId,
+              studentId: input.studentId,
+              instrumentId: course.instrumentId,
+              teacherUserId: teacher,
+              durationMonths: 12,
+              lessonsPerWeek: 1,
+              monthlyFee: String(student.monthlyFee ?? "0.00"),
+              startDate: today,
+              status: "ativo",
+            });
+          }
+        }
+
+        for (const e of existing) {
+          if (!keepIds.has(e.id)) {
+            await tx.update(studentEnrollments).set({ status: "encerrado" })
+              .where(and(eq(studentEnrollments.id, e.id), eq(studentEnrollments.organizationId, orgId)));
+          }
+        }
+
+        // Curso 1 = principal (RN-008/009)
+        await tx.update(students).set({
+          instrumentId: input.courses[0].instrumentId,
+          professorId: input.courses[0].teacherUserId ?? student.professorId,
+        }).where(eq(students.id, input.studentId));
+      });
+
+      return { success: true };
+    }),
+
     updateStatus: protectedProcedure.input(z.object({
       id: z.number(),
       status: z.enum(['ativo', 'inativo', 'pausado']),

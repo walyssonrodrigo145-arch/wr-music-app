@@ -222,6 +222,16 @@ const filesToUpload = [
   'shared/agenda.ts',
   'shared/schoolCalendar.ts',
   'client/src/lib/printAgenda.ts',
+  // ── Múltiplos cursos + responsável no financeiro + professor/conclusão em alunos (PRD v1.1) ──
+  'server/routers/financeiroRouters.ts',
+  'server/routers/studentsRouters.ts',
+  'server/db.ts',
+  'server/music.test.ts',
+  'client/src/pages/Alunos.tsx',
+  'client/src/pages/financeiro/MensalidadesTab.tsx',
+  'client/src/components/alunos/StudentModal.tsx',
+  'client/src/components/alunos/types.ts',
+  'PRD_RESPONSAVEL_FINANCEIRO_E_CONCLUSAO_ALUNOS.md',
   // ── Calendário Escolar (feriados/recessos/eventos) ──
   'shared/schoolCalendar.ts',
   'server/schoolCalendar.test.ts',

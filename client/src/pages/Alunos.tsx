@@ -506,10 +506,33 @@ export default function Alunos() {
                         </td>
                         <td className="px-4 lg:px-6 py-4">
                           <div className="flex flex-col gap-1.5">
-                            <div className="flex items-center gap-2">
-                              <div className="w-2 h-2 rounded-full" style={{ background: student.instrumentColor || "#6366f1" }} />
-                              <span className="text-xs font-semibold text-muted-foreground">{student.instrumentName}</span>
-                            </div>
+                            {Array.isArray(student.courses) && student.courses.length > 0 ? (
+                              <>
+                                {student.courses.slice(0, 3).map((c, ci) => (
+                                  <div key={c.id ?? ci} className="flex flex-col gap-0.5">
+                                    <div className="flex items-center gap-2">
+                                      <div className="w-2 h-2 rounded-full" style={{ background: c.instrumentColor || student.instrumentColor || "#6366f1" }} />
+                                      <span className="text-xs font-semibold text-muted-foreground">{c.instrumentName || "Curso"}</span>
+                                    </div>
+                                    <span className="text-[10px] text-muted-foreground pl-4">
+                                      Prof. {c.professorName || student.professorName || "—"}
+                                      {c.conclusionDate ? ` · Conclui em ${String(c.conclusionDate).slice(0, 10).split("-").reverse().join("/")}` : ""}
+                                    </span>
+                                  </div>
+                                ))}
+                                {student.courses.length > 3 && (
+                                  <span className="text-[10px] font-bold text-blue-600 pl-1">+{student.courses.length - 3} curso(s)</span>
+                                )}
+                              </>
+                            ) : (
+                              <>
+                                <div className="flex items-center gap-2">
+                                  <div className="w-2 h-2 rounded-full" style={{ background: student.instrumentColor || "#6366f1" }} />
+                                  <span className="text-xs font-semibold text-muted-foreground">{student.instrumentName}</span>
+                                </div>
+                                <span className="text-[10px] text-muted-foreground pl-4">Prof. {student.professorName || "Sem professor"}</span>
+                              </>
+                            )}
                             <LevelBadge level={student.level} />
                           </div>
                         </td>

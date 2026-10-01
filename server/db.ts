@@ -6,7 +6,7 @@ import postgres from "postgres";
 import { 
   students, lessons, instruments, users, paymentDues, 
   studentGoals, studentTimeline, asaasCustomers, 
-  organizations, settings, professores, studioRooms, monthlyStats, InsertSettings, InsertUser, marketingCampaigns, marketingContacts, marketingJobs, marketingLogs 
+  organizations, settings, professores, studioRooms, monthlyStats, studentEnrollments, InsertSettings, InsertUser, marketingCampaigns, marketingContacts, marketingJobs, marketingLogs 
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -1756,6 +1756,7 @@ export async function getMonthlyStats(organizationId: number, userId?: number, l
 export async function getStudentsWithInstrument(organizationId: number, userId?: number, limit?: number) {
   const db = await getDb();
   if (!db) return [];
+  const profUsers = aliasedTable(users, "prof_users");
   const query = db.select({
     id: students.id,
     name: students.name,
@@ -1770,6 +1771,9 @@ export async function getStudentsWithInstrument(organizationId: number, userId?:
     dueDay: students.dueDay,
     avatar: students.avatar,
     lessonType: students.lessonType,
+    instrumentId: students.instrumentId,
+    professorId: students.professorId,
+    professorName: profUsers.name,
     instrumentName: instruments.name,
     instrumentColor: instruments.color,
     instrumentIcon: instruments.icon,
@@ -1777,14 +1781,59 @@ export async function getStudentsWithInstrument(organizationId: number, userId?:
   }).from(students)
     .leftJoin(instruments, eq(students.instrumentId, instruments.id))
     .leftJoin(users, eq(users.studentId, students.id))
+    .leftJoin(profUsers, eq(profUsers.id, students.professorId))
     .where(and(
         eq(students.organizationId, organizationId),
         isNull(students.deletedAt),
         userId ? eq(students.professorId, userId) : undefined
     ))
     .orderBy(desc(students.createdAt));
-  if (limit) return (query as any).limit(limit);
-  return query;
+  const rows: any[] = limit ? await (query as any).limit(limit) : await query;
+
+  // Cursos (matrículas ativas) por aluno: instrumento, professor e data de conclusão.
+  // Conclusão = enrollment.endDate OU startDate + durationMonths (mês travado no dia válido).
+  const byStudent = new Map<number, any[]>();
+  const ids = rows.map((r) => r.id);
+  if (ids.length) {
+    const enrolls = await db.select({
+      id: studentEnrollments.id,
+      studentId: studentEnrollments.studentId,
+      instrumentId: studentEnrollments.instrumentId,
+      instrumentName: instruments.name,
+      instrumentColor: instruments.color,
+      teacherUserId: studentEnrollments.teacherUserId,
+      professorName: profUsers.name,
+      startDate: studentEnrollments.startDate,
+      durationMonths: studentEnrollments.durationMonths,
+      endDate: studentEnrollments.endDate,
+      planId: studentEnrollments.planId,
+      status: studentEnrollments.status,
+    }).from(studentEnrollments)
+      .leftJoin(instruments, eq(instruments.id, studentEnrollments.instrumentId))
+      .leftJoin(profUsers, eq(profUsers.id, studentEnrollments.teacherUserId))
+      .where(and(
+        eq(studentEnrollments.organizationId, organizationId),
+        inArray(studentEnrollments.studentId, ids),
+        eq(studentEnrollments.status, "ativo"),
+      ));
+    const addMonthsClamped = (iso: string, months: number) => {
+      const [y, m, d] = String(iso).slice(0, 10).split("-").map(Number);
+      if (!y || !m || !d) return null;
+      const lastDay = new Date(y, m - 1 + months + 1, 0).getDate();
+      const dt = new Date(y, m - 1 + months, Math.min(d, lastDay));
+      const p = (n: number) => String(n).padStart(2, "0");
+      return `${dt.getFullYear()}-${p(dt.getMonth() + 1)}-${p(dt.getDate())}`;
+    };
+    for (const e of enrolls) {
+      const conclusionDate = e.endDate
+        ? String(e.endDate).slice(0, 10)
+        : (e.startDate ? addMonthsClamped(String(e.startDate), e.durationMonths || 0) : null);
+      const item = { ...e, conclusionDate };
+      if (!byStudent.has(e.studentId)) byStudent.set(e.studentId, []);
+      byStudent.get(e.studentId)!.push(item);
+    }
+  }
+  return rows.map((r) => ({ ...r, courses: byStudent.get(r.id) || [] }));
 }
 
 // Recent lessons with student info — fetches a date range suitable for the full calendar

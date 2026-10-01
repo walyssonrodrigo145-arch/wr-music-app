@@ -1,3 +1,17 @@
+export type StudentCourse = {
+  id: number;
+  instrumentId: number | null;
+  instrumentName: string | null;
+  instrumentColor?: string | null;
+  teacherUserId?: number | null;
+  professorName: string | null;
+  conclusionDate: string | null;
+  startDate?: string | null;
+  endDate?: string | null;
+  durationMonths?: number | null;
+  status: string;
+};
+
 export type StudentRow = {
   id: number; name: string; email: string; phone?: string | null;
   level: string; status: string; monthlyFee: string; billingPeriodicity?: string | null; dueDay?: number | null;
@@ -7,6 +21,8 @@ export type StudentRow = {
   notes?: string | null;
   portalEnabled?: boolean;
   professorId: number;
+  professorName?: string | null;
+  courses?: StudentCourse[];
   lessonType: string;
   avatar?: string | null;
 };
