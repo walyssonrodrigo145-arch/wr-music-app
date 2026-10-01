@@ -1666,22 +1666,17 @@ export default function NovoAluno() {
                     </div>
                   )}
 
-                  {/* Botão Ação de Agendamento Inline */}
-                  {/* BUG #6 FIX: checkConflicts.isFetching substituído por checkConflictsMutation.isPending */}
-                  <Button
-                    type="button"
-                    className="w-full h-13 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-black text-sm shadow-lg shadow-violet-500/20 transition-all active:scale-95 flex items-center justify-center gap-2"
-                    onClick={() => handleScheduleSubmit()}
-                    disabled={createLessonMutation.isPending || createBatchLessonMutation.isPending || checkConflictsMutation.isPending || isSaving}
-                  >
-                    {(createLessonMutation.isPending || createBatchLessonMutation.isPending || checkConflictsMutation.isPending || isSaving) ? (
-                      <><Loader2 size={18} className="animate-spin" /> {!isEditMode ? "Cadastrando e Agendando..." : "Agendando..."}</>
-                    ) : !isEditMode ? (
-                      <><CalendarDays size={18} /> Cadastrar Aluno e Agendar Aula</>
-                    ) : (
-                      <><CalendarDays size={18} /> Agendar Aula</>                       
-                    )}
-                  </Button>
+                  {/* O agendamento acontece junto com o "Salvar" (aulas + mensalidades) */}
+                  <div className="rounded-2xl border border-violet-500/20 bg-violet-500/5 px-4 py-3 flex items-start gap-2.5">
+                    <Info size={16} className="text-violet-600 shrink-0 mt-0.5" />
+                    <p className="text-[11px] text-muted-foreground font-medium leading-relaxed">
+                      {scheduleOccurrences.length > 0 && !scheduleExceedsLimit ? (
+                        <>As <span className="font-black text-violet-700 dark:text-violet-300">{scheduleOccurrences.length} aula(s)</span> acima serão agendadas quando você <span className="font-black text-foreground">salvar o cadastro</span> — junto com as mensalidades do aluno.</>
+                      ) : (
+                        <>Preencha a data e o horário: as aulas serão agendadas quando você <span className="font-black text-foreground">salvar o cadastro</span> — junto com as mensalidades do aluno.</>
+                      )}
+                    </p>
+                  </div>
 
                   {/* PRD_AGENDAMENTO_VISIVEL: confirmação com o que foi criado */}
                   {scheduleResult && (

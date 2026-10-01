@@ -26,6 +26,15 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: "2026.10.01.9",
+    date: "2026-10-01",
+    title: "Agendamento acontece ao salvar o cadastro",
+    summary: "O botão 'Agendar Aula' do cadastro foi removido. Agora as aulas configuradas (data, horário e repetição) são criadas de uma vez ao salvar o cadastro — junto com as mensalidades do aluno.",
+    items: [
+      { type: "melhoria", title: "Um único clique para concluir", description: "Preencha dados, cursos e agendamento e clique em Salvar: aluno, aulas e mensalidades são criados juntos. Menos risco de agendar sem querer ou esquecer de salvar." },
+    ],
+  },
+  {
     version: "2026.10.01.8",
     date: "2026-10-01",
     title: "Resumo do cadastro: dados pessoais primeiro e visual mais enxuto",
