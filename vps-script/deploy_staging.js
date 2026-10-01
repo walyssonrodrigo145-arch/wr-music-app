@@ -289,6 +289,13 @@ const filesToUpload = [
   'client/src/components/settings/CalendarioEscolar.tsx',
   'client/src/pages/Configuracoes.tsx',
   'shared/releases.ts',
+  // ── Aula em andamento + Dados Pessoais primeiro + layout do agendamento ──
+  'client/src/components/aulas/LessonCardDesktop.tsx',
+  'client/src/components/aulas/MobileAgenda.tsx',
+  'client/src/components/modals/DayLessonsModal.tsx',
+  'client/src/pages/NovoAluno.tsx',
+  'shared/agenda.ts',
+  'shared/releases.ts',
 ];
 
 console.log('🚀 Iniciando deploy no Ambiente de Testes (STAGING)...');

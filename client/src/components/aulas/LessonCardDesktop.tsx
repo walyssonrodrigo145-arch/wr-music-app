@@ -2,6 +2,7 @@ import { motion } from "framer-motion";
 import { Music, User, Users, LayoutList } from "lucide-react";
 import { safeFormat } from "@/lib/dates";
 import { cn } from "@/lib/utils";
+import { isLessonInProgress } from "@shared/agenda";
 
 export const DAYS_SHORT = ["DOM", "SEG", "TER", "QUA", "QUI", "SEX", "SÁB"];
 
@@ -61,6 +62,7 @@ export const LessonCardDesktop = ({ lesson, onClick }: { lesson: any, onClick: (
 
     const isConcluida = lesson.status === 'concluida';
     const isFalta = lesson.status === 'falta';
+    const inProgress = isLessonInProgress(lesson);
 
     // Destaque de recorrência (só para quinzenal/mensal — semanais ficam no padrão)
     const recurrenceConfig = !isTurma && lesson.recurrence
@@ -98,14 +100,23 @@ export const LessonCardDesktop = ({ lesson, onClick }: { lesson: any, onClick: (
         whileHover={{ scale: 1.02 }}
         className={cn(
           "p-3.5 rounded-2xl border border-l-4 transition-all cursor-pointer shadow-sm mb-2 hover:shadow-md backdrop-blur-none select-none overflow-hidden",
+          inProgress && "ring-2 ring-amber-400/50",
           cardStyle
         )}
       >
         {/* Linha 1: Horário + Tag status + selo de recorrência (modelo liso/esticado) */}
         <div className="flex flex-col gap-1.5 mb-2 min-w-0">
-          <span className={cn("px-1.5 py-0.5 rounded text-[10px] font-black tracking-wider uppercase shadow-xs w-fit shrink-0", badgeStyle)}>
-            {safeFormat(lesson.scheduledAt, "HH:mm")}
-          </span>
+          <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+            <span className={cn("px-1.5 py-0.5 rounded text-[10px] font-black tracking-wider uppercase shadow-xs w-fit shrink-0", badgeStyle)}>
+              {safeFormat(lesson.scheduledAt, "HH:mm")}
+            </span>
+            {inProgress && (
+              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-amber-500 text-white text-[9px] font-black uppercase tracking-wider shadow-xs w-fit shrink-0">
+                <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                Em andamento
+              </span>
+            )}
+          </div>
           {isTurma ? (
             <span className={cn("text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full flex items-center gap-0.5 w-fit max-w-full truncate", turmaTagStyle)}>
               {isConcluida ? "✓ CONCLUÍDA" : isFalta ? "FALTA" : "TURMA"}

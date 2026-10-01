@@ -130,3 +130,14 @@ export function countActiveAgendaFilters(filters: AgendaFilters): number {
   if (filters.lessonType && filters.lessonType !== "todos") count += 1;
   return count;
 }
+
+/** True quando a aula está agendada e o horário atual está dentro da janela (início + duração). */
+export function isLessonInProgress(
+  lesson: { scheduledAt: string | Date; duration?: number | null; status?: string | null },
+  now: Date = new Date()
+): boolean {
+  if (lesson.status && lesson.status !== "agendada") return false;
+  const start = toLocalDate(lesson.scheduledAt);
+  const end = new Date(start.getTime() + (lesson.duration || 60) * 60000);
+  return now >= start && now < end;
+}

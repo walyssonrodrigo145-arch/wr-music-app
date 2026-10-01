@@ -1010,9 +1010,9 @@ export default function NovoAluno() {
         <div className="mb-10">
           <div className="flex items-center max-w-3xl mx-auto">
             {[
-              { step: 1, label: "Cursos e Aulas" },
-              { step: 2, label: "Financeiro" },
-              { step: 3, label: "Dados Pessoais" },
+              { step: 1, label: "Dados Pessoais" },
+              { step: 2, label: "Cursos e Aulas" },
+              { step: 3, label: "Financeiro" },
               { step: 4, label: "Resumo" },
             ].map((s, index) => (
               <div key={s.step} className={cn("flex items-center", index < 3 && "flex-1")}>
@@ -1047,7 +1047,7 @@ export default function NovoAluno() {
             ))}
           </div>
         </div>
-        {wizardStep === 1 && (
+        {wizardStep === 2 && (
           <motion.div
             variants={containerVariants}
             initial="hidden"
@@ -1305,76 +1305,83 @@ export default function NovoAluno() {
                     {scheduleErrors.title && <p className="text-xs text-red-500 ml-1">{scheduleErrors.title}</p>}
                   </div>
 
-                  {/* Data + Horário */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Data Inicial (Início) *</label>
-                      <div className="relative">
-                        <Input
-                          type="date"
-                          value={scheduleForm.date}
-                          onChange={e => {
-                            const value = e.target.value;
-                            const [yy, mm, dd] = value.split("-").map(Number);
-                            const dayOfWeek = Number.isFinite(yy) && Number.isFinite(mm) && Number.isFinite(dd)
-                              ? new Date(yy, mm - 1, dd).getDay()
-                              : null;
-                            updateSchedule(p => ({
-                              ...p,
-                              date: value,
-                              weeklySlots: dayOfWeek === null
-                                ? p.weeklySlots
-                                : p.weeklySlots.map((slot, index) => (index === 0 ? { ...slot, dayOfWeek } : slot)),
-                            }));
-                          }}
-                          className={cn("h-12 rounded-xl pl-10 text-sm font-semibold border-border bg-muted/30", scheduleErrors.date && "border-red-500")}
-                        />
-                        <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
-                      </div>
-                      {scheduleErrors.date && <p className="text-xs text-red-500 ml-1">{scheduleErrors.date}</p>}
-                    </div>
-                  
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">
-                        {scheduleMultiSlot ? "Horário das Aulas" : "Horário *"}
-                      </label>
-                      {scheduleMultiSlot ? (
-                        <div className="h-12 rounded-xl border border-violet-500/20 bg-violet-500/10 px-3.5 flex items-center justify-between text-xs font-bold text-violet-700">
-                          <span className="flex items-center gap-2">
-                            <Clock size={14} className="text-violet-600 shrink-0" />
-                            Definido individualmente abaixo
-                          </span>
-                          <span className="text-[10px] bg-violet-600 text-white px-2 py-0.5 rounded-md uppercase font-black">{scheduleForm.lessonsPerWeek}x/sem</span>
-                        </div>
-                      ) : (
-                        <div className="space-y-1.5">
-                          <div className="relative">
-                            <Input
-                              type="time"
-                              value={scheduleForm.time}
-                              onChange={e => {
-                                const value = e.target.value;
-                                updateSchedule(p => ({
-                                  ...p,
-                                  time: value,
-                                  weeklySlots: p.weeklySlots.map((slot, index) =>
-                                    index === 0 ? { ...slot, time: value } : slot
-                                  ),
-                                }));
-                              }}
-                              className={cn("h-12 rounded-xl pl-10 text-sm font-semibold border-border bg-muted/30", scheduleErrors.time && "border-red-500")}
-                            />
-                            <Clock className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
-                          </div>
-                        
-                        </div>
-                      )}
-                      {!scheduleMultiSlot && scheduleErrors.time && <p className="text-xs text-red-500 ml-1">{scheduleErrors.time}</p>}
-                    </div>
-                  </div>
+                  {/* ── Quando? ── */}
+                  <section className="space-y-3">
+                    <p className="text-[10px] font-black uppercase tracking-[0.15em] text-violet-600/80 flex items-center gap-1.5 ml-1">
+                      <Clock size={12} /> Quando?
+                    </p>
 
-                  {/* Duração + Instrumento */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* Data + Horário */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Data Inicial (Início) *</label>
+                        <div className="relative">
+                          <Input
+                            type="date"
+                            value={scheduleForm.date}
+                            onChange={e => {
+                              const value = e.target.value;
+                              const [yy, mm, dd] = value.split("-").map(Number);
+                              const dayOfWeek = Number.isFinite(yy) && Number.isFinite(mm) && Number.isFinite(dd)
+                                ? new Date(yy, mm - 1, dd).getDay()
+                                : null;
+                              updateSchedule(p => ({
+                                ...p,
+                                date: value,
+                                weeklySlots: dayOfWeek === null
+                                  ? p.weeklySlots
+                                  : p.weeklySlots.map((slot, index) => (index === 0 ? { ...slot, dayOfWeek } : slot)),
+                              }));
+                            }}
+                            className={cn("h-12 rounded-xl pl-10 text-sm font-semibold border-border bg-muted/30", scheduleErrors.date && "border-red-500")}
+                          />
+                          <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
+                        </div>
+                        {scheduleErrors.date && <p className="text-xs text-red-500 ml-1">{scheduleErrors.date}</p>}
+                        <p className="text-[10px] text-muted-foreground/80 font-medium ml-1">A primeira aula da série acontece nesta data.</p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">
+                          {scheduleMultiSlot ? "Horário das Aulas" : "Horário *"}
+                        </label>
+                        {scheduleMultiSlot ? (
+                          <div className="h-12 rounded-xl border border-violet-500/20 bg-violet-500/10 px-3.5 flex items-center justify-between text-xs font-bold text-violet-700">
+                            <span className="flex items-center gap-2">
+                              <Clock size={14} className="text-violet-600 shrink-0" />
+                              Definido individualmente abaixo
+                            </span>
+                            <span className="text-[10px] bg-violet-600 text-white px-2 py-0.5 rounded-md uppercase font-black">{scheduleForm.lessonsPerWeek}x/sem</span>
+                          </div>
+                        ) : (
+                          <div className="space-y-1.5">
+                            <div className="relative">
+                              <Input
+                                type="time"
+                                value={scheduleForm.time}
+                                onChange={e => {
+                                  const value = e.target.value;
+                                  updateSchedule(p => ({
+                                    ...p,
+                                    time: value,
+                                    weeklySlots: p.weeklySlots.map((slot, index) =>
+                                      index === 0 ? { ...slot, time: value } : slot
+                                    ),
+                                  }));
+                                }}
+                                className={cn("h-12 rounded-xl pl-10 text-sm font-semibold border-border bg-muted/30", scheduleErrors.time && "border-red-500")}
+                              />
+                              <Clock className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
+                            </div>
+                          
+                          </div>
+                        )}
+                        {!scheduleMultiSlot && scheduleErrors.time && <p className="text-xs text-red-500 ml-1">{scheduleErrors.time}</p>}
+                        <p className="text-[10px] text-muted-foreground/80 font-medium ml-1">Horário de início da aula (e das aulas geradas).</p>
+                      </div>
+                    </div>
+
+                    {/* Duração */}
                     <div className="space-y-2">
                       <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Duração</label>
                       <Select
@@ -1397,50 +1404,62 @@ export default function NovoAluno() {
                           <SelectItem value="120">120 minutos</SelectItem>
                         </SelectContent>
                       </Select>
+                      <p className="text-[10px] text-muted-foreground/80 font-medium ml-1">Quanto tempo dura cada aula.</p>
                     </div>
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Instrumento</label>
-                      <Select
-                        value={scheduleForm.instrumentId}
-                        onValueChange={v => updateSchedule(p => ({ ...p, instrumentId: v }))}
-                      >
-                        <SelectTrigger className="h-12 rounded-xl border-border bg-muted/30 text-sm font-semibold px-4">
-                          <SelectValue placeholder="Selecionar" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {instruments.map((inst: any) => (
-                            <SelectItem key={inst.id} value={String(inst.id)}>{inst.name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
+                  </section>
 
-                  {/* BUG #7 FIX: Sala de Aula adicionada ao formulário de agendamento */}
-                  <div className={cn("grid gap-4", studioRooms.length > 0 ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1")}>
-                  {studioRooms.length > 0 && (
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Sala de Aula</label>
-                      <Select
-                        value={scheduleForm.studioRoomId || "none"}
-                        onValueChange={v => updateSchedule(p => ({ ...p, studioRoomId: v === "none" ? "" : v }))}
-                      >
-                        <SelectTrigger className="h-12 rounded-xl border-border bg-muted/30 text-sm font-semibold px-4">
-                          <SelectValue placeholder="Nenhuma sala" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="none">Nenhuma sala</SelectItem>
-                          {studioRooms.map((room: any) => (
-                            <SelectItem key={room.id} value={String(room.id)}>{room.name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                  {/* ── O que e onde? ── */}
+                  <section className="space-y-3">
+                    <p className="text-[10px] font-black uppercase tracking-[0.15em] text-violet-600/80 flex items-center gap-1.5 ml-1">
+                      <GraduationCap size={12} /> O que e onde?
+                    </p>
+                    <div className={cn("grid gap-4", studioRooms.length > 0 ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1")}>
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Instrumento</label>
+                        <Select
+                          value={scheduleForm.instrumentId}
+                          onValueChange={v => updateSchedule(p => ({ ...p, instrumentId: v }))}
+                        >
+                          <SelectTrigger className="h-12 rounded-xl border-border bg-muted/30 text-sm font-semibold px-4">
+                            <SelectValue placeholder="Selecionar" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {instruments.map((inst: any) => (
+                              <SelectItem key={inst.id} value={String(inst.id)}>{inst.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      {/* BUG #7 FIX: Sala de Aula adicionada ao formulário de agendamento */}
+                      {studioRooms.length > 0 && (
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Sala de Aula</label>
+                          <Select
+                            value={scheduleForm.studioRoomId || "none"}
+                            onValueChange={v => updateSchedule(p => ({ ...p, studioRoomId: v === "none" ? "" : v }))}
+                          >
+                            <SelectTrigger className="h-12 rounded-xl border-border bg-muted/30 text-sm font-semibold px-4">
+                              <SelectValue placeholder="Nenhuma sala" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="none">Nenhuma sala</SelectItem>
+                              {studioRooms.map((room: any) => (
+                                <SelectItem key={room.id} value={String(room.id)}>{room.name}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
                     </div>
-                  )}
+                  </section>
 
-                  {/* Recorrência Semanal */}
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Repetir</label>
+                  {/* ── Repetição ── */}
+                  <section className="space-y-3">
+                    <p className="text-[10px] font-black uppercase tracking-[0.15em] text-violet-600/80 flex items-center gap-1.5 ml-1">
+                      <RefreshCw size={12} /> Repetição
+                    </p>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Repetir</label>
                       <Select
                         value={scheduleForm.interval}
                         onValueChange={(v) => {
@@ -1462,42 +1481,43 @@ export default function NovoAluno() {
                           ))}
                         </SelectContent>
                       </Select>
-                      </div>
-                  </div>
+                      <p className="text-[10px] text-muted-foreground/80 font-medium ml-1">Semanal = toda semana no mesmo dia e horário. Escolha quinzenal ou mensal para outros intervalos.</p>
+                    </div>
 
-                  <div className="space-y-2">
-                  <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1 pt-1">Gerar por</label>
-                          <Select
-                            value={String(scheduleRecurrenceDuration)}
-                            onValueChange={(v) => updateSchedule(p => (p.interval === "semanal" ? { ...p, weeksCount: Number(v) } : { ...p, recurrenceCount: Number(v) }))}
-                          >
-                            <SelectTrigger className="h-12 rounded-xl border-border bg-muted/30 text-sm font-semibold px-4">
-                              <div className="flex items-center gap-2">
-                                <CalendarRange size={14} className="text-muted-foreground" />
-                                <SelectValue />
-                              </div>
-                            </SelectTrigger>
-                            <SelectContent>
-                              {(scheduleForm.interval === "semanal"
-                                ? [{ value: 1, label: "1 vez (aula avulsa)" }, ...RECURRENCE_DURATIONS.semanal]
-                                : RECURRENCE_DURATIONS[scheduleForm.interval]
-                              ).map((o) => (
-                                <SelectItem key={o.value} value={String(o.value)}>{o.label}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          {scheduleOccurrences.length > 0 && (
-                            <p className={cn("text-xs font-bold ml-1 flex items-center gap-1", scheduleExceedsLimit ? "text-rose-600" : "text-violet-600")}>
-                              <CalendarRange size={12} />
-                              {scheduleExceedsLimit
-                                ? `Limite de ${MAX_OCCURRENCES} aulas excedido (${scheduleOccurrences.length}). Reduza a duração ou os dias por semana.`
-                                : `${scheduleOccurrences.length} aula(s) serão criadas · de ${format(scheduleOccurrences[0].date, "dd/MM/yyyy")} até ${format(scheduleOccurrences[scheduleOccurrences.length - 1].date, "dd/MM/yyyy")}.`}
-                            </p>
-                          )}
-                          {scheduleForm.interval === "mensal_fixo" && (
-                            <p className="text-xs text-muted-foreground font-medium ml-1">No modo mensal (dia fixo), a série usa a data inicial selecionada — os dias da semana não se aplicam.</p>
-                          )}
-                  </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1 pt-1">Gerar por</label>
+                      <Select
+                        value={String(scheduleRecurrenceDuration)}
+                        onValueChange={(v) => updateSchedule(p => (p.interval === "semanal" ? { ...p, weeksCount: Number(v) } : { ...p, recurrenceCount: Number(v) }))}
+                      >
+                        <SelectTrigger className="h-12 rounded-xl border-border bg-muted/30 text-sm font-semibold px-4">
+                          <div className="flex items-center gap-2">
+                            <CalendarRange size={14} className="text-muted-foreground" />
+                            <SelectValue />
+                          </div>
+                        </SelectTrigger>
+                        <SelectContent>
+                          {(scheduleForm.interval === "semanal"
+                            ? [{ value: 1, label: "1 vez (aula avulsa)" }, ...RECURRENCE_DURATIONS.semanal]
+                            : RECURRENCE_DURATIONS[scheduleForm.interval]
+                          ).map((o) => (
+                            <SelectItem key={o.value} value={String(o.value)}>{o.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-[10px] text-muted-foreground/80 font-medium ml-1">Define quantas aulas serão criadas a partir da data inicial.</p>
+                      {scheduleOccurrences.length > 0 && (
+                        <p className={cn("text-xs font-black ml-1 flex items-center gap-1 rounded-lg px-2 py-1 w-fit", scheduleExceedsLimit ? "text-rose-700 bg-rose-500/10" : "text-violet-700 dark:text-violet-300 bg-violet-500/10")}>
+                          <CalendarRange size={12} />
+                          {scheduleExceedsLimit
+                            ? `Limite de ${MAX_OCCURRENCES} aulas excedido (${scheduleOccurrences.length}). Reduza a duração ou os dias por semana.`
+                            : `${scheduleOccurrences.length} aula(s) serão criadas — de ${format(scheduleOccurrences[0].date, "dd/MM/yyyy")} até ${format(scheduleOccurrences[scheduleOccurrences.length - 1].date, "dd/MM/yyyy")}`}
+                        </p>
+                      )}
+                      {scheduleForm.interval === "mensal_fixo" && (
+                        <p className="text-xs text-muted-foreground font-medium ml-1">No modo mensal (dia fixo), a série usa a data inicial selecionada — os dias da semana não se aplicam.</p>
+                      )}
+                    </div>
 
                   {/* Aulas na Mesma Semana */}
   {scheduleForm.interval !== "mensal_fixo" && (
@@ -1541,6 +1561,8 @@ export default function NovoAluno() {
                         ))}
                       </div>
                     </div>
+
+                    <p className="text-[10px] text-muted-foreground/80 font-medium">Quantas aulas por semana o aluno terá? Ex.: 2x/sem = duas aulas toda semana.</p>
 
                     {scheduleForm.lessonsPerWeek > 1 && (
                       <div className="space-y-2 pt-2 border-t border-primary/10">
@@ -1586,17 +1608,24 @@ export default function NovoAluno() {
                   </div>
 
   )}
-                                  {/* Observações da Aula */}
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Observações da Aula</label>
-                    <Textarea
-                      value={scheduleForm.notes}
-                      onChange={e => updateSchedule(p => ({ ...p, notes: e.target.value }))}
-                      placeholder="Conteúdo da aula, objetivos, materiais..."
-                      className="rounded-xl text-sm resize-none border-border bg-muted/30"
-                      rows={3}
-                    />
-                  </div>
+                  </section>
+
+                  {/* ── Observações da aula ── */}
+                  <section className="space-y-3">
+                    <p className="text-[10px] font-black uppercase tracking-[0.15em] text-violet-600/80 flex items-center gap-1.5 ml-1">
+                      <FileText size={12} /> Observações da aula
+                    </p>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Observações da Aula</label>
+                      <Textarea
+                        value={scheduleForm.notes}
+                        onChange={e => updateSchedule(p => ({ ...p, notes: e.target.value }))}
+                        placeholder="Conteúdo da aula, objetivos, materiais..."
+                        className="rounded-xl text-sm resize-none border-border bg-muted/30"
+                        rows={3}
+                      />
+                    </div>
+                  </section>
 
                   {/* PRD_AGENDAMENTO_VISIVEL: prévia detalhada do que será agendado */}
                   {scheduleOccurrences.length > 0 && (
@@ -1710,7 +1739,7 @@ export default function NovoAluno() {
             </div>
           </motion.div>
         )}
-        {wizardStep === 2 && (
+        {wizardStep === 3 && (
           <motion.div
             variants={containerVariants}
             initial="hidden"
@@ -1892,7 +1921,7 @@ export default function NovoAluno() {
             </motion.div>
           </motion.div>
         )}
-        {wizardStep === 3 && (
+        {wizardStep === 1 && (
           <motion.div
             variants={containerVariants}
             initial="hidden"

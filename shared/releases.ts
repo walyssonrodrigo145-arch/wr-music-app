@@ -26,6 +26,17 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: "2026.10.01.6",
+    date: "2026-10-01",
+    title: "Aula em andamento na agenda + cadastro começando pelos dados pessoais",
+    summary: "A agenda agora destaca a aula que está acontecendo neste momento com um selo 'Em andamento' pulsante (computador e celular). O cadastro de alunos passou a começar pelos Dados Pessoais, e o agendamento de aulas ficou organizado em blocos mais claros, com textos de ajuda para quem está começando.",
+    items: [
+      { type: "novo", title: "Selo 'Em andamento'", description: "Os cards da agenda e a lista do dia mostram um destaque pulsante quando a aula agendada está dentro do horário atual — em andamento agora." },
+      { type: "melhoria", title: "Cadastro começa pelos Dados Pessoais", description: "Nova ordem dos passos: Dados Pessoais → Cursos e Aulas → Financeiro → Resumo." },
+      { type: "melhoria", title: "Agendamento de aulas mais claro", description: "O formulário de agendar foi dividido em blocos ('Quando?', 'O que e onde?', 'Repetição', 'Observações da aula') com explicações e prévia destacada das aulas que serão criadas — ideal para quem está aprendendo a usar." },
+    ],
+  },
+  {
     version: "2026.10.01.5",
     date: "2026-10-01",
     title: "Cadastro de alunos em passos, com resumo antes de salvar",

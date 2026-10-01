@@ -17,6 +17,7 @@ import {
   buildWeekStrip,
   countActiveAgendaFilters,
   filterAgendaLessons,
+  isLessonInProgress,
   isSameDayLocal,
   toLocalDate,
   type AgendaFilters,
@@ -393,6 +394,7 @@ export default function MobileAgenda({ lessons, isLoading, onOpenLesson, onOpenA
               const isTurma = lesson.lessonType === "turma";
               const statusConfig = AULA_STATUS_CONFIG[lesson.status as keyof typeof AULA_STATUS_CONFIG] || AULA_STATUS_CONFIG.agendada;
               const title = isTurma ? lesson.studentName || "Turma" : lesson.studentName || lesson.experimentalName || lesson.instrumentName || "Aula";
+              const inProgress = isLessonInProgress(lesson);
               return (
                 <motion.button
                   key={lesson.id}
@@ -403,13 +405,20 @@ export default function MobileAgenda({ lessons, isLoading, onOpenLesson, onOpenA
                   onClick={() => onOpenLesson(lesson.id)}
                   className={cn(
                     "w-full text-left rounded-2xl border border-l-4 p-3.5 shadow-sm transition-all active:scale-[0.99]",
+                    inProgress && "ring-2 ring-amber-400/50",
                     isTurma ? "bg-purple-50 dark:bg-purple-950 border-purple-300/80 dark:border-purple-800/60 border-l-purple-600" : cn(statusConfig.cardBg, statusConfig.border)
                   )}
                 >
                   <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-center gap-2 min-w-0">
+                    <div className="flex items-center gap-2 min-w-0 flex-wrap">
                       <span className="text-lg font-black text-foreground tracking-tighter">{timeOf(lesson)}</span>
                       <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{lesson.status === "agendada" ? "" : statusConfig.label}</span>
+                      {inProgress && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500 text-white text-[9px] font-black uppercase tracking-widest">
+                          <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                          Em andamento
+                        </span>
+                      )}
                     </div>
                     <div className="flex items-center gap-1.5 shrink-0">
                       {lesson.isExperimental && (

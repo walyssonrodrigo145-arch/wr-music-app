@@ -5,6 +5,7 @@ import {
   buildWeekStrip,
   countActiveAgendaFilters,
   filterAgendaLessons,
+  isLessonInProgress,
   isSameDayLocal,
 } from "@shared/agenda";
 
@@ -86,5 +87,20 @@ describe("Agenda mobile (shared/agenda)", () => {
     expect(
       countActiveAgendaFilters({ teacherId: 3, roomId: 1, instrumentId: 2, lessonType: "turma", disabledStatuses: ["falta"] })
     ).toBe(5);
+  });
+
+  it("marca como em andamento a aula de 60min que começou 10min atrás", () => {
+    const now = at(2026, 9, 22, 20);
+    const start = new Date(now.getTime() - 10 * 60000);
+
+    expect(isLessonInProgress({ scheduledAt: start, duration: 60, status: "agendada" }, now)).toBe(true);
+  });
+
+  it("não marca aula encerrada (2h atrás) nem aula concluída como em andamento", () => {
+    const now = at(2026, 9, 22, 20);
+    const start = new Date(now.getTime() - 2 * 60 * 60000);
+
+    expect(isLessonInProgress({ scheduledAt: start, duration: 60, status: "agendada" }, now)).toBe(false);
+    expect(isLessonInProgress({ scheduledAt: new Date(now.getTime() - 10 * 60000), duration: 60, status: "concluida" }, now)).toBe(false);
   });
 });
