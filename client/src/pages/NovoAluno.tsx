@@ -162,6 +162,8 @@ export default function NovoAluno() {
   // Indica se o usuário interagiu com o formulário de agendamento, para que o
   // botão "Salvar Aluno" também agende as aulas quando a seção estiver preenchida.
   const [scheduleTouched, setScheduleTouched] = useState(false);
+  // Edição: indica que o usuário mexeu nos campos do Financeiro — ao salvar, gera as mensalidades
+  const [billingTouched, setBillingTouched] = useState(false);
   const [scheduleResult, setScheduleResult] = useState<{
     items: Array<{ scheduledAt: string; duration: number }>;
     createdCount: number;
@@ -907,6 +909,18 @@ export default function NovoAluno() {
       updateMutation.mutate({ id: studentId!, ...payload });
       // Se o usuário preencheu o agendamento, agenda também as aulas do aluno
       if (scheduleTouched) handleScheduleSubmit();
+      // Mesmo fluxo da agenda: se mexeu no Financeiro, gera as mensalidades ao salvar
+      if (billingTouched && studentId && form.monthlyFee) {
+        const now = new Date();
+        generateMonthlyMutation.mutate({
+          studentId,
+          amount: parseBRL(form.monthlyFee),
+          dueDay: Number(form.dueDay) || 10,
+          startMonth: now.getMonth() + 1,
+          startYear: now.getFullYear(),
+          monthsCount: form.monthsCount,
+        });
+      }
     } else if (scheduleTouched) {
       // Se preencheu o agendamento, cadastra o aluno e agenda as aulas
       try {
@@ -1773,6 +1787,7 @@ export default function NovoAluno() {
                           // Impede qualquer inserção de texto/e-mail (permite apenas números, vírgula e ponto)
                           const cleanValue = e.target.value.replace(/[^0-9.,]/g, '');
                           handleInputChange('monthlyFee', cleanValue);
+                          if (isEditMode) setBillingTouched(true);
                         }}
                         className="h-12 w-full rounded-xl border-border bg-muted/30 focus:bg-background focus:ring-4 focus:ring-violet-500/10 focus:border-violet-500 transition-all text-sm font-semibold pl-11"
                       />
@@ -1781,7 +1796,7 @@ export default function NovoAluno() {
                   </div>
                   <div className="space-y-2 w-full">
                     <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Periodicidade de Cobrança</label>
-                    <Select value={form.billingPeriodicity} onValueChange={(v) => setForm(prev => ({ ...prev, billingPeriodicity: v }))}>
+                    <Select value={form.billingPeriodicity} onValueChange={(v) => { setForm(prev => ({ ...prev, billingPeriodicity: v })); if (isEditMode) setBillingTouched(true); }}>
                       <SelectTrigger className="h-12 w-full rounded-xl border-border bg-muted/30 focus:ring-4 focus:ring-violet-500/10 transition-all text-sm font-semibold px-4 truncate">
                         <SelectValue placeholder="Selecione..." />
                       </SelectTrigger>
@@ -1798,7 +1813,7 @@ export default function NovoAluno() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2 w-full">
                     <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Vencimento (Dia)</label>
-                    <Select value={String(form.dueDay)} onValueChange={(v) => setForm(prev => ({ ...prev, dueDay: v }))}>
+                    <Select value={String(form.dueDay)} onValueChange={(v) => { setForm(prev => ({ ...prev, dueDay: v })); if (isEditMode) setBillingTouched(true); }}>
                       <SelectTrigger className="h-12 w-full rounded-xl border-border bg-muted/30 focus:ring-4 focus:ring-violet-500/10 transition-all text-sm font-semibold px-4">
                         <SelectValue placeholder="Dia" />
                       </SelectTrigger>
@@ -1917,49 +1932,26 @@ export default function NovoAluno() {
                   ) : (
                     <>
                       <div>
-                        <p className="text-sm font-bold text-foreground">Gerar mensalidades automaticamente</p>
+                        <p className="text-sm font-bold text-foreground">Mensalidades automáticas</p>
                         <p className="text-xs text-muted-foreground mt-0.5">
-                          Crie as próximas cobranças deste aluno a partir do mês atual. Meses que já têm mensalidade são pulados.
+                          Escolha quantos meses cobrar: as mensalidades serão criadas a partir do mês atual quando você <span className="font-bold text-foreground">salvar</span> o cadastro. Meses que já têm cobrança são pulados.
                         </p>
                       </div>
-                      <div className="flex flex-col sm:flex-row sm:items-end gap-3">
-                        <div className="space-y-2 w-full sm:max-w-[200px]">
-                          <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Quantidade de meses</label>
-                          <Select
-                            value={String(form.monthsCount)}
-                            onValueChange={(v) => setForm(prev => ({ ...prev, monthsCount: Number(v) }))}
-                          >
-                            <SelectTrigger className="h-12 w-full rounded-xl border-border bg-muted/30 focus:ring-4 focus:ring-violet-500/10 transition-all text-sm font-semibold px-4">
-                              <SelectValue placeholder="Meses" />
-                            </SelectTrigger>
-                            <SelectContent className="rounded-xl border-border shadow-2xl p-1">
-                              {[1, 2, 3, 6, 12].map(m => (
-                                <SelectItem key={m} value={String(m)} className="rounded-lg font-medium">{m} {m === 1 ? "mês" : "meses"}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <Button
-                          type="button"
-                          onClick={() => {
-                            if (!studentId) return;
-                            const now = new Date();
-                            generateMonthlyMutation.mutate({
-                              studentId,
-                              amount: parseBRL(form.monthlyFee),
-                              dueDay: Number(form.dueDay) || 10,
-                              startMonth: now.getMonth() + 1,
-                              startYear: now.getFullYear(),
-                              monthsCount: form.monthsCount,
-                            });
-                          }}
-                          disabled={generateMonthlyMutation.isPending || !form.monthlyFee}
-                          className="h-12 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-5 shadow-lg shadow-indigo-500/20 transition-all active:scale-95"
+                      <div className="space-y-2 w-full md:max-w-xs">
+                        <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Quantidade de meses</label>
+                        <Select
+                          value={String(form.monthsCount)}
+                          onValueChange={(v) => { setForm(prev => ({ ...prev, monthsCount: Number(v) })); setBillingTouched(true); }}
                         >
-                          {generateMonthlyMutation.isPending
-                            ? <Loader2 size={16} className="animate-spin" />
-                            : <><FileText size={16} className="mr-2" /> Gerar {form.monthsCount} {form.monthsCount === 1 ? "mensalidade" : "mensalidades"}</>}
-                        </Button>
+                          <SelectTrigger className="h-12 w-full rounded-xl border-border bg-muted/30 focus:ring-4 focus:ring-violet-500/10 transition-all text-sm font-semibold px-4">
+                            <SelectValue placeholder="Meses" />
+                          </SelectTrigger>
+                          <SelectContent className="rounded-xl border-border shadow-2xl p-1">
+                            {[1, 2, 3, 6, 12].map(m => (
+                              <SelectItem key={m} value={String(m)} className="rounded-lg font-medium">{m} {m === 1 ? "mês" : "meses"}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
                     </>
                   )}

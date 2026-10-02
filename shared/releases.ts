@@ -26,6 +26,16 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: "2026.10.01.11",
+    date: "2026-10-01",
+    title: "Mensalidades geradas ao salvar (mesmo fluxo das aulas)",
+    summary: "O botão 'Gerar mensalidades' foi removido. Ao editar o aluno, escolha a quantidade de meses no passo Financeiro: as cobranças são criadas automaticamente ao salvar o cadastro, assim como acontece com o agendamento das aulas. Meses que já têm cobrança são pulados.",
+    items: [
+      { type: "melhoria", title: "Fluxo único no Financeiro", description: "Defina valor, vencimento e quantidade de meses e clique em Salvar: as mensalidades são geradas junto com as demais alterações do cadastro." },
+      { type: "melhoria", title: "Sem duplicidade", description: "Meses que já possuem mensalidade continuam sendo ignorados automaticamente." },
+    ],
+  },
+  {
     version: "2026.10.01.10",
     date: "2026-10-01",
     title: "Gerar mensalidades também na edição do aluno",
