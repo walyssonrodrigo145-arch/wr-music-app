@@ -156,6 +156,16 @@ async function ensureSchemaConsistency(db: any) {
     await db.execute(sql`ALTER TABLE "students" ADD COLUMN IF NOT EXISTS "reactivatedAt" timestamp`);
     await db.execute(sql`CREATE INDEX IF NOT EXISTS "idx_students_org_deleted" ON "students" ("organizationId", "deletedAt")`);
 
+    // students: endereço estruturado + RG do responsável (PRD_ENDERECO_CONTRATOS_VARIAVEIS)
+    await db.execute(sql`ALTER TABLE "students" ADD COLUMN IF NOT EXISTS "cep" varchar(9)`);
+    await db.execute(sql`ALTER TABLE "students" ADD COLUMN IF NOT EXISTS "street" varchar(255)`);
+    await db.execute(sql`ALTER TABLE "students" ADD COLUMN IF NOT EXISTS "addressNumber" varchar(20)`);
+    await db.execute(sql`ALTER TABLE "students" ADD COLUMN IF NOT EXISTS "addressComplement" varchar(100)`);
+    await db.execute(sql`ALTER TABLE "students" ADD COLUMN IF NOT EXISTS "district" varchar(100)`);
+    await db.execute(sql`ALTER TABLE "students" ADD COLUMN IF NOT EXISTS "city" varchar(100)`);
+    await db.execute(sql`ALTER TABLE "students" ADD COLUMN IF NOT EXISTS "state" varchar(2)`);
+    await db.execute(sql`ALTER TABLE "students" ADD COLUMN IF NOT EXISTS "guardianRg" varchar(30)`);
+
     // school_holidays: Calendário Escolar (feriados, recessos e eventos)
     await db.execute(sql`CREATE TABLE IF NOT EXISTS "school_holidays" (
       "id" serial PRIMARY KEY,
@@ -189,6 +199,17 @@ async function ensureSchemaConsistency(db: any) {
     // professores.dashboardWidgets — cards permitidos definidos pelo admin (modo trava)
     await db.execute(sql`ALTER TABLE "professores" ADD COLUMN IF NOT EXISTS "dashboardWidgets" text DEFAULT '' NOT NULL`);
     await db.execute(sql`ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "chatbotEnabled" integer NOT NULL DEFAULT 0`);
+
+    // settings: dados completos da CONTRATADA (PRD_ENDERECO_CONTRATOS_VARIAVEIS)
+    await db.execute(sql`ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "schoolRazaoSocial" varchar(255)`);
+    await db.execute(sql`ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "schoolAddressNumber" varchar(20)`);
+    await db.execute(sql`ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "schoolAddressComplement" varchar(100)`);
+    await db.execute(sql`ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "schoolAddressDistrict" varchar(100)`);
+    await db.execute(sql`ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "schoolCep" varchar(9)`);
+    await db.execute(sql`ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "schoolState" varchar(2)`);
+    await db.execute(sql`ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "schoolLegalRepName" varchar(255)`);
+    await db.execute(sql`ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "schoolLegalRepRg" varchar(30)`);
+    await db.execute(sql`ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "schoolLegalRepCpf" varchar(14)`);
     
     // users.mustChangePassword
     await db.execute(sql`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "mustChangePassword" boolean DEFAULT false NOT NULL`);

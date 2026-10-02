@@ -261,43 +261,24 @@ export async function runCreateAssinafyContract(
     });
   }
 
-  // AUDIT-CONTRACTS FIX: a tabela settings é POR USUÁRIO (userId UNIQUE) — cada
-  // usuário da org que abre Configurações ganha uma linha própria (auto-criada
-  // vazia por getSettingsByUserId). O LIMIT 1 antigo podia pegar a linha de
-  // qualquer usuário SEM CNPJ e bloquear o contrato mesmo com o CNPJ salvo por
-  // outro admin. Agora: coleta o CNPJ de TODAS as linhas de settings da org e
-  // cai para organizations.cnpj (espelho do updateSchool) antes de falhar.
-  const { settings: settingsTable } = await import("../../drizzle/schema");
-  const cnpjRows = await db.select({ schoolCnpj: settingsTable.schoolCnpj })
-    .from(settingsTable)
-    .where(and(eq(settingsTable.organizationId, orgId), isNotNull(settingsTable.schoolCnpj)));
-  const [orgCnpjRow] = await db.select({ cnpj: organizations.cnpj })
-    .from(organizations)
-    .where(eq(organizations.id, orgId))
-    .limit(1);
-  const cnpjCandidates: Array<string | null> = [
-    ...cnpjRows.map((r: { schoolCnpj: string | null }) => r.schoolCnpj),
-    orgCnpjRow?.cnpj ?? null,
-  ];
-  if (!cnpjCandidates.some(c => isValidCNPJ(c))) {
-    throw new TRPCError({
-      code: "PRECONDITION_FAILED",
-      message: "Cadastre o CNPJ válido da escola em Configurações > Dados da Escola antes de emitir contratos.",
-    });
-  }
+  // AUDIT-CONTRACTS FIX: CNPJ coletado de TODAS as linhas de settings + espelho da
+  // organizations (helper compartilhado com a impressão de contrato).
+  await assertSchoolCnpjConfigured(db, orgId);
 
   const { prepareContractRender, getNextContractNumber, addContractEvent, buildDefaultTemplateContent } = await import("../services/contractService");
   const { providerFromIntegration } = await import("../services/signature");
 
+  // RN-009: reserva o número ANTES de renderizar para {{numero_contrato}} sair no PDF
+  const contractNumber = await getNextContractNumber(db, orgId);
   const prepared = await prepareContractRender(db, orgId, input.studentId, input.templateId, {
     startDate: input.startDate ?? null,
     endDate: input.endDate ?? null,
     monthlyFeeOverride: input.monthlyFeeOverride ?? null,
+    contractNumber,
   });
 
   const student = prepared.student;
   const template = prepared.template;
-  const contractNumber = await getNextContractNumber(db, orgId);
   const title = prepared.title;
 
   const provider = providerFromIntegration(integration);
@@ -329,9 +310,11 @@ export async function runCreateAssinafyContract(
     return d;
   };
 
-  const safeStartDate = parseSafeDate(input.startDate);
-  const safeEndDate = parseSafeDate(input.endDate);
-  const safeExpiresAt = parseSafeTimestamp(input.endDate);
+  // RN-010: usa as datas resolvidas (término sugerido pelo plano quando o admin
+  // não informar) — mantém contrato com vigência completa.
+  const safeStartDate = parseSafeDate(prepared.startDate);
+  const safeEndDate = parseSafeDate(prepared.endDate);
+  const safeExpiresAt = parseSafeTimestamp(prepared.endDate);
 
   const result = await provider.createSignProcess({
     documentName: `${title}.pdf`,
@@ -383,6 +366,86 @@ export async function runCreateAssinafyContract(
   }
 
   return { contract: newContract, signUrl: result.signUrl };
+}
+
+/**
+ * Valida se a escola tem CNPJ válido configurado (settings de qualquer usuário
+ * ou espelho em organizations) antes de emitir contrato.
+ */
+export async function assertSchoolCnpjConfigured(db: any, orgId: number) {
+  const { settings: settingsTable } = await import("../../drizzle/schema");
+  const cnpjRows = await db.select({ schoolCnpj: settingsTable.schoolCnpj })
+    .from(settingsTable)
+    .where(and(eq(settingsTable.organizationId, orgId), isNotNull(settingsTable.schoolCnpj)));
+  const [orgCnpjRow] = await db.select({ cnpj: organizations.cnpj })
+    .from(organizations)
+    .where(eq(organizations.id, orgId))
+    .limit(1);
+  const cnpjCandidates: Array<string | null> = [
+    ...cnpjRows.map((r: { schoolCnpj: string | null }) => r.schoolCnpj),
+    orgCnpjRow?.cnpj ?? null,
+  ];
+  if (!cnpjCandidates.some((c) => isValidCNPJ(c))) {
+    throw new TRPCError({
+      code: "PRECONDITION_FAILED",
+      message: "Cadastre o CNPJ válido da escola em Configurações > Dados da Escola antes de emitir contratos.",
+    });
+  }
+}
+
+/**
+ * RF-006 (PRD_ENDERECO_CONTRATOS_VARIAVEIS): gera o contrato em PDF para
+ * IMPRESSÃO (assinatura física) — sem enviar à Assinafy. Persiste o contrato
+ * como `rascunho` com snapshot do modelo e número reservado.
+ */
+export async function runPrintContract(
+  db: any,
+  user: { id: number },
+  orgId: number,
+  input: { studentId: number; templateId: number; startDate?: string; endDate?: string; monthlyFeeOverride?: string }
+) {
+  await assertSchoolCnpjConfigured(db, orgId);
+
+  const { prepareContractRender, getNextContractNumber, addContractEvent, buildDefaultTemplateContent } = await import("../services/contractService");
+
+  const contractNumber = await getNextContractNumber(db, orgId);
+  const prepared = await prepareContractRender(db, orgId, input.studentId, input.templateId, {
+    startDate: input.startDate ?? null,
+    endDate: input.endDate ?? null,
+    monthlyFeeOverride: input.monthlyFeeOverride ?? null,
+    contractNumber,
+  });
+
+  const student = prepared.student;
+  const template = prepared.template;
+  const monthlyFeeRaw = prepared.variables.monthly_fee;
+  const storedFee = monthlyFeeRaw && monthlyFeeRaw !== "__________" ? monthlyFeeRaw : null;
+
+  const [newContract] = await db.insert(contracts).values({
+    organizationId: orgId,
+    userId: user.id,
+    studentId: student.id,
+    contractNumber,
+    templateId: template.id,
+    templateContentSnapshot: template.content || buildDefaultTemplateContent(),
+    monthlyFee: storedFee,
+    dueDay: student.dueDay ? Number(student.dueDay) : null,
+    startDate: prepared.startDate,
+    endDate: prepared.endDate,
+    title: prepared.title,
+    status: "rascunho",
+    provider: "manual",
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  }).returning();
+
+  await addContractEvent(db as any, newContract.id, "contrato_impresso", `Contrato ${contractNumber} gerado para impressão`, null, { template: template.name });
+
+  return {
+    contract: newContract,
+    pdfBase64: prepared.pdfBuffer.toString("base64"),
+    fileName: `${prepared.title}.pdf`,
+  };
 }
 
 // ─── Rate Limiter Persistente WhatsApp (Anti-Ban) ──────────────────────────

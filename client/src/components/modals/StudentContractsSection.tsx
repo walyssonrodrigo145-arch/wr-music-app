@@ -3,10 +3,12 @@ import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { downloadBase64, previewOrDownloadBase64 } from "@/lib/nativeDownload";
+import { openPdfPrint, shareSignUrl } from "@/lib/printPdf";
 import { Button } from "@/components/ui/button";
 import {
   FileSignature, Plus, Copy, Eye, RefreshCw, Ban, Download, Loader2,
   Clock, CheckCircle2, XCircle, AlertTriangle, History, Link2, FileText, RotateCcw, Trash2,
+  Printer, Share2,
 } from "lucide-react";
 
 const STATUS_CONFIG: Record<string, { label: string; cls: string; icon: any }> = {
@@ -41,16 +43,26 @@ export function CreateContractModal({ open, onClose, student, onCreated }: {
   onCreated: () => void;
 }) {
   const { data: templates = [] } = trpc.contractTemplates.list.useQuery(undefined, { enabled: open });
+  const { data: integration } = trpc.signatureIntegrations.getStatus.useQuery(undefined, { enabled: open });
   const utils = trpc.useUtils();
+  const hasIntegration = Boolean(integration?.active && integration.connectionStatus === "connected");
 
   const createMutation = trpc.contracts.createAssinafy.useMutation({
     onSuccess: (res) => {
       toast.success(`Contrato criado! Nº ${res.contract?.contractNumber || ""}`);
-      if (res.signUrl) {
-        navigator.clipboard.writeText(res.signUrl).catch(() => {});
-      }
+      setCreatedLink(res.signUrl || null);
+      setCreatedNumber(res.contract?.contractNumber || null);
       onCreated();
-      onClose();
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const printMutation = trpc.contracts.printContract.useMutation({
+    onSuccess: (res) => {
+      if (!res?.base64) return toast.error("Não foi possível gerar o PDF.");
+      openPdfPrint(res.base64, res.fileName);
+      toast.success(`Contrato ${res.contract?.contractNumber || ""} gerado para impressão!`);
+      onCreated();
     },
     onError: (e) => toast.error(e.message),
   });
@@ -60,8 +72,18 @@ export function CreateContractModal({ open, onClose, student, onCreated }: {
   const [endDate, setEndDate] = useState("");
   const [monthlyFeeOverride, setMonthlyFeeOverride] = useState("");
   const [previewing, setPreviewing] = useState(false);
+  const [createdLink, setCreatedLink] = useState<string | null>(null);
+  const [createdNumber, setCreatedNumber] = useState<string | null>(null);
 
   const isMinorStudent = Boolean(student?.guardianName?.trim() || student?.guardianEmail?.trim());
+
+  // ─── Limpa o link gerado ao reabrir o modal
+  useEffect(() => {
+    if (open) {
+      setCreatedLink(null);
+      setCreatedNumber(null);
+    }
+  }, [open]);
 
   // ─── Auto-seleciona o modelo adequado (Menor de Idade vs Padrão) ao abrir o modal
   useEffect(() => {
@@ -97,6 +119,35 @@ export function CreateContractModal({ open, onClose, student, onCreated }: {
     } finally {
       setPreviewing(false);
     }
+  };
+
+  const handleCopyLink = async (url: string) => {
+    try {
+      await navigator.clipboard.writeText(url);
+      toast.success("Link copiado!");
+    } catch {
+      toast.error("Não foi possível copiar o link.");
+    }
+  };
+
+  const handleShareLink = async (url: string) => {
+    try {
+      const result = await shareSignUrl(url, createdNumber);
+      toast.success(result === "copied" ? "Link copiado!" : "Link compartilhado!");
+    } catch {
+      toast.error("Não foi possível compartilhar o link.");
+    }
+  };
+
+  const handlePrintContract = () => {
+    if (!templateId) return;
+    printMutation.mutate({
+      studentId: student.id,
+      templateId,
+      startDate: startDate || undefined,
+      endDate: endDate || undefined,
+      monthlyFeeOverride: monthlyFeeOverride || undefined,
+    });
   };
 
   if (!open) return null;
@@ -224,32 +275,75 @@ export function CreateContractModal({ open, onClose, student, onCreated }: {
             </div>
           </div>
 
-          <div className="flex gap-2 pt-2">
-            <Button variant="outline" className="flex-1 h-11 rounded-xl font-bold" onClick={onClose}>Cancelar</Button>
-            <Button
-              variant="outline"
-              disabled={!templateId || previewing}
-              onClick={handlePreview}
-              className="flex-1 h-11 rounded-xl font-bold"
+          <div className="space-y-2 pt-2">
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" className="flex-1 min-w-[7rem] h-11 rounded-xl font-bold" onClick={onClose}>Cancelar</Button>
+              <Button
+                variant="outline"
+                disabled={!templateId || previewing}
+                onClick={handlePreview}
+                className="flex-1 min-w-[7rem] h-11 rounded-xl font-bold"
+              >
+                {previewing ? <Loader2 size={16} className="animate-spin mr-2" /> : <Eye size={16} className="mr-2" />}
+                Pré-visualizar
+              </Button>
+              <Button
+                variant="outline"
+                disabled={!templateId || printMutation.isPending}
+                onClick={handlePrintContract}
+                className="flex-1 min-w-[7rem] h-11 rounded-xl font-bold"
+              >
+                {printMutation.isPending ? <Loader2 size={16} className="animate-spin mr-2" /> : <Printer size={16} className="mr-2" />}
+                Imprimir contrato
+              </Button>
+            </div>
+            <span
+              className="block w-full"
+              title={!hasIntegration ? "Configure a integração em Configurações → Integrações" : undefined}
             >
-              {previewing ? <Loader2 size={16} className="animate-spin mr-2" /> : <Eye size={16} className="mr-2" />}
-              Pré-visualizar
-            </Button>
-            <Button
-              disabled={!templateId || createMutation.isPending}
-              onClick={() => createMutation.mutate({
-                studentId: student.id,
-                templateId: templateId!,
-                startDate: startDate || undefined,
-                endDate: endDate || undefined,
-                monthlyFeeOverride: monthlyFeeOverride || undefined,
-              })}
-              className="flex-1 h-11 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-bold"
-            >
-              {createMutation.isPending ? <Loader2 size={16} className="animate-spin mr-2" /> : <FileSignature size={16} className="mr-2" />}
-              Gerar contrato
-            </Button>
+              <Button
+                disabled={!templateId || !hasIntegration || createMutation.isPending}
+                onClick={() => createMutation.mutate({
+                  studentId: student.id,
+                  templateId: templateId!,
+                  startDate: startDate || undefined,
+                  endDate: endDate || undefined,
+                  monthlyFeeOverride: monthlyFeeOverride || undefined,
+                })}
+                className="w-full h-11 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-bold shadow-lg shadow-violet-500/20"
+              >
+                {createMutation.isPending ? <Loader2 size={16} className="animate-spin mr-2" /> : <Link2 size={16} className="mr-2" />}
+                Gerar link de assinatura
+              </Button>
+            </span>
+            {!hasIntegration && (
+              <p className="text-[10px] text-amber-500 font-bold text-center leading-relaxed">
+                Assinatura digital indisponível. Configure a integração em Configurações → Integrações.
+              </p>
+            )}
           </div>
+
+          {createdLink && (
+            <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 space-y-2">
+              <p className="text-[10px] font-black uppercase tracking-widest text-emerald-600 flex items-center gap-1.5">
+                <CheckCircle2 size={13} /> Link de assinatura gerado
+              </p>
+              <p className="text-[11px] font-medium text-foreground break-all bg-card/60 rounded-lg px-2 py-1.5 border border-border/50">
+                {createdLink}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Button size="sm" variant="outline" className="h-8 rounded-lg text-[10px] font-bold" onClick={() => handleCopyLink(createdLink)}>
+                  <Copy size={12} className="mr-1" /> Copiar link
+                </Button>
+                <Button size="sm" variant="outline" className="h-8 rounded-lg text-[10px] font-bold" onClick={() => window.open(createdLink, "_blank", "noopener")}>
+                  <Link2 size={12} className="mr-1" /> Abrir link
+                </Button>
+                <Button size="sm" variant="outline" className="h-8 rounded-lg text-[10px] font-bold" onClick={() => handleShareLink(createdLink)}>
+                  <Share2 size={12} className="mr-1" /> Compartilhar
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -268,6 +362,7 @@ export function StudentContractsSection({ studentId, student }: { studentId: num
   const [renewing, setRenewing] = useState<number | null>(null);
   const [cancelling, setCancelling] = useState<number | null>(null);
   const [deleting, setDeleting] = useState<number | null>(null);
+  const [printing, setPrinting] = useState<number | null>(null);
 
   const invalidate = () => {
     utils.contracts.list.invalidate({ studentId });
@@ -302,6 +397,8 @@ export function StudentContractsSection({ studentId, student }: { studentId: num
     onError: (e) => toast.error(e.message),
   });
 
+  const reprintMutation = trpc.contracts.reprintPdf.useMutation();
+
   const handleRefresh = (contract: any) => {
     setRefreshing(contract.id);
     refreshMutation.mutate({ id: contract.id }, { onSettled: () => setRefreshing(null) });
@@ -324,6 +421,22 @@ export function StudentContractsSection({ studentId, student }: { studentId: num
     } finally {
       setDownloading(null);
     }
+  };
+
+  const handlePrint = (contract: any) => {
+    if (contract.status === "assinado" && contract.signedDocumentUrl) {
+      window.open(contract.signedDocumentUrl, "_blank", "noopener");
+      return;
+    }
+    setPrinting(contract.id);
+    reprintMutation.mutate({ contractId: contract.id }, {
+      onSuccess: (res) => {
+        if (!res?.base64) return toast.error("Não foi possível gerar o PDF.");
+        openPdfPrint(res.base64, res.fileName);
+      },
+      onError: (e) => toast.error(e.message),
+      onSettled: () => setPrinting(null),
+    });
   };
 
   const { data: detailsData } = trpc.contracts.details.useQuery(
@@ -403,6 +516,10 @@ export function StudentContractsSection({ studentId, student }: { studentId: num
                   <Button size="sm" variant="outline" className="h-8 rounded-lg text-[10px] font-bold" disabled={refreshing === contract.id} onClick={() => handleRefresh(contract)}>
                     {refreshing === contract.id ? <Loader2 size={12} className="animate-spin mr-1" /> : <RefreshCw size={12} className="mr-1" />}
                     Atualizar status
+                  </Button>
+                  <Button size="sm" variant="outline" className="h-8 rounded-lg text-[10px] font-bold" disabled={printing === contract.id} onClick={() => handlePrint(contract)}>
+                    {printing === contract.id ? <Loader2 size={12} className="animate-spin mr-1" /> : <Printer size={12} className="mr-1" />}
+                    Imprimir
                   </Button>
                   {contract.assinafySignUrl && (
                     <>

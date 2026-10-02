@@ -1,11 +1,13 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { generateOccurrences, RECURRENCE_INTERVALS, RECURRENCE_DURATIONS, MAX_OCCURRENCES, type RecurrenceInterval } from "@shared/recurrence";
 import { buildSchedulePreview } from "@shared/schedulePreview";
+import { buildAddressMirror, isValidCEP, maskCEP } from "@shared/address";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { validateCPF } from "@/lib/cpf";
 import { formatBRL, parseBRL } from "@/lib/money";
 import { maskCPF, maskPhone } from "@/lib/masks";
+import { buscarCep } from "@/lib/cep";
 import { parseDueDaysOptions } from "@/lib/settings";
 import { 
   ChevronLeft, 
@@ -33,7 +35,8 @@ import {
   CheckCircle2,
   AlertTriangle,
   Trash2,
-  CalendarCheck
+  CalendarCheck,
+  Search
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -193,6 +196,9 @@ export default function NovoAluno() {
   const schedulePreview = useMemo(() => buildSchedulePreview(scheduleOccurrences), [scheduleOccurrences]);
 
   const [isSaving, setIsSaving] = useState(false);
+  const [isSearchingCep, setIsSearchingCep] = useState(false);
+  const [cepNotFound, setCepNotFound] = useState(false);
+  const addressNumberRef = useRef<HTMLInputElement>(null);
   const [form, setForm] = useState({
     name: "",
     socialName: "",
@@ -203,6 +209,13 @@ export default function NovoAluno() {
     email: "",
     phone: "",
     address: "",
+    cep: "",
+    street: "",
+    addressNumber: "",
+    addressComplement: "",
+    district: "",
+    city: "",
+    state: "",
     professorId: "",
     instrumentId: "",
     studioRoomId: "",
@@ -216,6 +229,8 @@ export default function NovoAluno() {
     guardianName: "",
     guardianPhone: "",
     guardianEmail: "",
+    guardianCpf: "",
+    guardianRg: "",
     notes: "",
     temporaryPassword: "",
     avatar: "",
@@ -244,6 +259,13 @@ export default function NovoAluno() {
         email: studentData.email ?? "",
         phone: studentData.phone ?? "",
         address: (studentData as any).address ?? "",
+        cep: maskCEP((studentData as any).cep ?? ""),
+        street: (studentData as any).street ?? "",
+        addressNumber: (studentData as any).addressNumber ?? "",
+        addressComplement: (studentData as any).addressComplement ?? "",
+        district: (studentData as any).district ?? "",
+        city: (studentData as any).city ?? "",
+        state: (studentData as any).state ?? "",
         professorId: studentData.professorId ? String(studentData.professorId) : "",
         instrumentId: studentData.instrumentId ? String(studentData.instrumentId) : "",
         studioRoomId: (studentData as any).studioRoomId ? String((studentData as any).studioRoomId) : "",
@@ -257,6 +279,8 @@ export default function NovoAluno() {
         guardianName: (studentData as any).guardianName ?? "",
         guardianPhone: (studentData as any).guardianPhone ?? "",
         guardianEmail: (studentData as any).guardianEmail ?? "",
+        guardianCpf: (studentData as any).guardianCpf ?? "",
+        guardianRg: (studentData as any).guardianRg ?? "",
         notes: (studentData as any).notes ?? "",
         temporaryPassword: "",
         avatar: (studentData as any).avatar ?? "",
@@ -328,8 +352,13 @@ export default function NovoAluno() {
     if (value === "none") value = "";
 
     let maskedValue = value || "";
-    if (field === 'cpf') maskedValue = maskCPF(value || "");
+    if (field === 'cpf' || field === 'guardianCpf') maskedValue = maskCPF(value || "");
     if (field === 'phone' || field === 'guardianPhone') maskedValue = maskPhone(value || "");
+    if (field === 'cep') {
+      maskedValue = maskCEP(value || "");
+      setCepNotFound(false);
+    }
+    if (field === 'state') maskedValue = (value || "").toUpperCase().replace(/[^A-Z]/g, "").slice(0, 2);
     
     setForm(prev => ({ ...prev, [field]: maskedValue }));
     if (errors[field]) {
@@ -350,6 +379,32 @@ export default function NovoAluno() {
 
     if (isEditMode && (field === 'instrumentId' || field === 'professorId')) {
       setCoursesDirty(true);
+    }
+  };
+
+  // ─── Busca de CEP (ViaCEP → BrasilAPI): preenche endereço estruturado ────────
+  const handleCepSearch = async (raw?: string) => {
+    const value = raw ?? form.cep;
+    if (isSearchingCep || !isValidCEP(value)) return;
+    setIsSearchingCep(true);
+    setCepNotFound(false);
+    try {
+      const result = await buscarCep(value);
+      if (!result) {
+        setCepNotFound(true);
+        return;
+      }
+      setForm(prev => ({
+        ...prev,
+        cep: maskCEP(result.cep || value),
+        street: result.street || prev.street,
+        district: result.district || prev.district,
+        city: result.city || prev.city,
+        state: result.state ? result.state.toUpperCase().slice(0, 2) : prev.state,
+      }));
+      addressNumberRef.current?.focus();
+    } finally {
+      setIsSearchingCep(false);
     }
   };
 
@@ -480,6 +535,21 @@ export default function NovoAluno() {
       ...extraCourses.slice(0, Math.max(0, courseCount - 1)).map((c) => ({ instrumentId: c.instrumentId, teacherUserId: c.teacherUserId })),
     ];
   }, [isEditMode, studentData, form.instrumentId, form.professorId, extraCourses, courseCount]);
+
+  // Endereço para o resumo: estruturado com fallback para o espelho legado
+  const summaryAddress = useMemo(
+    () =>
+      buildAddressMirror({
+        cep: form.cep,
+        street: form.street,
+        addressNumber: form.addressNumber,
+        addressComplement: form.addressComplement,
+        district: form.district,
+        city: form.city,
+        state: form.state,
+      }) || form.address,
+    [form.cep, form.street, form.addressNumber, form.addressComplement, form.district, form.city, form.state, form.address]
+  );
 
   // BUG #1/#2/#8 FIX: checkConflicts agora é useMutation para poder receber slots dinâmicos
   // Antes: useQuery com IIFE estático enviava campo "scheduledAt" inexistente no schema,
@@ -622,6 +692,13 @@ export default function NovoAluno() {
           email: form.email.trim() || undefined,
           phone: form.phone || undefined,
           address: form.address || undefined,
+          cep: form.cep || undefined,
+          street: form.street.trim() || undefined,
+          addressNumber: form.addressNumber.trim() || undefined,
+          addressComplement: form.addressComplement.trim() || undefined,
+          district: form.district.trim() || undefined,
+          city: form.city.trim() || undefined,
+          state: form.state.trim() || undefined,
           professorId: form.professorId ? Number(form.professorId) : undefined,
           instrumentId: form.instrumentId ? Number(form.instrumentId) : undefined,
           studioRoomId: form.studioRoomId ? Number(form.studioRoomId) : undefined,
@@ -636,6 +713,8 @@ export default function NovoAluno() {
           guardianName: form.guardianName.trim() || undefined,
           guardianPhone: form.guardianPhone || undefined,
           guardianEmail: form.guardianEmail.trim() || undefined,
+          guardianCpf: form.guardianCpf || undefined,
+          guardianRg: form.guardianRg.trim() || undefined,
           notes: form.notes || undefined,
           avatar: form.avatar || undefined,
           allowAutoReminders: form.allowAutoReminders,
@@ -885,9 +964,18 @@ export default function NovoAluno() {
       cpf: form.cpf || undefined,
       rg: form.rg || undefined,
       address: form.address || undefined,
+      cep: form.cep || undefined,
+      street: form.street.trim() || undefined,
+      addressNumber: form.addressNumber.trim() || undefined,
+      addressComplement: form.addressComplement.trim() || undefined,
+      district: form.district.trim() || undefined,
+      city: form.city.trim() || undefined,
+      state: form.state.trim() || undefined,
       guardianName: form.guardianName.trim() || undefined,
       guardianPhone: form.guardianPhone.replace(/\D/g, "") || undefined,
       guardianEmail: form.guardianEmail.trim() || undefined,
+      guardianCpf: form.guardianCpf || undefined,
+      guardianRg: form.guardianRg.trim() || undefined,
       instrumentId: form.instrumentId ? Number(form.instrumentId) : undefined,
       studioRoomId: form.studioRoomId ? Number(form.studioRoomId) : undefined,
       professorId: form.professorId ? Number(form.professorId) : undefined,
@@ -2163,16 +2251,128 @@ export default function NovoAluno() {
                     </div>
                   </div>
 
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Endereço</label>
-                    <div className="relative group/input">
-                      <Input 
-                        placeholder="Rua, número, bairro, cidade - UF" 
-                        value={form.address}
-                        onChange={(e) => handleInputChange('address', e.target.value)}
-                        className="h-12 rounded-xl border-border bg-muted/30 focus:bg-background focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all text-sm font-semibold pl-11"
-                      />
-                      <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground/70 group-focus-within/input:text-blue-500 transition-colors" size={18} />
+                  <div className="space-y-4 rounded-2xl border border-border/50 bg-muted/20 p-4 sm:p-5">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] flex items-center gap-1.5">
+                        <MapPin size={12} className="text-blue-500" /> Endereço
+                      </p>
+                      <span className="text-[9px] font-bold text-muted-foreground/70 uppercase tracking-widest">Informe o CEP para preencher automaticamente</span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">CEP</label>
+                        <div className="relative group/input">
+                          <Input
+                            placeholder="00000-000"
+                            inputMode="numeric"
+                            autoComplete="postal-code"
+                            value={form.cep}
+                            onChange={(e) => handleInputChange('cep', e.target.value)}
+                            onBlur={() => { if (isValidCEP(form.cep)) handleCepSearch(); }}
+                            className="h-12 rounded-xl border-border bg-muted/30 focus:bg-background focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all text-sm font-semibold pl-11 pr-12"
+                          />
+                          <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground/70 group-focus-within/input:text-blue-500 transition-colors" size={18} />
+                          <button
+                            type="button"
+                            onClick={() => handleCepSearch()}
+                            disabled={isSearchingCep}
+                            title="Buscar endereço pelo CEP"
+                            aria-label="Buscar endereço pelo CEP"
+                            className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-lg bg-blue-500/10 text-blue-600 hover:bg-blue-500 hover:text-white disabled:opacity-50 transition-all flex items-center justify-center active:scale-95"
+                          >
+                            {isSearchingCep ? <Loader2 size={15} className="animate-spin" /> : <Search size={15} />}
+                          </button>
+                        </div>
+                        {isSearchingCep && (
+                          <p className="text-[10px] text-blue-600 font-bold flex items-center gap-1 ml-1"><Loader2 size={10} className="animate-spin" /> Buscando CEP...</p>
+                        )}
+                        {cepNotFound && !isSearchingCep && (
+                          <p className="text-[10px] text-amber-600 font-bold flex items-center gap-1 ml-1"><AlertCircle size={10} /> CEP não encontrado — preencha manualmente</p>
+                        )}
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] flex items-center gap-1.5 ml-1">
+                          Número {isValidCEP(form.cep) && <span className="text-rose-500">*</span>}
+                        </label>
+                        <div className="relative group/input">
+                          <Input
+                            ref={addressNumberRef}
+                            placeholder="Ex: 123"
+                            value={form.addressNumber}
+                            onChange={(e) => handleInputChange('addressNumber', e.target.value)}
+                            className="h-12 rounded-xl border-border bg-muted/30 focus:bg-background focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all text-sm font-semibold pl-11"
+                          />
+                          <FileText className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground/70 group-focus-within/input:text-blue-500 transition-colors" size={18} />
+                        </div>
+                      </div>
+
+                      <div className="space-y-2 sm:col-span-2">
+                        <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Logradouro</label>
+                        <div className="relative group/input">
+                          <Input
+                            placeholder="Rua, avenida, praça..."
+                            value={form.street}
+                            onChange={(e) => handleInputChange('street', e.target.value)}
+                            className="h-12 rounded-xl border-border bg-muted/30 focus:bg-background focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all text-sm font-semibold pl-11"
+                          />
+                          <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground/70 group-focus-within/input:text-blue-500 transition-colors" size={18} />
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Complemento</label>
+                        <div className="relative group/input">
+                          <Input
+                            placeholder="Apto, bloco, casa..."
+                            value={form.addressComplement}
+                            onChange={(e) => handleInputChange('addressComplement', e.target.value)}
+                            className="h-12 rounded-xl border-border bg-muted/30 focus:bg-background focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all text-sm font-semibold pl-11"
+                          />
+                          <FileText className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground/70 group-focus-within/input:text-blue-500 transition-colors" size={18} />
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Bairro</label>
+                        <div className="relative group/input">
+                          <Input
+                            placeholder="Ex: Centro"
+                            value={form.district}
+                            onChange={(e) => handleInputChange('district', e.target.value)}
+                            className="h-12 rounded-xl border-border bg-muted/30 focus:bg-background focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all text-sm font-semibold pl-11"
+                          />
+                          <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground/70 group-focus-within/input:text-blue-500 transition-colors" size={18} />
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Cidade</label>
+                        <div className="relative group/input">
+                          <Input
+                            placeholder="Ex: São Paulo"
+                            value={form.city}
+                            onChange={(e) => handleInputChange('city', e.target.value)}
+                            className="h-12 rounded-xl border-border bg-muted/30 focus:bg-background focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all text-sm font-semibold pl-11"
+                          />
+                          <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground/70 group-focus-within/input:text-blue-500 transition-colors" size={18} />
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">UF</label>
+                        <div className="relative group/input">
+                          <Input
+                            placeholder="SP"
+                            maxLength={2}
+                            value={form.state}
+                            onChange={(e) => handleInputChange('state', e.target.value)}
+                            className="h-12 rounded-xl border-border bg-muted/30 focus:bg-background focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all text-sm font-semibold pl-11 uppercase"
+                          />
+                          <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground/70 group-focus-within/input:text-blue-500 transition-colors" size={18} />
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -2250,6 +2450,33 @@ export default function NovoAluno() {
                                 className="h-12 rounded-xl border-border bg-muted/30 focus:bg-background focus:ring-4 focus:ring-amber-500/10 focus:border-amber-500 transition-all text-sm font-semibold pl-11"
                               />
                               <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground/70 group-focus-within/input:text-amber-500 transition-colors" size={18} />
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <div className="space-y-2">
+                            <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">CPF do responsável</label>
+                            <div className="relative group/input">
+                              <Input 
+                                placeholder="000.000.000-00" 
+                                value={form.guardianCpf}
+                                onChange={(e) => handleInputChange('guardianCpf', e.target.value)}
+                                className="h-12 rounded-xl border-border bg-muted/30 focus:bg-background focus:ring-4 focus:ring-amber-500/10 focus:border-amber-500 transition-all text-sm font-semibold pl-11"
+                              />
+                              <FileText className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground/70 group-focus-within/input:text-amber-500 transition-colors" size={18} />
+                            </div>
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">RG do responsável</label>
+                            <div className="relative group/input">
+                              <Input 
+                                placeholder="00.000.000-0" 
+                                value={form.guardianRg}
+                                onChange={(e) => handleInputChange('guardianRg', e.target.value)}
+                                className="h-12 rounded-xl border-border bg-muted/30 focus:bg-background focus:ring-4 focus:ring-amber-500/10 focus:border-amber-500 transition-all text-sm font-semibold pl-11"
+                              />
+                              <FileText className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground/70 group-focus-within/input:text-amber-500 transition-colors" size={18} />
                             </div>
                           </div>
                         </div>
@@ -2350,6 +2577,12 @@ export default function NovoAluno() {
                     </div>
                   ))}
                 </div>
+                {summaryAddress && (
+                  <div className="mt-2.5 rounded-xl border border-border/50 bg-muted/20 px-3.5 py-2.5">
+                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em]">Endereço</p>
+                    <p className="text-sm font-bold text-foreground mt-0.5 break-words">{summaryAddress}</p>
+                  </div>
+                )}
               </motion.div>
               <motion.div variants={cardVariants} className="bg-card rounded-3xl p-5 sm:p-6 shadow-sm border border-border/50 transition-shadow hover:shadow-md">
                 <div className="flex items-center gap-3 mb-4">

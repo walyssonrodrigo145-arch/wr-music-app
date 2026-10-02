@@ -1,6 +1,7 @@
 import { debugLog } from "../_core/logger";
 import { z } from "zod";
 import { COOKIE_NAME } from "@shared/const";
+import { buildAddressMirror } from "@shared/address";
 import { getSessionCookieOptions } from "../_core/cookies";
 import { systemRouter } from "../_core/systemRouter";
 import { fcmRouter } from "../fcmRouter";
@@ -287,9 +288,18 @@ export const studentsRouters = {
         cpf: students.cpf,
         rg: students.rg,
         address: students.address,
+        cep: students.cep,
+        street: students.street,
+        addressNumber: students.addressNumber,
+        addressComplement: students.addressComplement,
+        district: students.district,
+        city: students.city,
+        state: students.state,
         guardianName: students.guardianName,
         guardianPhone: students.guardianPhone,
         guardianEmail: students.guardianEmail,
+        guardianCpf: students.guardianCpf,
+        guardianRg: students.guardianRg,
         instrumentId: students.instrumentId,
         email: students.email,
         phone: students.phone,
@@ -343,9 +353,18 @@ export const studentsRouters = {
         cpf: students.cpf,
         rg: students.rg,
         address: students.address,
+        cep: students.cep,
+        street: students.street,
+        addressNumber: students.addressNumber,
+        addressComplement: students.addressComplement,
+        district: students.district,
+        city: students.city,
+        state: students.state,
         guardianName: students.guardianName,
         guardianPhone: students.guardianPhone,
         guardianEmail: students.guardianEmail,
+        guardianCpf: students.guardianCpf,
+        guardianRg: students.guardianRg,
         instrumentId: students.instrumentId,
         email: students.email,
         phone: students.phone,
@@ -631,6 +650,14 @@ export const studentsRouters = {
         return clean.length >= 5 && !/^0+$/.test(clean);
       }, "RG deve ter pelo menos 5 caracteres e não conter apenas zeros"),
       address: z.string().optional().nullable(),
+      // PRD_ENDERECO_CONTRATOS_VARIAVEIS: endereço estruturado (ViaCEP)
+      cep: z.string().max(9).optional().nullable(),
+      street: z.string().max(255).optional().nullable(),
+      addressNumber: z.string().max(20).optional().nullable(),
+      addressComplement: z.string().max(100).optional().nullable(),
+      district: z.string().max(100).optional().nullable(),
+      city: z.string().max(100).optional().nullable(),
+      state: z.string().max(2).optional().nullable(),
       guardianName: z.string().optional().nullable().refine((val) => {
         if (!val) return true;
         return /^[a-zA-ZáàâãéêíóôõúüçÁÀÂÃÉÊÍÓÔÕÚÜÇ\s]*$/.test(val);
@@ -642,6 +669,8 @@ export const studentsRouters = {
         return (clean.length === 10 || clean.length === 11) && !/^0+$/.test(clean);
       }, "Telefone do responsável deve ter 10 ou 11 dígitos e não conter apenas zeros"),
       guardianEmail: z.string().email("E-mail do responsável inválido").or(z.literal("")).optional().nullable(),
+      guardianCpf: z.string().max(20).optional().nullable(),
+      guardianRg: z.string().max(30).optional().nullable(),
       instrumentId: z.number().optional(),
       level: z.enum(['iniciante','intermediario','avancado']).default('iniciante'),
       monthlyFee: z.union([z.number(), z.string()]).transform((val) => {
@@ -734,10 +763,19 @@ export const studentsRouters = {
             gender: input.gender || undefined,
             cpf: input.cpf || undefined,
             rg: input.rg || undefined,
-            address: input.address || undefined,
+            address: buildAddressMirror(input) || input.address || undefined,
+            cep: input.cep || undefined,
+            street: input.street || undefined,
+            addressNumber: input.addressNumber || undefined,
+            addressComplement: input.addressComplement || undefined,
+            district: input.district || undefined,
+            city: input.city || undefined,
+            state: input.state ? input.state.toUpperCase() : undefined,
             guardianName: input.guardianName || undefined,
             guardianPhone: input.guardianPhone || undefined,
             guardianEmail: input.guardianEmail || undefined,
+            guardianCpf: input.guardianCpf || undefined,
+            guardianRg: input.guardianRg || undefined,
             avatar: input.avatar ?? undefined,
             instrumentId: input.instrumentId || undefined,
             level: input.level,
@@ -851,6 +889,14 @@ export const studentsRouters = {
         return clean.length >= 5 && !/^0+$/.test(clean);
       }, "RG deve ter pelo menos 5 caracteres e não conter apenas zeros"),
       address: z.string().optional().nullable(),
+      // PRD_ENDERECO_CONTRATOS_VARIAVEIS: endereço estruturado (ViaCEP)
+      cep: z.string().max(9).optional().nullable(),
+      street: z.string().max(255).optional().nullable(),
+      addressNumber: z.string().max(20).optional().nullable(),
+      addressComplement: z.string().max(100).optional().nullable(),
+      district: z.string().max(100).optional().nullable(),
+      city: z.string().max(100).optional().nullable(),
+      state: z.string().max(2).optional().nullable(),
       guardianName: z.string().optional().nullable().refine((val) => {
         if (!val) return true;
         return /^[a-zA-ZáàâãéêíóôõúüçÁÀÂÃÉÊÍÓÔÕÚÜÇ\s]*$/.test(val);
@@ -862,6 +908,8 @@ export const studentsRouters = {
         return (clean.length === 10 || clean.length === 11) && !/^0+$/.test(clean);
       }, "Telefone do responsável deve ter 10 ou 11 dígitos e não conter apenas zeros"),
       guardianEmail: z.string().email("E-mail do responsável inválido").or(z.literal("")).optional().nullable(),
+      guardianCpf: z.string().max(20).optional().nullable(),
+      guardianRg: z.string().max(30).optional().nullable(),
       email: z.string().email("E-mail inválido").or(z.literal("")).optional().nullable(),
       phone: z.string().optional().nullable(),
       instrumentId: z.number().optional().nullable(),
@@ -916,6 +964,22 @@ export const studentsRouters = {
 
         const [existing] = await db.select().from(students).where(condition).limit(1);
         if (!existing) throw new TRPCError({ code: "FORBIDDEN", message: "Aluno não encontrado ou sem permissão" });
+
+        // PRD_ENDERECO_CONTRATOS_VARIAVEIS: endereço estruturado → espelho textual + UF maiúscula
+        const structuredProvided = ["cep", "street", "addressNumber", "addressComplement", "district", "city", "state"]
+          .some((k) => (data as any)[k] !== undefined);
+        if (structuredProvided) {
+          updateData.address = buildAddressMirror({
+            cep: (cleanData as any).cep ?? existing.cep,
+            street: (cleanData as any).street ?? existing.street,
+            addressNumber: (cleanData as any).addressNumber ?? existing.addressNumber,
+            addressComplement: (cleanData as any).addressComplement ?? existing.addressComplement,
+            district: (cleanData as any).district ?? existing.district,
+            city: (cleanData as any).city ?? existing.city,
+            state: (cleanData as any).state ?? existing.state,
+          }) || null;
+        }
+        if (updateData.state) updateData.state = String(updateData.state).toUpperCase();
 
         // PLANOS & BOLSAS: valida que o plano pertence à organização (integridade)
         if (input.schoolPlanId != null) {

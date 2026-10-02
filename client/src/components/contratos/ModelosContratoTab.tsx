@@ -20,37 +20,13 @@ import {
   type ContractBlock,
   type ContractBlockType,
 } from "@shared/contractBlocks";
+import { CONTRACT_VARIABLE_CATEGORIES } from "@shared/contractVariablesCatalog";
 import {
   FileSignature, FileText, Plus, Pencil, Trash2, Loader2, Sparkles, CheckCircle2,
-  ArrowUp, ArrowDown, Copy, Eye, EyeOff, Wand2, ListPlus,
+  ArrowUp, ArrowDown, Copy, Eye, EyeOff, Wand2, ListPlus, Search,
 } from "lucide-react";
 
 const BLOCK_TYPES = Object.keys(CONTRACT_BLOCK_LABELS) as ContractBlockType[];
-
-const AVAILABLE_VARIABLES = [
-  { tag: "{{school_name}}", label: "Nome da Escola" },
-  { tag: "{{school_cnpj}}", label: "CNPJ da Escola" },
-  { tag: "{{school_address}}", label: "Endereço da Escola" },
-  { tag: "{{school_email}}", label: "E-mail da Escola" },
-  { tag: "{{school_phone}}", label: "Telefone da Escola" },
-  { tag: "{{guardian_name}}", label: "Nome do Responsável" },
-  { tag: "{{guardian_cpf}}", label: "CPF do Responsável" },
-  { tag: "{{guardian_phone}}", label: "Telefone do Responsável" },
-  { tag: "{{guardian_email}}", label: "E-mail do Responsável" },
-  { tag: "{{guardian_address}}", label: "Endereço do Responsável" },
-  { tag: "{{student_name}}", label: "Nome do Aluno" },
-  { tag: "{{student_cpf}}", label: "CPF do Aluno" },
-  { tag: "{{student_rg}}", label: "RG do Aluno" },
-  { tag: "{{student_birth_date}}", label: "Nasc. do Aluno" },
-  { tag: "{{student_address}}", label: "Endereço do Aluno" },
-  { tag: "{{student_email}}", label: "E-mail do Aluno" },
-  { tag: "{{student_phone}}", label: "Telefone do Aluno" },
-  { tag: "{{instrument}}", label: "Instrumento/Curso" },
-  { tag: "{{monthly_fee}}", label: "Valor da Mensalidade" },
-  { tag: "{{due_date}}", label: "Dia do Vencimento" },
-  { tag: "{{contract_start_date}}", label: "Início do Contrato" },
-  { tag: "{{contract_end_date}}", label: "Término do Contrato" },
-];
 
 function newBlockId(): string {
   try {
@@ -92,6 +68,7 @@ export function ModelosContratoTab() {
   const [blocks, setBlocks] = useState<ContractBlock[]>([]);
   const [focusedId, setFocusedId] = useState<string | null>(null);
   const [showPreview, setShowPreview] = useState(true);
+  const [variableFilter, setVariableFilter] = useState("");
   const textareaRefs = useRef<Map<string, HTMLTextAreaElement>>(new Map());
 
   const autoMutation = trpc.contractTemplates.autoInsertVariables.useMutation({
@@ -232,6 +209,19 @@ export function ModelosContratoTab() {
   };
 
   const renderedContent = renderContractBlocks(blocks);
+
+  const filteredVariableCategories = useMemo(() => {
+    const q = variableFilter.trim().toLowerCase();
+    if (!q) return CONTRACT_VARIABLE_CATEGORIES;
+    return CONTRACT_VARIABLE_CATEGORIES
+      .map((cat) => ({
+        ...cat,
+        items: cat.items.filter(
+          (it) => it.label.toLowerCase().includes(q) || it.token.toLowerCase().includes(q)
+        ),
+      }))
+      .filter((cat) => cat.items.length > 0);
+  }, [variableFilter]);
 
   // ── Lista de modelos (sem edição aberta) ──
   if (!isEditing) {
@@ -433,18 +423,46 @@ export function ModelosContratoTab() {
             <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
               <Sparkles size={12} className="text-violet-500" /> Variáveis
             </p>
-            <div className="flex flex-wrap gap-1.5 max-h-56 overflow-y-auto pr-1">
-              {AVAILABLE_VARIABLES.map((v) => (
-                <button
-                  key={v.tag}
-                  type="button"
-                  onClick={() => insertVariable(v.tag)}
-                  title={v.label}
-                  className="px-2 py-1 rounded-lg border border-border/80 bg-muted/30 text-[10px] font-bold text-violet-600 dark:text-violet-300 hover:border-violet-500/40 hover:bg-violet-500/10 transition-colors"
-                >
-                  {v.tag}
-                </button>
-              ))}
+            <div className="relative">
+              <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <input
+                value={variableFilter}
+                onChange={(e) => setVariableFilter(e.target.value)}
+                placeholder="Buscar variável..."
+                className="h-9 w-full rounded-xl border border-border bg-muted/30 pl-8 pr-2 text-[11px] font-semibold outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500/50 transition-all"
+              />
+            </div>
+            <div className="space-y-3 max-h-[24rem] overflow-y-auto pr-1">
+              {filteredVariableCategories.length === 0 ? (
+                <p className="text-[10px] text-muted-foreground italic">Nenhuma variável encontrada.</p>
+              ) : (
+                filteredVariableCategories.map((cat) => (
+                  <div key={cat.id} className="space-y-1.5">
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-foreground/80">{cat.title}</p>
+                      <p className="text-[9px] text-muted-foreground font-medium leading-snug">{cat.description}</p>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {cat.items.map((v) => (
+                        <button
+                          key={v.token}
+                          type="button"
+                          onClick={() => insertVariable(`{{${v.token}}}`)}
+                          title={`Inserir {{${v.token}}}`}
+                          className="group flex flex-col items-start rounded-lg border border-border/80 bg-muted/30 px-2 py-1 text-left hover:border-violet-500/40 hover:bg-violet-500/10 transition-colors"
+                        >
+                          <span className="text-[10px] font-bold text-foreground/90 group-hover:text-violet-600 dark:group-hover:text-violet-300 leading-tight">
+                            {v.label}
+                          </span>
+                          <span className="text-[9px] font-mono text-muted-foreground leading-tight">
+                            {`{{${v.token}}}`}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
             <p className="text-[10px] text-muted-foreground leading-relaxed">
               Clique no campo de texto de um item e depois na variável para inseri-la na posição do cursor.

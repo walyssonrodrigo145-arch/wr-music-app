@@ -4,6 +4,9 @@ import { useAuth } from "@/hooks/useAuth";
 import { useTheme } from "@/contexts/ThemeContext";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { maskCPF } from "@/lib/masks";
+import { maskCEP, isValidCEP } from "@shared/address";
+import { buscarCep } from "@/lib/cep";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -20,7 +23,7 @@ import {
   Sun, Moon, Phone, Mail,
   CheckCircle2, Loader2, Smartphone, Wallet, Sparkles, HelpCircle,
   FileText, DollarSign, Percent, Receipt, Calculator, Calendar, CalendarDays, Clock, Upload, Trash2, Image,
-  FileSignature, AlertTriangle, FlaskConical, GraduationCap, Repeat, FileCode2, MessageCircle, Link2
+  FileSignature, AlertTriangle, FlaskConical, GraduationCap, Repeat, FileCode2, MessageCircle, Link2, Search, MapPin
 } from "lucide-react";
 import { SUPPORT_WHATSAPP_URL, SUPPORT_WHATSAPP_DISPLAY } from "@/lib/support";
 import { RepositionsSettings } from "@/components/settings/RepositionsSettings";
@@ -100,6 +103,18 @@ export default function Configuracoes() {
   const [schoolEmail, setSchoolEmail] = useState("");
   const [schoolWebsite, setSchoolWebsite] = useState("");
   const [schoolDescription, setSchoolDescription] = useState("");
+  // PRD_ENDERECO_CONTRATOS_VARIAVEIS: dados contratuais da CONTRATADA
+  const [schoolRazaoSocial, setSchoolRazaoSocial] = useState("");
+  const [schoolAddressNumber, setSchoolAddressNumber] = useState("");
+  const [schoolAddressComplement, setSchoolAddressComplement] = useState("");
+  const [schoolAddressDistrict, setSchoolAddressDistrict] = useState("");
+  const [schoolCep, setSchoolCep] = useState("");
+  const [schoolState, setSchoolState] = useState("");
+  const [schoolLegalRepName, setSchoolLegalRepName] = useState("");
+  const [schoolLegalRepRg, setSchoolLegalRepRg] = useState("");
+  const [schoolLegalRepCpf, setSchoolLegalRepCpf] = useState("");
+  const [isSearchingSchoolCep, setIsSearchingSchoolCep] = useState(false);
+  const [schoolCepNotFound, setSchoolCepNotFound] = useState(false);
   const [logoUrl, setLogoUrl] = useState("");
   const [showSchoolName, setShowSchoolName] = useState(true);
   const [logoEditorOpen, setLogoEditorOpen] = useState(false);
@@ -225,6 +240,15 @@ export default function Configuracoes() {
       setSchoolEmail(settings.schoolEmail ?? "");
       setSchoolWebsite(settings.schoolWebsite ?? "");
       setSchoolDescription(settings.schoolDescription ?? "");
+      setSchoolRazaoSocial((settings as any).schoolRazaoSocial ?? "");
+      setSchoolAddressNumber((settings as any).schoolAddressNumber ?? "");
+      setSchoolAddressComplement((settings as any).schoolAddressComplement ?? "");
+      setSchoolAddressDistrict((settings as any).schoolAddressDistrict ?? "");
+      setSchoolCep(maskCEP((settings as any).schoolCep ?? ""));
+      setSchoolState(((settings as any).schoolState ?? "").toUpperCase().slice(0, 2));
+      setSchoolLegalRepName((settings as any).schoolLegalRepName ?? "");
+      setSchoolLegalRepRg((settings as any).schoolLegalRepRg ?? "");
+      setSchoolLegalRepCpf((settings as any).schoolLegalRepCpf ?? "");
       setLogoUrl((settings as any).logoUrl ?? (user as any)?.schoolLogo ?? "");
       setShowSchoolName((settings as any).showSchoolName !== 0);
       setDueDaysForecast(settings.dueDaysForecast ?? "5,10,15,20");
@@ -525,6 +549,28 @@ export default function Configuracoes() {
     onError: (e) => toast.error("Erro ao salvar configurações financeiras: " + e.message),
   });
 
+  // Busca de CEP da escola (ViaCEP → BrasilAPI): preenche logradouro/bairro/cidade/UF
+  const handleSchoolCepSearch = async (raw?: string) => {
+    const value = raw ?? schoolCep;
+    if (isSearchingSchoolCep || !isValidCEP(value)) return;
+    setIsSearchingSchoolCep(true);
+    setSchoolCepNotFound(false);
+    try {
+      const result = await buscarCep(value);
+      if (!result) {
+        setSchoolCepNotFound(true);
+        return;
+      }
+      setSchoolCep(maskCEP(result.cep || value));
+      if (result.street) setSchoolAddress(result.street);
+      if (result.district) setSchoolAddressDistrict(result.district);
+      if (result.city) setSchoolCity(result.city);
+      if (result.state) setSchoolState(result.state.toUpperCase().slice(0, 2));
+    } finally {
+      setIsSearchingSchoolCep(false);
+    }
+  };
+
   const handleSaveWhatsApp = () => {
     // BUG-013: Validar URL se preenchida
     if (whatsappBotUrl.trim()) {
@@ -761,6 +807,16 @@ export default function Configuracoes() {
                         schoolEmail,
                         schoolWebsite,
                         schoolDescription,
+                        // PRD_ENDERECO_CONTRATOS_VARIAVEIS: dados contratuais da CONTRATADA
+                        schoolRazaoSocial: schoolRazaoSocial.trim(),
+                        schoolAddressNumber: schoolAddressNumber.trim(),
+                        schoolAddressComplement: schoolAddressComplement.trim(),
+                        schoolAddressDistrict: schoolAddressDistrict.trim(),
+                        schoolCep: schoolCep.trim(),
+                        schoolState: schoolState.trim().toUpperCase().slice(0, 2),
+                        schoolLegalRepName: schoolLegalRepName.trim(),
+                        schoolLegalRepRg: schoolLegalRepRg.trim(),
+                        schoolLegalRepCpf: schoolLegalRepCpf.trim(),
                         showSchoolName,
                         logoUrl,
                         schoolHours: JSON.stringify(schoolHours),
@@ -938,23 +994,136 @@ export default function Configuracoes() {
                     />
                   </Field>
 
-                  <Field label="Cidade / UF">
+                  <Field label="Razão Social" hint="Como consta no CNPJ — usada nos contratos">
                     <DebouncedInput
-                      value={schoolCity}
-                      onChange={e => setSchoolCity(e.target.value)}
-                      placeholder="Ex: São Paulo, SP"
+                      value={schoolRazaoSocial}
+                      onChange={e => setSchoolRazaoSocial(e.target.value)}
+                      placeholder="Ex: Harmonia Música LTDA"
                       className="h-12 text-sm font-bold rounded-xl border-border bg-muted focus:bg-card transition-all shadow-sm"
                     />
                   </Field>
 
-                  <Field label="Endereço">
+                  <Field label="CEP" hint="Preenche o endereço automaticamente">
+                    <div className="relative">
+                      <Input
+                        value={schoolCep}
+                        onChange={(e) => { setSchoolCep(maskCEP(e.target.value)); setSchoolCepNotFound(false); }}
+                        onBlur={() => { if (isValidCEP(schoolCep)) handleSchoolCepSearch(); }}
+                        placeholder="00000-000"
+                        inputMode="numeric"
+                        autoComplete="postal-code"
+                        className="h-12 text-sm font-bold rounded-xl border-border bg-muted focus:bg-card transition-all shadow-sm pl-11 pr-12"
+                      />
+                      <MapPin size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                      <button
+                        type="button"
+                        onClick={() => handleSchoolCepSearch()}
+                        disabled={isSearchingSchoolCep}
+                        title="Buscar endereço pelo CEP"
+                        aria-label="Buscar endereço pelo CEP"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-lg bg-indigo-500/10 text-indigo-600 hover:bg-indigo-600 hover:text-white disabled:opacity-50 transition-all flex items-center justify-center active:scale-95"
+                      >
+                        {isSearchingSchoolCep ? <Loader2 size={15} className="animate-spin" /> : <Search size={15} />}
+                      </button>
+                    </div>
+                    {isSearchingSchoolCep && <p className="text-[10px] text-indigo-600 font-bold flex items-center gap-1"><Loader2 size={10} className="animate-spin" /> Buscando CEP...</p>}
+                    {schoolCepNotFound && !isSearchingSchoolCep && <p className="text-[10px] text-amber-600 font-bold flex items-center gap-1"><AlertTriangle size={10} /> CEP não encontrado — preencha manualmente</p>}
+                  </Field>
+
+                  <Field label="Logradouro">
                     <DebouncedInput
                       value={schoolAddress}
                       onChange={e => setSchoolAddress(e.target.value)}
-                      placeholder="Rua, número, bairro"
+                      placeholder="Rua, avenida, praça..."
                       className="h-12 text-sm font-bold rounded-xl border-border bg-muted focus:bg-card transition-all shadow-sm"
                     />
                   </Field>
+
+                  <Field label="Número">
+                    <DebouncedInput
+                      value={schoolAddressNumber}
+                      onChange={e => setSchoolAddressNumber(e.target.value)}
+                      placeholder="Ex: 123"
+                      className="h-12 text-sm font-bold rounded-xl border-border bg-muted focus:bg-card transition-all shadow-sm"
+                    />
+                  </Field>
+
+                  <Field label="Complemento">
+                    <DebouncedInput
+                      value={schoolAddressComplement}
+                      onChange={e => setSchoolAddressComplement(e.target.value)}
+                      placeholder="Sala, andar, bloco..."
+                      className="h-12 text-sm font-bold rounded-xl border-border bg-muted focus:bg-card transition-all shadow-sm"
+                    />
+                  </Field>
+
+                  <Field label="Bairro">
+                    <DebouncedInput
+                      value={schoolAddressDistrict}
+                      onChange={e => setSchoolAddressDistrict(e.target.value)}
+                      placeholder="Ex: Centro"
+                      className="h-12 text-sm font-bold rounded-xl border-border bg-muted focus:bg-card transition-all shadow-sm"
+                    />
+                  </Field>
+
+                  <Field label="Cidade">
+                    <DebouncedInput
+                      value={schoolCity}
+                      onChange={e => setSchoolCity(e.target.value)}
+                      placeholder="Ex: São Paulo"
+                      className="h-12 text-sm font-bold rounded-xl border-border bg-muted focus:bg-card transition-all shadow-sm"
+                    />
+                  </Field>
+
+                  <Field label="UF">
+                    <Input
+                      value={schoolState}
+                      onChange={(e) => setSchoolState(e.target.value.toUpperCase().replace(/[^A-Z]/g, "").slice(0, 2))}
+                      placeholder="SP"
+                      maxLength={2}
+                      className="h-12 text-sm font-bold rounded-xl border-border bg-muted focus:bg-card transition-all shadow-sm uppercase"
+                    />
+                  </Field>
+                </div>
+
+                {/* PRD_ENDERECO_CONTRATOS_VARIAVEIS: representante legal da CONTRATADA */}
+                <div className="pt-6 border-t border-border space-y-5">
+                  <div>
+                    <h4 className="text-sm font-black text-foreground uppercase tracking-widest flex items-center gap-2">
+                      <FileSignature size={16} className="text-violet-500" />
+                      Representante Legal
+                    </h4>
+                    <p className="text-xs text-muted-foreground mt-1 font-medium">
+                      Dados de quem assina os contratos em nome da escola (qualificação da CONTRATADA).
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
+                    <Field label="Nome do representante">
+                      <DebouncedInput
+                        value={schoolLegalRepName}
+                        onChange={e => setSchoolLegalRepName(e.target.value)}
+                        placeholder="Ex: Maria Souza"
+                        className="h-12 text-sm font-bold rounded-xl border-border bg-muted focus:bg-card transition-all shadow-sm"
+                      />
+                    </Field>
+                    <Field label="RG do representante">
+                      <DebouncedInput
+                        value={schoolLegalRepRg}
+                        onChange={e => setSchoolLegalRepRg(e.target.value)}
+                        placeholder="00.000.000-0"
+                        className="h-12 text-sm font-bold rounded-xl border-border bg-muted focus:bg-card transition-all shadow-sm"
+                      />
+                    </Field>
+                    <Field label="CPF do representante" hint="Usado na qualificação da CONTRATADA">
+                      <DebouncedInput
+                        value={schoolLegalRepCpf}
+                        onChange={e => setSchoolLegalRepCpf(maskCPF(e.target.value))}
+                        placeholder="000.000.000-00"
+                        maxLength={14}
+                        className="h-12 text-sm font-bold rounded-xl border-border bg-muted focus:bg-card transition-all shadow-sm"
+                      />
+                    </Field>
+                  </div>
                 </div>
 
                 <Field label="Site ou Instagram">

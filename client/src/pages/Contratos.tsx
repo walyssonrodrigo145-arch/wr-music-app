@@ -3,12 +3,13 @@ import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { downloadBase64 } from "@/lib/nativeDownload";
+import { openPdfPrint } from "@/lib/printPdf";
 import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { ModelosContratoTab } from "@/components/contratos/ModelosContratoTab";
 import {
-  FileSignature, FileText, Loader2, Search, Copy, Eye, Download, RefreshCw, Ban, RotateCcw, History, UserRound,
+  FileSignature, FileText, Loader2, Search, Eye, Download, RefreshCw, Ban, RotateCcw, History, UserRound, Printer,
 } from "lucide-react";
 
 const STATUS_CONFIG: Record<string, { label: string; cls: string }> = {
@@ -52,6 +53,7 @@ export default function Contratos() {
   const [refreshing, setRefreshing] = useState<number | null>(null);
   const [renewing, setRenewing] = useState<number | null>(null);
   const [cancelling, setCancelling] = useState<number | null>(null);
+  const [printing, setPrinting] = useState<number | null>(null);
 
   const invalidate = () => {
     utils.contracts.list.invalidate();
@@ -74,6 +76,24 @@ export default function Contratos() {
     onSuccess: (res) => { toast.success(`Contrato renovado! Nº ${res.contract?.contractNumber || ""}`); invalidate(); },
     onError: (e) => toast.error(e.message),
   });
+
+  const reprintMutation = trpc.contracts.reprintPdf.useMutation();
+
+  const handlePrint = (contract: any) => {
+    if (contract.status === "assinado" && contract.signedDocumentUrl) {
+      window.open(contract.signedDocumentUrl, "_blank", "noopener");
+      return;
+    }
+    setPrinting(contract.id);
+    reprintMutation.mutate({ contractId: contract.id }, {
+      onSuccess: (res) => {
+        if (!res?.base64) return toast.error("Não foi possível gerar o PDF.");
+        openPdfPrint(res.base64, res.fileName);
+      },
+      onError: (e) => toast.error(e.message),
+      onSettled: () => setPrinting(null),
+    });
+  };
 
   const handleDownload = async (contract: any) => {
     setDownloading(contract.id);
@@ -225,6 +245,9 @@ export default function Contratos() {
                             refreshMutation.mutate({ id: contract.id }, { onSettled: () => setRefreshing(null) });
                           }}>
                             {refreshing === contract.id ? <Loader2 size={11} className="animate-spin" /> : <RefreshCw size={11} />}
+                          </Button>
+                          <Button size="sm" variant="outline" className="h-7 rounded-lg text-[10px] font-bold" title="Imprimir contrato" disabled={printing === contract.id} onClick={() => handlePrint(contract)}>
+                            {printing === contract.id ? <Loader2 size={11} className="animate-spin" /> : <Printer size={11} />}
                           </Button>
                           {contract.assinafySignUrl && (
                             <Button size="sm" variant="outline" className="h-7 rounded-lg text-[10px] font-bold" onClick={() => window.open(contract.assinafySignUrl, "_blank")}>

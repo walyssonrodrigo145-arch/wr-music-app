@@ -134,6 +134,51 @@ export const contratosRouters = {
         return { success: true, contract: result.contract, signUrl: result.signUrl };
       }),
 
+    // 🖨️ RF-006: gera o PDF para IMPRESSÃO (assinatura física) — não envia à Assinafy
+    printContract: protectedProcedure
+      .input(z.object({
+        studentId: z.number(),
+        templateId: z.number(),
+        startDate: z.string().optional(),
+        endDate: z.string().optional(),
+        monthlyFeeOverride: z.string().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB indisponível" });
+        const orgId = ctx.user.organizationId!;
+
+        const { runPrintContract } = await import("./helpers");
+        const result = await runPrintContract(db, ctx.user, orgId, input);
+
+        return { success: true, contract: result.contract, base64: result.pdfBase64, fileName: result.fileName };
+      }),
+
+    // 🖨️ RF-007: reimpressão de um contrato existente (snapshot + dados atuais)
+    reprintPdf: protectedProcedure
+      .input(z.object({ contractId: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB indisponível" });
+        const orgId = ctx.user.organizationId!;
+
+        const [contract] = await db.select()
+          .from(contracts)
+          .where(and(eq(contracts.id, input.contractId), eq(contracts.organizationId, orgId)))
+          .limit(1);
+        if (!contract) throw new TRPCError({ code: "NOT_FOUND", message: "Contrato não encontrado" });
+
+        const { renderContractFromContract, addContractEvent } = await import("../services/contractService");
+        const pdfBuffer = await renderContractFromContract(db, orgId, contract);
+        await addContractEvent(db as any, contract.id, "contrato_impresso", "Contrato reimpresso", null, null);
+
+        return {
+          base64: pdfBuffer.toString("base64"),
+          fileName: `${contract.title || "contrato"}.pdf`,
+          contractNumber: contract.contractNumber,
+        };
+      }),
+
     // 🔍 Gera o PDF do contrato SEM enviar para assinatura (pré-visualização)
     previewPdf: protectedProcedure
       .input(z.object({
@@ -767,7 +812,7 @@ export const contratosRouters = {
   }),
 
   contractTemplates: router({
-    list: protectedProcedure.query(async ({ ctx }) => {
+    list: adminProcedure.query(async ({ ctx }) => {
       const db = await getDb();
       if (!db) return [];
       const orgId = ctx.user.organizationId!;
@@ -815,7 +860,7 @@ export const contratosRouters = {
       return templates;
     }),
 
-    listAssinafyTemplates: protectedProcedure.query(async ({ ctx }) => {
+    listAssinafyTemplates: adminProcedure.query(async ({ ctx }) => {
       const db = await getDb();
       if (!db) return [];
       const orgId = ctx.user.organizationId!;
@@ -843,7 +888,7 @@ export const contratosRouters = {
       return [];
     }),
 
-    autoInsertVariables: protectedProcedure
+    autoInsertVariables: adminProcedure
       .input(z.object({ content: z.string() }))
       .mutation(async ({ input }) => {
         let text = input.content;
@@ -872,7 +917,7 @@ export const contratosRouters = {
         return { content: text };
       }),
 
-    getById: protectedProcedure
+    getById: adminProcedure
       .input(z.object({ id: z.number() }))
       .query(async ({ ctx, input }) => {
         const db = await getDb();
@@ -888,7 +933,7 @@ export const contratosRouters = {
         return tpl;
       }),
 
-    create: protectedProcedure
+    create: adminProcedure
       .input(z.object({
         name: z.string().min(1, "O nome do modelo é obrigatório"),
         description: z.string().optional(),
@@ -915,7 +960,7 @@ export const contratosRouters = {
         return created;
       }),
 
-    update: protectedProcedure
+    update: adminProcedure
       .input(z.object({
         id: z.number(),
         name: z.string().min(1, "O nome do modelo é obrigatório"),
@@ -944,7 +989,7 @@ export const contratosRouters = {
         return updated;
       }),
 
-    delete: protectedProcedure
+    delete: adminProcedure
       .input(z.object({ id: z.number() }))
       .mutation(async ({ ctx, input }) => {
         const db = await getDb();

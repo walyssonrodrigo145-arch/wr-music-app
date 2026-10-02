@@ -140,6 +140,16 @@ export function StudentDetailsModal({ open, onOpenChange, studentId, onEdit, onD
   const statusConfig = student ? getStatusConfig(student.status) : null;
   const initials = student?.name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase() ?? "?";
   const brl = (v: number | string) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(v));
+  // PRD_ENDERECO_CONTRATOS_VARIAVEIS: endereço estruturado (fallback para o espelho legado `address`)
+  const hasStructuredAddress = !!(student?.street || student?.addressNumber || student?.addressComplement || student?.district || student?.city || student?.state || student?.cep);
+  const addressItems = [
+    student?.street && { label: "Logradouro", value: student.street },
+    student?.addressNumber && { label: "Número", value: student.addressNumber },
+    student?.addressComplement && { label: "Complemento", value: student.addressComplement },
+    student?.district && { label: "Bairro", value: student.district },
+    (student?.city || student?.state) && { label: "Cidade / UF", value: [student?.city, student?.state].filter(Boolean).join(" - ") },
+    student?.cep && { label: "CEP", value: student.cep },
+  ].filter(Boolean) as Array<{ label: string; value: string }>;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -256,7 +266,34 @@ export function StudentDetailsModal({ open, onOpenChange, studentId, onEdit, onD
                 {student.studioRoomName && (
                   <InfoRow icon={MapPin} label="Sala de aula" value={student.studioRoomName} />
                 )}
+                {student.guardianCpf && (
+                  <InfoRow icon={Users} label="CPF do responsável" value={student.guardianCpf} />
+                )}
+                {student.guardianRg && (
+                  <InfoRow icon={Users} label="RG do responsável" value={student.guardianRg} />
+                )}
               </div>
+
+              {/* PRD_ENDERECO_CONTRATOS_VARIAVEIS: endereço completo no perfil */}
+              {(hasStructuredAddress || student.address) && (
+                <div className="rounded-2xl border border-border/50 bg-card/50 p-4 space-y-3">
+                  <p className="text-[10px] font-black uppercase tracking-[0.15em] text-muted-foreground flex items-center gap-1.5">
+                    <MapPin size={12} className="text-primary/70" /> Endereço
+                  </p>
+                  {hasStructuredAddress ? (
+                    <div className="grid grid-cols-2 gap-x-3 gap-y-2.5">
+                      {addressItems.map((item) => (
+                        <div key={item.label} className={cn("min-w-0", item.label === "Logradouro" && "col-span-2")}>
+                          <p className="text-[9px] font-black text-muted-foreground/50 uppercase tracking-widest leading-none mb-0.5">{item.label}</p>
+                          <p className="text-xs font-bold text-foreground break-words" title={item.value}>{item.value}</p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs font-bold text-foreground break-words">{student.address}</p>
+                  )}
+                </div>
+              )}
 
               {/* PRD Repertório — músicas do aluno visíveis no perfil */}
               <RepertoireSummarySection studentId={student.id} />

@@ -26,6 +26,20 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: "2026.10.02.1",
+    date: "2026-10-02",
+    title: "Endereço completo com CEP, variáveis novas de contrato e impressão ou link",
+    summary: "O cadastro do aluno e os dados da escola agora têm endereço estruturado com busca automática por CEP (ViaCEP). Os contratos ganharam variáveis simples em português no padrão do sistema antigo (Nome do Contratante, CEP da Escola, Quantidade de Aulas no Total, Data de Hoje por Extenso...), organizadas por categoria nos modelos. Ao gerar um contrato você escolhe: Imprimir (assinatura física, com todos os campos no PDF) ou Gerar link de assinatura (Assinafy).",
+    items: [
+      { type: "novo", title: "Busca de CEP", description: "Digite o CEP no cadastro do aluno ou da escola e logradouro, bairro, cidade e UF são preenchidos automaticamente — só falta o número (com aviso amigável quando o CEP não for encontrado)." },
+      { type: "novo", title: "Endereço completo do aluno", description: "CEP, logradouro, número, complemento, bairro, cidade e UF no cadastro, exibidos no resumo e no perfil do aluno e usados no contrato." },
+      { type: "novo", title: "Dados contratuais da escola", description: "Razão Social, endereço estruturado e representante legal (nome, RG e CPF) na aba Escola para qualificar a CONTRATADA." },
+      { type: "novo", title: "CPF e RG do responsável", description: "O cadastro de menores aceita CPF e RG do responsável legal, usados na qualificação do CONTRATANTE." },
+      { type: "novo", title: "Variáveis simples de contrato", description: "Nome/CPF/RG e endereço do contratante, dados completos da escola, valor da parcela, meses de pagamento, data inicial/final, meses de aula, quantidade de aulas no total e data de hoje por extenso — agrupadas por categoria na paleta dos modelos (as variáveis antigas continuam funcionando)." },
+      { type: "novo", title: "Imprimir ou gerar link de assinatura", description: "No cadastro do aluno, escolha 'Imprimir contrato' (PDF pronto para assinatura física, sem enviar à Assinafy) ou 'Gerar link de assinatura'. A lista de contratos ganhou a ação 'Imprimir' para reimpressão; contratos assinados abrem o documento assinado." },
+    ],
+  },
+  {
     version: "2026.10.01.11",
     date: "2026-10-01",
     title: "Mensalidades geradas ao salvar (mesmo fluxo das aulas)",
