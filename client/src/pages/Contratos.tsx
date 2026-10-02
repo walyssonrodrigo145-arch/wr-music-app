@@ -114,7 +114,7 @@ export default function Contratos() {
     return (!q || hay.includes(q)) && (statusFilter === "todos" || c.status === statusFilter);
   });
 
-  const { data: detailsData } = trpc.contracts.details.useQuery(
+  const { data: detailsData, isLoading: isLoadingDetails } = trpc.contracts.details.useQuery(
     { id: detailsId as number },
     { enabled: detailsId !== null }
   );
@@ -246,11 +246,19 @@ export default function Contratos() {
                           }}>
                             {refreshing === contract.id ? <Loader2 size={11} className="animate-spin" /> : <RefreshCw size={11} />}
                           </Button>
-                          <Button size="sm" variant="outline" className="h-7 rounded-lg text-[10px] font-bold" title="Imprimir contrato" disabled={printing === contract.id} onClick={() => handlePrint(contract)}>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 rounded-lg text-[10px] font-bold hover:border-violet-500/30 hover:bg-violet-500/10 hover:text-violet-600 transition-colors"
+                            title="Imprimir contrato"
+                            aria-label="Imprimir contrato"
+                            disabled={printing === contract.id}
+                            onClick={() => handlePrint(contract)}
+                          >
                             {printing === contract.id ? <Loader2 size={11} className="animate-spin" /> : <Printer size={11} />}
                           </Button>
                           {contract.assinafySignUrl && (
-                            <Button size="sm" variant="outline" className="h-7 rounded-lg text-[10px] font-bold" onClick={() => window.open(contract.assinafySignUrl, "_blank")}>
+                            <Button size="sm" variant="outline" className="h-7 rounded-lg text-[10px] font-bold" onClick={() => window.open(contract.assinafySignUrl, "_blank", "noopener,noreferrer")}>
                               <Eye size={11} className="mr-1" /> Ver
                             </Button>
                           )}
@@ -291,17 +299,25 @@ export default function Contratos() {
         )}
       </div>
 
-      {detailsId !== null && (detailsData?.events?.length ?? 0) > 0 && (
+      {detailsId !== null && (
         <div className="bg-card border border-border/60 rounded-2xl p-4 space-y-2">
           <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Histórico</p>
-          {detailsData?.events.map((ev: any) => (
-            <div key={ev.id} className="flex items-start justify-between gap-3 text-xs border-b border-border/40 last:border-0 pb-2 last:pb-0">
-              <span className="font-bold text-foreground">{ev.description || ev.eventType}</span>
-              <span className="text-muted-foreground whitespace-nowrap text-[10px]">
-                {new Date(ev.createdAt).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
-              </span>
-            </div>
-          ))}
+          {isLoadingDetails ? (
+            <p className="text-xs text-muted-foreground flex items-center gap-2">
+              <Loader2 size={13} className="animate-spin text-violet-500" /> Carregando histórico...
+            </p>
+          ) : (detailsData?.events?.length ?? 0) === 0 ? (
+            <p className="text-xs text-muted-foreground italic">Sem eventos registrados para este contrato.</p>
+          ) : (
+            detailsData?.events.map((ev: any) => (
+              <div key={ev.id} className="flex items-start justify-between gap-3 text-xs border-b border-border/40 last:border-0 pb-2 last:pb-0">
+                <span className="font-bold text-foreground">{ev.description || ev.eventType}</span>
+                <span className="text-muted-foreground whitespace-nowrap text-[10px]">
+                  {new Date(ev.createdAt).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
+                </span>
+              </div>
+            ))
+          )}
         </div>
       )}
         </>

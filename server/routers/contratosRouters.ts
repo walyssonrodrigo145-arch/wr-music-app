@@ -51,6 +51,35 @@ import { schoolAiRouter } from "../schoolAiRouter";
 import { fiscalRouter } from "../fiscalRouter";
 import { FiscalService } from "../services/fiscal/FiscalService";
 import { loginAttempts, safeEqualStr, isReservedSuperAdminEmail, getOrgPlanLimits, syncOrgAsaasSubscription, reconcileOrgAsaasCharges, runCreateAssinafyContract } from "./helpers";
+// ANTI-IDOR: admin/dono vê tudo; professor só os contratos dos PRÓPRIOS alunos;
+// aluno só os próprios. Mesma regra usada em students.getDetails.
+async function assertStudentContractsAccess(db: any, ctx: any, studentId: number) {
+  const orgId = ctx.user.organizationId!;
+  const [student] = await db.select({ id: students.id, professorId: students.professorId })
+    .from(students)
+    .where(and(eq(students.id, studentId), eq(students.organizationId, orgId)))
+    .limit(1);
+  if (!student) throw new TRPCError({ code: "NOT_FOUND", message: "Aluno não encontrado" });
+
+  const isAdmin = ctx.user.role === "admin" || ctx.user.openId === ENV.ownerOpenId;
+  if (isAdmin) return student;
+  if (ctx.user.role === "aluno" && ctx.user.studentId === studentId) return student;
+  if (student.professorId === ctx.user.id) return student;
+
+  throw new TRPCError({ code: "FORBIDDEN", message: "Você não tem permissão para acessar os contratos deste aluno." });
+}
+
+// BUG FIX: o campo de valor é texto livre (inputMode decimal) — normaliza para
+// "1234.56" e ignora valor inválido em vez de estourar o decimal do Postgres.
+const contractMonthlyFeeOverrideSchema = z.string().optional().transform((v) => {
+  if (!v) return undefined;
+  const raw = v.replace(/R\$\s*/g, "").replace(/\s/g, "");
+  if (!raw) return undefined;
+  const normalized = raw.includes(",") ? raw.replace(/\./g, "").replace(",", ".") : raw;
+  const n = parseFloat(normalized);
+  return Number.isFinite(n) && n > 0 ? n.toFixed(2) : undefined;
+});
+
 export const contratosRouters = {
   contracts: router({
     list: protectedProcedure
@@ -65,6 +94,13 @@ export const contratosRouters = {
         let filters = eq(contracts.organizationId, orgId);
         if (input.studentId) {
           filters = and(filters, eq(contracts.studentId, input.studentId)) as any;
+        }
+        // ANTI-IDOR: professor só lista contratos dos próprios alunos; aluno só os seus.
+        const isUserAdmin = ctx.user.role === "admin" || ctx.user.openId === ENV.ownerOpenId;
+        if (!isUserAdmin) {
+          filters = ctx.user.role === "aluno"
+            ? (and(filters, eq(contracts.studentId, ctx.user.studentId ?? -1)) as any)
+            : (and(filters, eq(students.professorId, ctx.user.id)) as any);
         }
 
         const list = await db.select({
@@ -107,6 +143,7 @@ export const contratosRouters = {
           .where(and(eq(contracts.id, input.id), eq(contracts.organizationId, orgId)))
           .limit(1);
         if (!contract) throw new TRPCError({ code: "NOT_FOUND", message: "Contrato não encontrado" });
+        await assertStudentContractsAccess(db, ctx, contract.studentId);
 
         const events = await db.select()
           .from(contractEvents)
@@ -122,12 +159,13 @@ export const contratosRouters = {
         templateId: z.number(),
         startDate: z.string().optional(),
         endDate: z.string().optional(),
-        monthlyFeeOverride: z.string().optional(),
+        monthlyFeeOverride: contractMonthlyFeeOverrideSchema,
       }))
       .mutation(async ({ ctx, input }) => {
         const db = await getDb();
         if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB indisponível" });
         const orgId = ctx.user.organizationId!;
+        await assertStudentContractsAccess(db, ctx, input.studentId);
 
         const result = await runCreateAssinafyContract(db, ctx.user, orgId, input);
 
@@ -141,12 +179,13 @@ export const contratosRouters = {
         templateId: z.number(),
         startDate: z.string().optional(),
         endDate: z.string().optional(),
-        monthlyFeeOverride: z.string().optional(),
+        monthlyFeeOverride: contractMonthlyFeeOverrideSchema,
       }))
       .mutation(async ({ ctx, input }) => {
         const db = await getDb();
         if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB indisponível" });
         const orgId = ctx.user.organizationId!;
+        await assertStudentContractsAccess(db, ctx, input.studentId);
 
         const { runPrintContract } = await import("./helpers");
         const result = await runPrintContract(db, ctx.user, orgId, input);
@@ -167,14 +206,15 @@ export const contratosRouters = {
           .where(and(eq(contracts.id, input.contractId), eq(contracts.organizationId, orgId)))
           .limit(1);
         if (!contract) throw new TRPCError({ code: "NOT_FOUND", message: "Contrato não encontrado" });
+        await assertStudentContractsAccess(db, ctx, contract.studentId);
 
-        const { renderContractFromContract, addContractEvent } = await import("../services/contractService");
+        const { renderContractFromContract, addContractEvent, sanitizeFileName } = await import("../services/contractService");
         const pdfBuffer = await renderContractFromContract(db, orgId, contract);
-        await addContractEvent(db as any, contract.id, "contrato_impresso", "Contrato reimpresso", null, null);
+        await addContractEvent(db as any, contract.id, "contrato_impresso", "Contrato reimpresso", null, null, contract.provider || "assinafy");
 
         return {
           base64: pdfBuffer.toString("base64"),
-          fileName: `${contract.title || "contrato"}.pdf`,
+          fileName: sanitizeFileName(contract.title || "contrato"),
           contractNumber: contract.contractNumber,
         };
       }),
@@ -186,14 +226,15 @@ export const contratosRouters = {
         templateId: z.number(),
         startDate: z.string().optional(),
         endDate: z.string().optional(),
-        monthlyFeeOverride: z.string().optional(),
+        monthlyFeeOverride: contractMonthlyFeeOverrideSchema,
       }))
       .query(async ({ ctx, input }) => {
         const db = await getDb();
         if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB indisponível" });
         const orgId = ctx.user.organizationId!;
+        await assertStudentContractsAccess(db, ctx, input.studentId);
 
-        const { prepareContractRender } = await import("../services/contractService");
+        const { prepareContractRender, sanitizeFileName } = await import("../services/contractService");
         const prepared = await prepareContractRender(db, orgId, input.studentId, input.templateId, {
           startDate: input.startDate ?? null,
           endDate: input.endDate ?? null,
@@ -202,7 +243,7 @@ export const contratosRouters = {
 
         return {
           base64: prepared.pdfBuffer.toString("base64"),
-          fileName: `preview-${prepared.title}.pdf`,
+          fileName: sanitizeFileName(`preview-${prepared.title}`),
         };
       }),
 
@@ -223,6 +264,7 @@ export const contratosRouters = {
           .where(and(eq(contracts.id, input.contractId), eq(contracts.organizationId, orgId)))
           .limit(1);
         if (!original) throw new TRPCError({ code: "NOT_FOUND", message: "Contrato não encontrado" });
+        await assertStudentContractsAccess(db, ctx, original.studentId);
         if (!original.templateId) throw new TRPCError({ code: "BAD_REQUEST", message: "Contrato sem modelo associado para renovação." });
 
         const { addContractEvent } = await import("../services/contractService");
@@ -364,6 +406,7 @@ export const contratosRouters = {
           .where(and(eq(contracts.id, input.id), eq(contracts.organizationId, orgId)))
           .limit(1);
         if (!contract) throw new TRPCError({ code: "NOT_FOUND", message: "Contrato não encontrado" });
+        await assertStudentContractsAccess(db, ctx, contract.studentId);
         if (contract.provider !== "assinafy" || !contract.assinafyDocId) {
           return { success: false, contract, message: "Contrato sem integração Assinafy" };
         }
@@ -419,6 +462,7 @@ export const contratosRouters = {
           .where(and(eq(contracts.id, input.id), eq(contracts.organizationId, orgId)))
           .limit(1);
         if (!contract) throw new TRPCError({ code: "NOT_FOUND", message: "Contrato não encontrado" });
+        await assertStudentContractsAccess(db, ctx, contract.studentId);
         if (contract.status === "assinado") {
           throw new TRPCError({ code: "BAD_REQUEST", message: "Contratos assinados não podem ser cancelados." });
         }
@@ -443,7 +487,7 @@ export const contratosRouters = {
           .where(eq(contracts.id, contract.id));
 
         const { addContractEvent } = await import("../services/contractService");
-        await addContractEvent(db as any, contract.id, "contrato_cancelado", "Contrato cancelado");
+        await addContractEvent(db as any, contract.id, "contrato_cancelado", "Contrato cancelado", null, null, contract.provider || "assinafy");
 
         return { success: true };
       }),
@@ -460,6 +504,7 @@ export const contratosRouters = {
           .where(and(eq(contracts.id, input.id), eq(contracts.organizationId, orgId)))
           .limit(1);
         if (!contract) throw new TRPCError({ code: "NOT_FOUND", message: "Contrato não encontrado" });
+        await assertStudentContractsAccess(db, ctx, contract.studentId);
 
         await db.delete(contractEvents).where(eq(contractEvents.contractId, contract.id));
         await db.delete(contracts).where(eq(contracts.id, contract.id));
@@ -479,6 +524,7 @@ export const contratosRouters = {
           .where(and(eq(contracts.id, input.id), eq(contracts.organizationId, orgId)))
           .limit(1);
         if (!contract) throw new TRPCError({ code: "NOT_FOUND", message: "Contrato não encontrado" });
+        await assertStudentContractsAccess(db, ctx, contract.studentId);
         if (!contract.assinafyDocId) throw new TRPCError({ code: "BAD_REQUEST", message: "Contrato sem documento na Assinafy" });
 
         const [integration] = await db.select()
@@ -513,9 +559,7 @@ export const contratosRouters = {
           .where(and(eq(contracts.id, input.id), eq(contracts.organizationId, orgId)))
           .limit(1);
         if (!contract) throw new TRPCError({ code: "NOT_FOUND", message: "Contrato não encontrado" });
-        if (ctx.user.role === "aluno" && ctx.user.studentId && contract.studentId !== ctx.user.studentId) {
-          throw new TRPCError({ code: "FORBIDDEN", message: "Você não tem permissão para acessar este contrato." });
-        }
+        await assertStudentContractsAccess(db, ctx, contract.studentId);
         if (!contract.assinafyDocId || contract.status !== "assinado") {
           throw new TRPCError({ code: "BAD_REQUEST", message: "Contrato ainda não assinado." });
         }
@@ -531,7 +575,8 @@ export const contratosRouters = {
         const pdf = await provider.downloadSignedDocument(contract.assinafyDocId);
         if (!pdf) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Não foi possível baixar o documento assinado." });
 
-        return { base64: pdf.toString("base64"), fileName: `${contract.title}.pdf` };
+        const { sanitizeFileName } = await import("../services/contractService");
+        return { base64: pdf.toString("base64"), fileName: sanitizeFileName(contract.title) };
       }),
 
     my: protectedProcedure
@@ -548,6 +593,7 @@ export const contratosRouters = {
           .from(contracts)
           .innerJoin(students, eq(students.id, contracts.studentId))
           .where(and(
+            eq(contracts.organizationId, orgId),
             eq(contracts.studentId, ctx.user.studentId),
             eq(contracts.provider, "assinafy"),
           ))
@@ -812,7 +858,9 @@ export const contratosRouters = {
   }),
 
   contractTemplates: router({
-    list: adminProcedure.query(async ({ ctx }) => {
+    // Leitura liberada para professores: o modal "Criar contrato" do aluno
+    // precisa listar os modelos da escola. Escrita continua restrita a admin.
+    list: protectedProcedure.query(async ({ ctx }) => {
       const db = await getDb();
       if (!db) return [];
       const orgId = ctx.user.organizationId!;

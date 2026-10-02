@@ -420,41 +420,56 @@ export function ModelosContratoTab() {
           </div>
 
           <div className="bg-card rounded-[1.5rem] border border-border/70 p-4 space-y-3 shadow-xs">
-            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
-              <Sparkles size={12} className="text-violet-500" /> Variáveis
-            </p>
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
+                <Sparkles size={12} className="text-violet-500" /> Variáveis
+              </p>
+              <span className="text-[9px] font-black text-muted-foreground/60 bg-muted/40 border border-border/40 rounded-md px-1.5 py-0.5">
+                {filteredVariableCategories.reduce((acc, cat) => acc + cat.items.length, 0)}
+              </span>
+            </div>
             <div className="relative">
-              <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
               <input
                 value={variableFilter}
                 onChange={(e) => setVariableFilter(e.target.value)}
                 placeholder="Buscar variável..."
-                className="h-9 w-full rounded-xl border border-border bg-muted/30 pl-8 pr-2 text-[11px] font-semibold outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500/50 transition-all"
+                className="h-10 w-full rounded-xl border border-border bg-muted/30 pl-9 pr-3 text-[11px] font-semibold outline-none focus:ring-4 focus:ring-violet-500/10 focus:border-violet-500/50 transition-all"
               />
             </div>
-            <div className="space-y-3 max-h-[24rem] overflow-y-auto pr-1">
+            <div className="space-y-2.5 max-h-[24rem] overflow-y-auto pr-1">
               {filteredVariableCategories.length === 0 ? (
-                <p className="text-[10px] text-muted-foreground italic">Nenhuma variável encontrada.</p>
+                <div className="rounded-xl border border-dashed border-border/60 bg-muted/20 px-3 py-6 text-center">
+                  <Search size={16} className="mx-auto text-muted-foreground/40 mb-2" />
+                  <p className="text-[10px] font-bold text-muted-foreground">Nenhuma variável encontrada.</p>
+                  <p className="text-[9px] text-muted-foreground/70 mt-0.5">Tente buscar por outro termo.</p>
+                </div>
               ) : (
                 filteredVariableCategories.map((cat) => (
-                  <div key={cat.id} className="space-y-1.5">
-                    <div>
-                      <p className="text-[10px] font-black uppercase tracking-widest text-foreground/80">{cat.title}</p>
-                      <p className="text-[9px] text-muted-foreground font-medium leading-snug">{cat.description}</p>
+                  <div key={cat.id} className="rounded-xl border border-border/50 bg-muted/20 p-2.5 space-y-2">
+                    <div className="flex items-start gap-2">
+                      <span className="w-1.5 h-1.5 rounded-full bg-violet-500/70 mt-1 shrink-0" />
+                      <div className="min-w-0">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-foreground/80">{cat.title}</p>
+                        <p className="text-[9px] text-muted-foreground font-medium leading-snug">{cat.description}</p>
+                      </div>
+                      <span className="ml-auto text-[8px] font-black text-muted-foreground/60 bg-background/70 border border-border/40 rounded-md px-1.5 py-0.5 shrink-0">
+                        {cat.items.length}
+                      </span>
                     </div>
-                    <div className="flex flex-wrap gap-1.5">
+                    <div className="space-y-1">
                       {cat.items.map((v) => (
                         <button
                           key={v.token}
                           type="button"
                           onClick={() => insertVariable(`{{${v.token}}}`)}
                           title={`Inserir {{${v.token}}}`}
-                          className="group flex flex-col items-start rounded-lg border border-border/80 bg-muted/30 px-2 py-1 text-left hover:border-violet-500/40 hover:bg-violet-500/10 transition-colors"
+                          className="group w-full flex flex-col items-start rounded-lg border border-border/60 bg-card px-2.5 py-1.5 text-left hover:border-violet-500/50 hover:bg-violet-500/10 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-violet-500/15 transition-all"
                         >
-                          <span className="text-[10px] font-bold text-foreground/90 group-hover:text-violet-600 dark:group-hover:text-violet-300 leading-tight">
+                          <span className="w-full truncate text-[10px] font-bold text-foreground/90 group-hover:text-violet-600 dark:group-hover:text-violet-300 leading-tight">
                             {v.label}
                           </span>
-                          <span className="text-[9px] font-mono text-muted-foreground leading-tight">
+                          <span className="w-full truncate text-[9px] font-mono text-muted-foreground/70 group-hover:text-violet-500/80 leading-tight">
                             {`{{${v.token}}}`}
                           </span>
                         </button>

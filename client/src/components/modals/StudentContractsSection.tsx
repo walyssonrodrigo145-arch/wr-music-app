@@ -154,8 +154,8 @@ export function CreateContractModal({ open, onClose, student, onCreated }: {
 
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-card rounded-[2rem] border border-border shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
-        <div className="px-6 py-5 border-b border-border flex items-center justify-between">
+      <div className="bg-card rounded-3xl border border-border shadow-2xl w-[95vw] sm:w-full max-w-md max-h-[92dvh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
+        <div className="px-6 py-5 border-b border-border flex items-center justify-between flex-shrink-0 bg-muted/10">
           <div>
             <h3 className="text-base font-black text-foreground">Criar contrato</h3>
             <p className="text-xs text-muted-foreground font-medium mt-0.5">Aluno: <b>{student?.name}</b></p>
@@ -163,7 +163,7 @@ export function CreateContractModal({ open, onClose, student, onCreated }: {
           <button onClick={onClose} className="w-8 h-8 rounded-full hover:bg-muted flex items-center justify-center text-muted-foreground transition-colors">✕</button>
         </div>
 
-        <div className="p-6 space-y-4">
+        <div className="p-6 space-y-4 overflow-y-auto flex-1">
           {student?.guardianName && (
             <div className="p-3 rounded-2xl bg-violet-500/10 border border-violet-500/20 text-xs flex items-center justify-between">
               <div>
@@ -275,28 +275,7 @@ export function CreateContractModal({ open, onClose, student, onCreated }: {
             </div>
           </div>
 
-          <div className="space-y-2 pt-2">
-            <div className="flex flex-wrap gap-2">
-              <Button variant="outline" className="flex-1 min-w-[7rem] h-11 rounded-xl font-bold" onClick={onClose}>Cancelar</Button>
-              <Button
-                variant="outline"
-                disabled={!templateId || previewing}
-                onClick={handlePreview}
-                className="flex-1 min-w-[7rem] h-11 rounded-xl font-bold"
-              >
-                {previewing ? <Loader2 size={16} className="animate-spin mr-2" /> : <Eye size={16} className="mr-2" />}
-                Pré-visualizar
-              </Button>
-              <Button
-                variant="outline"
-                disabled={!templateId || printMutation.isPending}
-                onClick={handlePrintContract}
-                className="flex-1 min-w-[7rem] h-11 rounded-xl font-bold"
-              >
-                {printMutation.isPending ? <Loader2 size={16} className="animate-spin mr-2" /> : <Printer size={16} className="mr-2" />}
-                Imprimir contrato
-              </Button>
-            </div>
+          <div className="space-y-2.5 pt-2">
             <span
               className="block w-full"
               title={!hasIntegration ? "Configure a integração em Configurações → Integrações" : undefined}
@@ -310,12 +289,41 @@ export function CreateContractModal({ open, onClose, student, onCreated }: {
                   endDate: endDate || undefined,
                   monthlyFeeOverride: monthlyFeeOverride || undefined,
                 })}
-                className="w-full h-11 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-bold shadow-lg shadow-violet-500/20"
+                className="w-full h-12 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-bold shadow-lg shadow-violet-500/20 active:scale-[0.99] transition-all"
               >
                 {createMutation.isPending ? <Loader2 size={16} className="animate-spin mr-2" /> : <Link2 size={16} className="mr-2" />}
                 Gerar link de assinatura
               </Button>
             </span>
+
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                variant="outline"
+                disabled={!templateId || printMutation.isPending}
+                onClick={handlePrintContract}
+                className="h-11 rounded-xl font-bold active:scale-[0.98] transition-all"
+              >
+                {printMutation.isPending ? <Loader2 size={16} className="animate-spin mr-2" /> : <Printer size={16} className="mr-2" />}
+                Imprimir contrato
+              </Button>
+              <Button
+                variant="ghost"
+                disabled={!templateId || previewing}
+                onClick={handlePreview}
+                className="h-11 rounded-xl font-bold text-muted-foreground hover:text-foreground active:scale-[0.98] transition-all"
+              >
+                {previewing ? <Loader2 size={16} className="animate-spin mr-2" /> : <Eye size={16} className="mr-2" />}
+                Pré-visualizar
+              </Button>
+            </div>
+
+            <Button
+              variant="ghost"
+              className="w-full h-10 rounded-xl font-bold text-muted-foreground hover:text-foreground"
+              onClick={onClose}
+            >
+              Cancelar
+            </Button>
             {!hasIntegration && (
               <p className="text-[10px] text-amber-500 font-bold text-center leading-relaxed">
                 Assinatura digital indisponível. Configure a integração em Configurações → Integrações.
@@ -324,22 +332,26 @@ export function CreateContractModal({ open, onClose, student, onCreated }: {
           </div>
 
           {createdLink && (
-            <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 space-y-2">
-              <p className="text-[10px] font-black uppercase tracking-widest text-emerald-600 flex items-center gap-1.5">
+            <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 space-y-3 animate-in fade-in slide-in-from-bottom-1 duration-300">
+              <p className="text-[10px] font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5">
                 <CheckCircle2 size={13} /> Link de assinatura gerado
               </p>
-              <p className="text-[11px] font-medium text-foreground break-all bg-card/60 rounded-lg px-2 py-1.5 border border-border/50">
+              <p className="text-[11px] font-medium text-foreground break-all bg-background/70 rounded-xl px-3 py-2.5 border border-border/50 leading-relaxed select-all">
                 {createdLink}
               </p>
               <div className="flex flex-wrap gap-2">
-                <Button size="sm" variant="outline" className="h-8 rounded-lg text-[10px] font-bold" onClick={() => handleCopyLink(createdLink)}>
-                  <Copy size={12} className="mr-1" /> Copiar link
+                <Button
+                  size="sm"
+                  className="h-9 rounded-xl text-[10px] font-black uppercase tracking-wider bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm active:scale-[0.98] transition-all"
+                  onClick={() => handleCopyLink(createdLink)}
+                >
+                  <Copy size={12} className="mr-1.5" /> Copiar link
                 </Button>
-                <Button size="sm" variant="outline" className="h-8 rounded-lg text-[10px] font-bold" onClick={() => window.open(createdLink, "_blank", "noopener")}>
-                  <Link2 size={12} className="mr-1" /> Abrir link
+                <Button size="sm" variant="outline" className="h-9 rounded-xl text-[10px] font-bold" onClick={() => window.open(createdLink, "_blank", "noopener,noreferrer")}>
+                  <Link2 size={12} className="mr-1.5" /> Abrir link
                 </Button>
-                <Button size="sm" variant="outline" className="h-8 rounded-lg text-[10px] font-bold" onClick={() => handleShareLink(createdLink)}>
-                  <Share2 size={12} className="mr-1" /> Compartilhar
+                <Button size="sm" variant="outline" className="h-9 rounded-xl text-[10px] font-bold" onClick={() => handleShareLink(createdLink)}>
+                  <Share2 size={12} className="mr-1.5" /> Compartilhar
                 </Button>
               </div>
             </div>
@@ -517,13 +529,21 @@ export function StudentContractsSection({ studentId, student }: { studentId: num
                     {refreshing === contract.id ? <Loader2 size={12} className="animate-spin mr-1" /> : <RefreshCw size={12} className="mr-1" />}
                     Atualizar status
                   </Button>
-                  <Button size="sm" variant="outline" className="h-8 rounded-lg text-[10px] font-bold" disabled={printing === contract.id} onClick={() => handlePrint(contract)}>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8 rounded-lg text-[10px] font-bold hover:border-violet-500/30 hover:bg-violet-500/10 hover:text-violet-600 transition-colors"
+                    title="Imprimir contrato"
+                    aria-label="Imprimir contrato"
+                    disabled={printing === contract.id}
+                    onClick={() => handlePrint(contract)}
+                  >
                     {printing === contract.id ? <Loader2 size={12} className="animate-spin mr-1" /> : <Printer size={12} className="mr-1" />}
                     Imprimir
                   </Button>
                   {contract.assinafySignUrl && (
                     <>
-                      <Button size="sm" variant="outline" className="h-8 rounded-lg text-[10px] font-bold" onClick={() => window.open(contract.assinafySignUrl, "_blank")}>
+                      <Button size="sm" variant="outline" className="h-8 rounded-lg text-[10px] font-bold" onClick={() => window.open(contract.assinafySignUrl, "_blank", "noopener,noreferrer")}>
                         <Eye size={12} className="mr-1" /> Visualizar
                       </Button>
                       <Button size="sm" variant="outline" className="h-8 rounded-lg text-[10px] font-bold" onClick={() => {

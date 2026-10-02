@@ -379,19 +379,22 @@ export function buildContractVariables(input: ContractVariablesInput): Record<st
 }
 
 // ─── Eventos de contrato (histórico) ──────────────────────────────────────────
+// `provider` é opcional para não quebrar chamadas existentes: contratos manuais
+// (impressão física) registram "manual"; integrações Assinafy mantêm o default.
 export async function addContractEvent(
   db: any,
   contractId: number,
   eventType: string,
   description: string,
   providerEventId?: string | null,
-  metadata?: Record<string, unknown> | null
+  metadata?: Record<string, unknown> | null,
+  provider: string = "assinafy"
 ) {
   const { contractEvents } = await import("../../drizzle/schema");
   try {
     await db.insert(contractEvents).values({
       contractId,
-      provider: "assinafy",
+      provider: provider || "assinafy",
       providerEventId: providerEventId ?? null,
       eventType,
       description,
@@ -401,6 +404,17 @@ export async function addContractEvent(
   } catch (e) {
     console.error(`[Contracts] Falha ao registrar evento ${eventType} do contrato ${contractId}:`, e);
   }
+}
+
+/** Sanitiza nome de arquivo PDF (remove caracteres inválidos em Windows/Android). */
+export function sanitizeFileName(input: string | null | undefined, fallback = "contrato"): string {
+  const base = String(input || "")
+    .replace(/\.pdf$/i, "")
+    .replace(/[\\/:*?"<>|\u0000-\u001f]+/g, "-")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 120);
+  return `${base || fallback}.pdf`;
 }
 
 // ─── Mapeamento de status do provedor → status interno ─────────────────────────

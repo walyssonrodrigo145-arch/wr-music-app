@@ -654,6 +654,15 @@ export default function NovoAluno() {
       return;
     }
 
+    // RN-001: CEP preenchido exige o número do endereço (também no fluxo de agendamento)
+    if (!isEditMode && !preCreatedStudentId && isValidCEP(form.cep) && !form.addressNumber.trim()) {
+      setWizardStep(1);
+      setActiveTab("dados");
+      setErrors((prev) => ({ ...prev, addressNumber: "Informe o número do endereço para o CEP preenchido" }));
+      toast.error("Informe o número do endereço para o CEP preenchido.");
+      return;
+    }
+
     const errs: Record<string, string> = {};
     if (!scheduleForm.date) {
       errs.date = "Data obrigatória";
@@ -716,6 +725,7 @@ export default function NovoAluno() {
           guardianCpf: form.guardianCpf || undefined,
           guardianRg: form.guardianRg.trim() || undefined,
           notes: form.notes || undefined,
+          temporaryPassword: form.temporaryPassword || undefined,
           avatar: form.avatar || undefined,
           allowAutoReminders: form.allowAutoReminders,
         });
@@ -860,6 +870,11 @@ export default function NovoAluno() {
     // Name validation
     if (!form.name.trim()) {
       newErrors.name = "Nome é obrigatório";
+    }
+
+    // RN-001: CEP preenchido exige o número do endereço
+    if (isValidCEP(form.cep) && !form.addressNumber.trim()) {
+      newErrors.addressNumber = "Informe o número do endereço para o CEP preenchido";
     }
 
     // Phone validation (optional - allow international numbers with DDI)
@@ -2279,7 +2294,7 @@ export default function NovoAluno() {
                             disabled={isSearchingCep}
                             title="Buscar endereço pelo CEP"
                             aria-label="Buscar endereço pelo CEP"
-                            className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-lg bg-blue-500/10 text-blue-600 hover:bg-blue-500 hover:text-white disabled:opacity-50 transition-all flex items-center justify-center active:scale-95"
+                            className="absolute right-1.5 top-1/2 -translate-y-1/2 w-10 h-10 rounded-xl bg-blue-500/10 text-blue-600 hover:bg-blue-500 hover:text-white disabled:opacity-50 transition-all flex items-center justify-center active:scale-95 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-500/20"
                           >
                             {isSearchingCep ? <Loader2 size={15} className="animate-spin" /> : <Search size={15} />}
                           </button>
@@ -2302,10 +2317,18 @@ export default function NovoAluno() {
                             placeholder="Ex: 123"
                             value={form.addressNumber}
                             onChange={(e) => handleInputChange('addressNumber', e.target.value)}
-                            className="h-12 rounded-xl border-border bg-muted/30 focus:bg-background focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all text-sm font-semibold pl-11"
+                            className={cn(
+                              "h-12 rounded-xl border-border bg-muted/30 focus:bg-background focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all text-sm font-semibold pl-11",
+                              errors.addressNumber && "border-rose-500/60 bg-rose-500/5 focus:ring-rose-500/10 focus:border-rose-500"
+                            )}
                           />
-                          <FileText className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground/70 group-focus-within/input:text-blue-500 transition-colors" size={18} />
+                          <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground/70 group-focus-within/input:text-blue-500 transition-colors" size={18} />
                         </div>
+                        {errors.addressNumber && (
+                          <p className="text-[10px] text-rose-500 font-bold flex items-start gap-1 ml-1 leading-tight">
+                            <AlertCircle size={11} className="shrink-0 mt-px" /> <span>{errors.addressNumber}</span>
+                          </p>
+                        )}
                       </div>
 
                       <div className="space-y-2 sm:col-span-2">
@@ -2454,29 +2477,34 @@ export default function NovoAluno() {
                           </div>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                          <div className="space-y-2">
-                            <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">CPF do responsável</label>
-                            <div className="relative group/input">
-                              <Input 
-                                placeholder="000.000.000-00" 
-                                value={form.guardianCpf}
-                                onChange={(e) => handleInputChange('guardianCpf', e.target.value)}
-                                className="h-12 rounded-xl border-border bg-muted/30 focus:bg-background focus:ring-4 focus:ring-amber-500/10 focus:border-amber-500 transition-all text-sm font-semibold pl-11"
-                              />
-                              <FileText className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground/70 group-focus-within/input:text-amber-500 transition-colors" size={18} />
+                        <div className="pt-5 border-t border-amber-500/15 space-y-4">
+                          <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1 flex items-center gap-1.5">
+                            <FileText size={11} className="text-amber-500/80" /> Documentos do responsável
+                          </p>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="space-y-2">
+                              <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">CPF do responsável</label>
+                              <div className="relative group/input">
+                                <Input 
+                                  placeholder="000.000.000-00" 
+                                  value={form.guardianCpf}
+                                  onChange={(e) => handleInputChange('guardianCpf', e.target.value)}
+                                  className="h-12 rounded-xl border-border bg-muted/30 focus:bg-background focus:ring-4 focus:ring-amber-500/10 focus:border-amber-500 transition-all text-sm font-semibold pl-11"
+                                />
+                                <FileText className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground/70 group-focus-within/input:text-amber-500 transition-colors" size={18} />
+                              </div>
                             </div>
-                          </div>
-                          <div className="space-y-2">
-                            <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">RG do responsável</label>
-                            <div className="relative group/input">
-                              <Input 
-                                placeholder="00.000.000-0" 
-                                value={form.guardianRg}
-                                onChange={(e) => handleInputChange('guardianRg', e.target.value)}
-                                className="h-12 rounded-xl border-border bg-muted/30 focus:bg-background focus:ring-4 focus:ring-amber-500/10 focus:border-amber-500 transition-all text-sm font-semibold pl-11"
-                              />
-                              <FileText className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground/70 group-focus-within/input:text-amber-500 transition-colors" size={18} />
+                            <div className="space-y-2">
+                              <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">RG do responsável</label>
+                              <div className="relative group/input">
+                                <Input 
+                                  placeholder="00.000.000-0" 
+                                  value={form.guardianRg}
+                                  onChange={(e) => handleInputChange('guardianRg', e.target.value)}
+                                  className="h-12 rounded-xl border-border bg-muted/30 focus:bg-background focus:ring-4 focus:ring-amber-500/10 focus:border-amber-500 transition-all text-sm font-semibold pl-11"
+                                />
+                                <FileText className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground/70 group-focus-within/input:text-amber-500 transition-colors" size={18} />
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -2578,9 +2606,14 @@ export default function NovoAluno() {
                   ))}
                 </div>
                 {summaryAddress && (
-                  <div className="mt-2.5 rounded-xl border border-border/50 bg-muted/20 px-3.5 py-2.5">
-                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em]">Endereço</p>
-                    <p className="text-sm font-bold text-foreground mt-0.5 break-words">{summaryAddress}</p>
+                  <div className="mt-2.5 flex items-start gap-2.5 rounded-xl border border-border/50 bg-muted/20 px-3.5 py-2.5">
+                    <div className="w-7 h-7 rounded-lg bg-indigo-500/10 text-indigo-500 flex items-center justify-center shrink-0 mt-0.5">
+                      <MapPin size={13} />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em]">Endereço</p>
+                      <p className="text-sm font-bold text-foreground mt-0.5 break-words">{summaryAddress}</p>
+                    </div>
                   </div>
                 )}
               </motion.div>

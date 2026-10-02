@@ -7,11 +7,24 @@
  */
 import { base64ToBlob, downloadBase64, isNativeApp } from "@/lib/nativeDownload";
 
+/** Remove caracteres inválidos para nomes de arquivo (Windows/Android). */
+export function sanitizeFileName(fileName: string | null | undefined, fallback = "contrato.pdf"): string {
+  const base = String(fileName || "")
+    .replace(/[\u0000-\u001f\\/:*?"<>|]+/g, "-")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 140);
+  if (!base) return fallback;
+  return /\.pdf$/i.test(base) ? base : `${base}.pdf`;
+}
+
 export function openPdfPrint(base64: string, fileName = "contrato.pdf"): void {
   if (!base64) return;
 
+  const safeFileName = sanitizeFileName(fileName);
+
   if (isNativeApp()) {
-    void downloadBase64(base64, fileName, "application/pdf");
+    void downloadBase64(base64, safeFileName, "application/pdf");
     return;
   }
 
@@ -21,7 +34,7 @@ export function openPdfPrint(base64: string, fileName = "contrato.pdf"): void {
   if (!win) {
     const link = document.createElement("a");
     link.setAttribute("href", url);
-    link.setAttribute("download", fileName);
+    link.setAttribute("download", safeFileName);
     link.style.visibility = "hidden";
     document.body.appendChild(link);
     link.click();

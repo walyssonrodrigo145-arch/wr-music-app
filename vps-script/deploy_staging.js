@@ -319,6 +319,7 @@ const filesToUpload = [
   'client/src/components/modals/StudentDetailsModal.tsx',
   'client/src/components/modals/StudentContractsSection.tsx',
   'client/src/components/contratos/ModelosContratoTab.tsx',
+  'client/src/pages/student/Contratos.tsx',
   'PRD_ENDERECO_CONTRATOS_VARIAVEIS.md',
 ];
 

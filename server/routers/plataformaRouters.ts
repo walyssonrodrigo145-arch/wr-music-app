@@ -229,6 +229,10 @@ export const plataformaRouters = {
       }
       await upsertSettings(orgId, ctx.user.id, {
         ...input,
+        // UF sempre em maiúsculas (defesa em profundidade — o client já normaliza)
+        ...(input.schoolState !== undefined
+          ? { schoolState: input.schoolState.trim().toUpperCase().slice(0, 2) }
+          : {}),
         showSchoolName: input.showSchoolName !== undefined ? (input.showSchoolName ? 1 : 0) : undefined,
       });
       const db = await getDb();

@@ -406,7 +406,7 @@ export async function runPrintContract(
 ) {
   await assertSchoolCnpjConfigured(db, orgId);
 
-  const { prepareContractRender, getNextContractNumber, addContractEvent, buildDefaultTemplateContent } = await import("../services/contractService");
+  const { prepareContractRender, getNextContractNumber, addContractEvent, buildDefaultTemplateContent, sanitizeFileName } = await import("../services/contractService");
 
   const contractNumber = await getNextContractNumber(db, orgId);
   const prepared = await prepareContractRender(db, orgId, input.studentId, input.templateId, {
@@ -439,12 +439,12 @@ export async function runPrintContract(
     updatedAt: new Date(),
   }).returning();
 
-  await addContractEvent(db as any, newContract.id, "contrato_impresso", `Contrato ${contractNumber} gerado para impressão`, null, { template: template.name });
+  await addContractEvent(db as any, newContract.id, "contrato_impresso", `Contrato ${contractNumber} gerado para impressão`, null, { template: template.name }, "manual");
 
   return {
     contract: newContract,
     pdfBase64: prepared.pdfBuffer.toString("base64"),
-    fileName: `${prepared.title}.pdf`,
+    fileName: sanitizeFileName(prepared.title),
   };
 }
 

@@ -44,7 +44,7 @@ export default function StudentContracts() {
       utils.contracts.my.invalidate();
       setRenewTarget(null);
       // Popup pode ser bloqueado pelo navegador — fallback: assinar via "Meus contratos"
-      const win = data?.signUrl ? window.open(data.signUrl, "_blank") : null;
+      const win = data?.signUrl ? window.open(data.signUrl, "_blank", "noopener,noreferrer") : null;
       if (win) toast.success("Renovação gerada! Abrimos o link para você assinar.");
       else toast.success("Renovação gerada! Abra o contrato em 'Aguardando assinatura' abaixo para assinar.");
     },
@@ -112,7 +112,7 @@ export default function StudentContracts() {
 
                 <div className="flex flex-wrap gap-1.5">
                   {contract.assinafySignUrl && (
-                    <Button size="sm" variant="outline" className="h-9 rounded-lg text-[10px] font-bold" onClick={() => window.open(contract.assinafySignUrl, "_blank")}>
+                    <Button size="sm" variant="outline" className="h-9 rounded-lg text-[10px] font-bold" onClick={() => window.open(contract.assinafySignUrl, "_blank", "noopener,noreferrer")}>
                       <Eye size={12} className="mr-1" /> Assinar / Visualizar
                     </Button>
                   )}

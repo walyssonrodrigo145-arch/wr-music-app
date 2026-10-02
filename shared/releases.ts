@@ -26,6 +26,18 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: "2026.10.02.2",
+    date: "2026-10-02",
+    title: "Contratos mais seguros e ajustes do endereço/CEP",
+    summary: "Correções na nova funcionalidade de contratos: acesso restrito aos contratos do próprio aluno (professor vê só os seus), número do endereço obrigatório quando o CEP é informado, valores digitados são normalizados, nomes de arquivo seguros e modelo selecionável para quem gera contrato. Também refinamos o visual dos blocos de endereço, dados da escola, variáveis e impressão.",
+    items: [
+      { type: "correcao", title: "Acesso aos contratos restrito", description: "Professor passa a ver apenas os contratos dos próprios alunos; o aluno vê apenas os seus." },
+      { type: "correcao", title: "Número obrigatório com CEP", description: "Ao preencher o CEP, o campo Número passa a ser obrigatório para salvar o cadastro." },
+      { type: "correcao", title: "Valores e arquivos seguros", description: "Mensalidade digitada é normalizada (evita erro ao gerar) e o nome do PDF é seguro para qualquer navegador." },
+      { type: "melhoria", title: "Visual refinado", description: "Endereço no cadastro e nos detalhes, dados da escola, paleta de variáveis e ações de imprimir/gerar link com acabamento mais limpo e consistente." },
+    ],
+  },
+  {
     version: "2026.10.02.1",
     date: "2026-10-02",
     title: "Endereço completo com CEP, variáveis novas de contrato e impressão ou link",

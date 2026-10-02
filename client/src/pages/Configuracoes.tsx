@@ -994,96 +994,116 @@ export default function Configuracoes() {
                     />
                   </Field>
 
-                  <Field label="Razão Social" hint="Como consta no CNPJ — usada nos contratos">
-                    <DebouncedInput
-                      value={schoolRazaoSocial}
-                      onChange={e => setSchoolRazaoSocial(e.target.value)}
-                      placeholder="Ex: Harmonia Música LTDA"
-                      className="h-12 text-sm font-bold rounded-xl border-border bg-muted focus:bg-card transition-all shadow-sm"
-                    />
-                  </Field>
+                </div>
 
-                  <Field label="CEP" hint="Preenche o endereço automaticamente">
-                    <div className="relative">
-                      <Input
-                        value={schoolCep}
-                        onChange={(e) => { setSchoolCep(maskCEP(e.target.value)); setSchoolCepNotFound(false); }}
-                        onBlur={() => { if (isValidCEP(schoolCep)) handleSchoolCepSearch(); }}
-                        placeholder="00000-000"
-                        inputMode="numeric"
-                        autoComplete="postal-code"
-                        className="h-12 text-sm font-bold rounded-xl border-border bg-muted focus:bg-card transition-all shadow-sm pl-11 pr-12"
-                      />
-                      <MapPin size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                      <button
-                        type="button"
-                        onClick={() => handleSchoolCepSearch()}
-                        disabled={isSearchingSchoolCep}
-                        title="Buscar endereço pelo CEP"
-                        aria-label="Buscar endereço pelo CEP"
-                        className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-lg bg-indigo-500/10 text-indigo-600 hover:bg-indigo-600 hover:text-white disabled:opacity-50 transition-all flex items-center justify-center active:scale-95"
-                      >
-                        {isSearchingSchoolCep ? <Loader2 size={15} className="animate-spin" /> : <Search size={15} />}
-                      </button>
+                {/* 📍 SEÇÃO: ENDEREÇO & DADOS CONTRATUAIS (PRD_ENDERECO_CONTRATOS_VARIAVEIS) */}
+                <div className="pt-6 border-t border-border space-y-5">
+                  <div>
+                    <h4 className="text-sm font-black text-foreground uppercase tracking-widest flex items-center gap-2">
+                      <MapPin size={16} className="text-violet-500" />
+                      Endereço &amp; Dados Contratuais
+                    </h4>
+                    <p className="text-xs text-muted-foreground mt-1 font-medium">
+                      Endereço e razão social usados no rodapé e nas cláusulas dos contratos digitais (CONTRATADA).
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5 lg:gap-6">
+                    <div className="md:col-span-2">
+                      <Field label="Razão Social" hint="Como consta no CNPJ — usada nos contratos">
+                        <DebouncedInput
+                          value={schoolRazaoSocial}
+                          onChange={e => setSchoolRazaoSocial(e.target.value)}
+                          placeholder="Ex: Harmonia Música LTDA"
+                          className="h-12 text-sm font-bold rounded-xl border-border bg-muted focus:bg-card transition-all shadow-sm"
+                        />
+                      </Field>
                     </div>
-                    {isSearchingSchoolCep && <p className="text-[10px] text-indigo-600 font-bold flex items-center gap-1"><Loader2 size={10} className="animate-spin" /> Buscando CEP...</p>}
-                    {schoolCepNotFound && !isSearchingSchoolCep && <p className="text-[10px] text-amber-600 font-bold flex items-center gap-1"><AlertTriangle size={10} /> CEP não encontrado — preencha manualmente</p>}
-                  </Field>
 
-                  <Field label="Logradouro">
-                    <DebouncedInput
-                      value={schoolAddress}
-                      onChange={e => setSchoolAddress(e.target.value)}
-                      placeholder="Rua, avenida, praça..."
-                      className="h-12 text-sm font-bold rounded-xl border-border bg-muted focus:bg-card transition-all shadow-sm"
-                    />
-                  </Field>
+                    <Field label="CEP" hint="Preenche o endereço automaticamente">
+                      <div className="relative">
+                        <Input
+                          value={schoolCep}
+                          onChange={(e) => { setSchoolCep(maskCEP(e.target.value)); setSchoolCepNotFound(false); }}
+                          onBlur={() => { if (isValidCEP(schoolCep)) handleSchoolCepSearch(); }}
+                          placeholder="00000-000"
+                          inputMode="numeric"
+                          autoComplete="postal-code"
+                          className="h-12 text-sm font-bold rounded-xl border-border bg-muted focus:bg-card transition-all shadow-sm pl-11 pr-12"
+                        />
+                        <MapPin size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                        <button
+                          type="button"
+                          onClick={() => handleSchoolCepSearch()}
+                          disabled={isSearchingSchoolCep}
+                          title="Buscar endereço pelo CEP"
+                          aria-label="Buscar endereço pelo CEP"
+                          className="absolute right-1.5 top-1/2 -translate-y-1/2 w-10 h-10 rounded-xl bg-indigo-500/10 text-indigo-600 hover:bg-indigo-600 hover:text-white disabled:opacity-50 transition-all flex items-center justify-center active:scale-95 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-indigo-500/20"
+                        >
+                          {isSearchingSchoolCep ? <Loader2 size={15} className="animate-spin" /> : <Search size={15} />}
+                        </button>
+                      </div>
+                      {isSearchingSchoolCep && <p className="text-[10px] text-indigo-600 font-bold flex items-center gap-1"><Loader2 size={10} className="animate-spin" /> Buscando CEP...</p>}
+                      {schoolCepNotFound && !isSearchingSchoolCep && <p className="text-[10px] text-amber-600 font-bold flex items-center gap-1"><AlertTriangle size={10} /> CEP não encontrado — preencha manualmente</p>}
+                    </Field>
 
-                  <Field label="Número">
-                    <DebouncedInput
-                      value={schoolAddressNumber}
-                      onChange={e => setSchoolAddressNumber(e.target.value)}
-                      placeholder="Ex: 123"
-                      className="h-12 text-sm font-bold rounded-xl border-border bg-muted focus:bg-card transition-all shadow-sm"
-                    />
-                  </Field>
+                    <Field label="Número">
+                      <DebouncedInput
+                        value={schoolAddressNumber}
+                        onChange={e => setSchoolAddressNumber(e.target.value)}
+                        placeholder="Ex: 123"
+                        className="h-12 text-sm font-bold rounded-xl border-border bg-muted focus:bg-card transition-all shadow-sm"
+                      />
+                    </Field>
 
-                  <Field label="Complemento">
-                    <DebouncedInput
-                      value={schoolAddressComplement}
-                      onChange={e => setSchoolAddressComplement(e.target.value)}
-                      placeholder="Sala, andar, bloco..."
-                      className="h-12 text-sm font-bold rounded-xl border-border bg-muted focus:bg-card transition-all shadow-sm"
-                    />
-                  </Field>
+                    <div className="md:col-span-2">
+                      <Field label="Logradouro">
+                        <DebouncedInput
+                          value={schoolAddress}
+                          onChange={e => setSchoolAddress(e.target.value)}
+                          placeholder="Rua, avenida, praça..."
+                          className="h-12 text-sm font-bold rounded-xl border-border bg-muted focus:bg-card transition-all shadow-sm"
+                        />
+                      </Field>
+                    </div>
 
-                  <Field label="Bairro">
-                    <DebouncedInput
-                      value={schoolAddressDistrict}
-                      onChange={e => setSchoolAddressDistrict(e.target.value)}
-                      placeholder="Ex: Centro"
-                      className="h-12 text-sm font-bold rounded-xl border-border bg-muted focus:bg-card transition-all shadow-sm"
-                    />
-                  </Field>
+                    <Field label="Complemento">
+                      <DebouncedInput
+                        value={schoolAddressComplement}
+                        onChange={e => setSchoolAddressComplement(e.target.value)}
+                        placeholder="Sala, andar, bloco..."
+                        className="h-12 text-sm font-bold rounded-xl border-border bg-muted focus:bg-card transition-all shadow-sm"
+                      />
+                    </Field>
 
-                  <Field label="Cidade">
-                    <DebouncedInput
-                      value={schoolCity}
-                      onChange={e => setSchoolCity(e.target.value)}
-                      placeholder="Ex: São Paulo"
-                      className="h-12 text-sm font-bold rounded-xl border-border bg-muted focus:bg-card transition-all shadow-sm"
-                    />
-                  </Field>
+                    <Field label="Bairro">
+                      <DebouncedInput
+                        value={schoolAddressDistrict}
+                        onChange={e => setSchoolAddressDistrict(e.target.value)}
+                        placeholder="Ex: Centro"
+                        className="h-12 text-sm font-bold rounded-xl border-border bg-muted focus:bg-card transition-all shadow-sm"
+                      />
+                    </Field>
 
-                  <Field label="UF">
-                    <Input
-                      value={schoolState}
-                      onChange={(e) => setSchoolState(e.target.value.toUpperCase().replace(/[^A-Z]/g, "").slice(0, 2))}
-                      placeholder="SP"
-                      maxLength={2}
-                      className="h-12 text-sm font-bold rounded-xl border-border bg-muted focus:bg-card transition-all shadow-sm uppercase"
-                    />
-                  </Field>
+                    <Field label="Cidade">
+                      <DebouncedInput
+                        value={schoolCity}
+                        onChange={e => setSchoolCity(e.target.value)}
+                        placeholder="Ex: São Paulo"
+                        className="h-12 text-sm font-bold rounded-xl border-border bg-muted focus:bg-card transition-all shadow-sm"
+                      />
+                    </Field>
+
+                    <Field label="UF">
+                      <Input
+                        value={schoolState}
+                        onChange={(e) => setSchoolState(e.target.value.toUpperCase().replace(/[^A-Z]/g, "").slice(0, 2))}
+                        placeholder="SP"
+                        maxLength={2}
+                        className="h-12 text-sm font-bold rounded-xl border-border bg-muted focus:bg-card transition-all shadow-sm uppercase"
+                      />
+                    </Field>
+                  </div>
                 </div>
 
                 {/* PRD_ENDERECO_CONTRATOS_VARIAVEIS: representante legal da CONTRATADA */}
@@ -1097,15 +1117,17 @@ export default function Configuracoes() {
                       Dados de quem assina os contratos em nome da escola (qualificação da CONTRATADA).
                     </p>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
-                    <Field label="Nome do representante">
-                      <DebouncedInput
-                        value={schoolLegalRepName}
-                        onChange={e => setSchoolLegalRepName(e.target.value)}
-                        placeholder="Ex: Maria Souza"
-                        className="h-12 text-sm font-bold rounded-xl border-border bg-muted focus:bg-card transition-all shadow-sm"
-                      />
-                    </Field>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5 lg:gap-6">
+                    <div className="md:col-span-2">
+                      <Field label="Nome do representante">
+                        <DebouncedInput
+                          value={schoolLegalRepName}
+                          onChange={e => setSchoolLegalRepName(e.target.value)}
+                          placeholder="Ex: Maria Souza"
+                          className="h-12 text-sm font-bold rounded-xl border-border bg-muted focus:bg-card transition-all shadow-sm"
+                        />
+                      </Field>
+                    </div>
                     <Field label="RG do representante">
                       <DebouncedInput
                         value={schoolLegalRepRg}

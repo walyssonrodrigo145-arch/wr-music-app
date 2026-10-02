@@ -1,7 +1,7 @@
 import { debugLog } from "../_core/logger";
 import { z } from "zod";
 import { COOKIE_NAME } from "@shared/const";
-import { buildAddressMirror } from "@shared/address";
+import { buildAddressMirror, isValidCEP } from "@shared/address";
 import { getSessionCookieOptions } from "../_core/cookies";
 import { systemRouter } from "../_core/systemRouter";
 import { fcmRouter } from "../fcmRouter";
@@ -694,6 +694,15 @@ export const studentsRouters = {
       avatar: z.string().optional(),
       allowAutoReminders: z.boolean().default(true),
       studioRoomId: z.number().optional().nullable(),
+    }).superRefine((data, ctx) => {
+      // RN-001: CEP preenchido exige o número do endereço
+      if (isValidCEP(data.cep) && !data.addressNumber?.trim()) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["addressNumber"],
+          message: "Informe o número do endereço para o CEP preenchido.",
+        });
+      }
     })).mutation(async ({ ctx, input }) => {
       try {
         const db = await getDb();
@@ -935,6 +944,15 @@ export const studentsRouters = {
       allowAutoReminders: z.boolean().optional(),
       studioRoomId: z.number().optional().nullable(),
       schoolPlanId: z.number().nullable().optional(),
+    }).superRefine((data, ctx) => {
+      // RN-001: CEP preenchido exige o número do endereço
+      if (isValidCEP(data.cep) && !data.addressNumber?.trim()) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["addressNumber"],
+          message: "Informe o número do endereço para o CEP preenchido.",
+        });
+      }
     })).mutation(async ({ ctx, input }) => {
       try {
         const db = await getDb();
