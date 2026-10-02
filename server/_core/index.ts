@@ -1165,6 +1165,7 @@ async function startServer() {
           "https://*.firebaseapp.com",
           "https://viacep.com.br",
           "https://brasilapi.com.br",
+          "https://publica.cnpj.ws",
           "wss:",
         ],
         mediaSrc: ["'self'", "blob:", "https:"],

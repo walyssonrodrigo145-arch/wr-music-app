@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { trpc } from "@/lib/trpc";
 import {
   Building2,
@@ -18,7 +18,9 @@ import {
   Phone,
   Mail,
   Clock,
+  Search,
 } from "lucide-react";
+import { buscarCnpj } from "@/lib/cnpj";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -100,6 +102,96 @@ export function ConfigFiscalTab() {
     autoEmailInvoice: true,
     autoRetryErrors: true,
   });
+
+  // ─── Busca automática de CNPJ (cnpj.ws): 14 dígitos disparam a consulta ────
+  const [isSearchingCnpj, setIsSearchingCnpj] = useState(false);
+  const [cnpjLookupMsg, setCnpjLookupMsg] = useState<{ type: "ok" | "error"; text: string } | null>(null);
+  const lastSearchedCnpjRef = useRef("");
+  const cnpjSearchSeqRef = useRef(0);
+  const cnpjTouchedRef = useRef(false);
+
+  const handleCnpjChange = (raw: string) => {
+    setForm((prev) => ({ ...prev, cnpj: raw }));
+    setCnpjLookupMsg(null);
+    cnpjTouchedRef.current = true;
+    cnpjSearchSeqRef.current++;
+    const digits = raw.replace(/\D/g, "");
+    // Trocar o CNPJ limpa os dados vindos da consulta anterior (evita dados de outra empresa)
+    if (lastSearchedCnpjRef.current && digits !== lastSearchedCnpjRef.current) {
+      setForm((prev) => ({
+        ...prev,
+        cnpj: raw,
+        razaoSocial: "",
+        nomeFantasia: "",
+        cep: "",
+        logradouro: "",
+        numero: "",
+        complemento: "",
+        bairro: "",
+        cidade: "",
+        uf: "",
+        codigoMunicipio: "",
+      }));
+      lastSearchedCnpjRef.current = "";
+    }
+  };
+
+  const handleCnpjSearch = async (raw?: string) => {
+    const value = raw ?? form.cnpj;
+    const digits = value.replace(/\D/g, "");
+    if (digits.length !== 14) return;
+    const seq = ++cnpjSearchSeqRef.current;
+    setIsSearchingCnpj(true);
+    setCnpjLookupMsg(null);
+    try {
+      const result = await buscarCnpj(digits);
+      if (seq !== cnpjSearchSeqRef.current) return; // CNPJ mudou durante a consulta — descarta
+      if (!result.ok) {
+        const text = result.reason === "not_found"
+          ? "CNPJ não encontrado na base pública."
+          : result.reason === "rate_limit"
+            ? "Limite de consultas atingido — aguarde 1 minuto e tente novamente."
+            : result.reason === "invalid"
+              ? "CNPJ incompleto."
+              : "Não foi possível consultar o CNPJ agora. Preencha manualmente.";
+        setCnpjLookupMsg({ type: "error", text });
+        return;
+      }
+      lastSearchedCnpjRef.current = digits;
+      const d = result.data;
+      setForm((prev) => ({
+        ...prev,
+        cnpj: maskCnpj(digits),
+        razaoSocial: d.razaoSocial || prev.razaoSocial,
+        nomeFantasia: d.nomeFantasia || prev.nomeFantasia,
+        cep: d.cep || prev.cep,
+        logradouro: d.logradouro || prev.logradouro,
+        numero: d.numero || prev.numero,
+        complemento: d.complemento || prev.complemento,
+        bairro: d.bairro || prev.bairro,
+        cidade: d.cidade || prev.cidade,
+        uf: d.uf || prev.uf,
+        codigoMunicipio: d.codigoMunicipio || prev.codigoMunicipio,
+      }));
+      const avisoSituacao = d.situacaoCadastral && d.situacaoCadastral.toLowerCase() !== "ativa"
+        ? ` Atenção: situação cadastral "${d.situacaoCadastral}" na Receita.`
+        : "";
+      setCnpjLookupMsg({ type: "ok", text: `Dados preenchidos automaticamente.${avisoSituacao}` });
+      toast.success("Dados da empresa preenchidos pelo CNPJ!");
+    } finally {
+      if (seq === cnpjSearchSeqRef.current) setIsSearchingCnpj(false);
+    }
+  };
+
+  // Dispara sozinho ao completar os 14 dígitos (sem clique)
+  useEffect(() => {
+    if (!cnpjTouchedRef.current) return;
+    const digits = form.cnpj.replace(/\D/g, "");
+    if (digits.length !== 14 || lastSearchedCnpjRef.current === digits) return;
+    const timer = setTimeout(() => { void handleCnpjSearch(digits); }, 600);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.cnpj]);
 
   // Modal de Serviço
   const [serviceModalOpen, setServiceModalOpen] = useState(false);
@@ -295,16 +387,39 @@ export function ConfigFiscalTab() {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-xs">
-          {/* CNPJ com máscara */}
+          {/* CNPJ com máscara + busca automática (cnpj.ws) */}
           <div>
             <Label className="text-xs font-bold">CNPJ *</Label>
-            <Input
-              value={maskCnpj(form.cnpj)}
-              onChange={(e) => setForm({ ...form, cnpj: e.target.value })}
-              placeholder="00.000.000/0000-00"
-              maxLength={18}
-              className="mt-1.5 h-11 rounded-2xl bg-background border-border text-xs font-mono"
-            />
+            <div className="relative mt-1.5">
+              <Input
+                value={maskCnpj(form.cnpj)}
+                onChange={(e) => handleCnpjChange(e.target.value)}
+                onBlur={() => { if (form.cnpj.replace(/\D/g, "").length === 14) handleCnpjSearch(); }}
+                placeholder="00.000.000/0000-00"
+                maxLength={18}
+                className="h-11 rounded-2xl bg-background border-border text-xs font-mono pl-9 pr-12"
+              />
+              <Building2 size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/70" />
+              <button
+                type="button"
+                onClick={() => handleCnpjSearch()}
+                disabled={isSearchingCnpj || form.cnpj.replace(/\D/g, "").length !== 14}
+                title="Buscar dados da empresa pelo CNPJ"
+                aria-label="Buscar dados da empresa pelo CNPJ"
+                className="absolute right-1.5 top-1/2 -translate-y-1/2 w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-600 hover:bg-emerald-600 hover:text-white disabled:opacity-40 transition-all flex items-center justify-center active:scale-95 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-emerald-500/20"
+              >
+                {isSearchingCnpj ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />}
+              </button>
+            </div>
+            {isSearchingCnpj && (
+              <p className="text-[10px] text-emerald-600 font-bold flex items-center gap-1 mt-1"><Loader2 size={10} className="animate-spin" /> Consultando CNPJ...</p>
+            )}
+            {!isSearchingCnpj && cnpjLookupMsg && (
+              <p className={`text-[10px] font-bold flex items-start gap-1 mt-1 ${cnpjLookupMsg.type === "ok" ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600"}`}>
+                {cnpjLookupMsg.type === "ok" ? <ShieldCheck size={10} className="shrink-0 mt-px" /> : <AlertTriangle size={10} className="shrink-0 mt-px" />}
+                {cnpjLookupMsg.text}
+              </p>
+            )}
           </div>
 
           <div>

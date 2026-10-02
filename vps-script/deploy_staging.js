@@ -321,6 +321,12 @@ const filesToUpload = [
   'client/src/components/contratos/ModelosContratoTab.tsx',
   'client/src/pages/student/Contratos.tsx',
   'PRD_ENDERECO_CONTRATOS_VARIAVEIS.md',
+  // ── Busca automática de CNPJ (cnpj.ws) no Fiscal + confirmação da chave Focus ──
+  'client/src/lib/cnpj.ts',
+  'client/src/components/fiscal/ConfigFiscalTab.tsx',
+  'server/fiscalRouter.ts',
+  'server/_core/index.ts',
+  'shared/releases.ts',
 ];
 
 console.log('🚀 Iniciando deploy no Ambiente de Testes (STAGING)...');

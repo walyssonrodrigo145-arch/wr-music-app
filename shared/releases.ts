@@ -26,6 +26,17 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: "2026.10.02.5",
+    date: "2026-10-02",
+    title: "Busca automática dos dados da empresa pelo CNPJ",
+    summary: "Nos Dados Fiscais da escola, agora basta digitar o CNPJ: o sistema consulta a base pública (cnpj.ws) e preenche sozinho razão social, nome fantasia, endereço completo, cidade/UF, código do município e contato. Ao trocar o CNPJ, os dados antigos são limpos para não misturar empresas.",
+    items: [
+      { type: "novo", title: "Preencher pelo CNPJ", description: "Digite os 14 dígitos (ou clique na lupa) e os dados cadastrais da empresa são preenchidos automaticamente — consulta gratuita." },
+      { type: "melhoria", title: "Sem dados de outra empresa", description: "Ao alterar o CNPJ, os campos vindos da consulta anterior são apagados automaticamente." },
+      { type: "melhoria", title: "Aviso de situação cadastral", description: "Se a empresa não estiver 'Ativa' na Receita, o sistema avisa após a consulta." },
+    ],
+  },
+  {
     version: "2026.10.02.4",
     date: "2026-10-02",
     title: "Fiscal: confirmação de que a chave da Focus NFe está salva",
