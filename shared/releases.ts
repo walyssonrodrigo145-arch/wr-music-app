@@ -26,6 +26,16 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: "2026.10.01.10",
+    date: "2026-10-01",
+    title: "Gerar mensalidades também na edição do aluno",
+    summary: "A seção 'Gerar mensalidades automaticamente' agora aparece também ao editar um aluno: escolha a quantidade de meses (1 a 12) e clique em Gerar. Os meses que já têm cobrança são pulados automaticamente, sem duplicar nada.",
+    items: [
+      { type: "novo", title: "Gerar cobranças na edição", description: "Escolha a quantidade de meses e gere as próximas mensalidades do aluno a partir do mês atual com um clique." },
+      { type: "melhoria", title: "Sem duplicidade", description: "Meses que já possuem mensalidade são ignorados na geração." },
+    ],
+  },
+  {
     version: "2026.10.01.9",
     date: "2026-10-01",
     title: "Agendamento acontece ao salvar o cadastro",

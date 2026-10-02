@@ -360,10 +360,12 @@ export default function NovoAluno() {
       utils.paymentDues.list.invalidate();
       if (data.count > 0) {
         toast.success(`${data.count} mensalidade${data.count > 1 ? "s" : ""} gerada${data.count > 1 ? "s" : ""} automaticamente!`);
+      } else {
+        toast.info("Nenhuma mensalidade nova — os meses escolhidos já têm cobrança.");
       }
     },
-    onError: () => {
-      toast.error("Aluno salvo, mas não foi possível gerar as mensalidades automaticamente.");
+    onError: (e: any) => {
+      toast.error(e?.message || "Não foi possível gerar as mensalidades automaticamente.");
     },
   });
 
@@ -1879,39 +1881,89 @@ export default function NovoAluno() {
                     )}
                   </div>
                 )}
-                {/* Geração automática de mensalidades (somente no cadastro) */}
-                {!isEditMode && (
-                  <div className="mt-6 p-4 bg-indigo-500/5 rounded-xl border border-indigo-500/20 space-y-4">
-                    <div className="flex items-center justify-between gap-4">
+                {/* Geração automática de mensalidades (cadastro: ao salvar | edição: gerar agora) */}
+                <div className="mt-6 p-4 bg-indigo-500/5 rounded-xl border border-indigo-500/20 space-y-4">
+                  {!isEditMode ? (
+                    <>
+                      <div className="flex items-center justify-between gap-4">
+                        <div>
+                          <p className="text-sm font-bold text-foreground">Gerar mensalidades automaticamente</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">Ao salvar, serão criadas as mensalidades deste aluno automaticamente.</p>
+                        </div>
+                        <Switch
+                          checked={form.generateMonthly}
+                          onCheckedChange={(checked) => setForm(prev => ({ ...prev, generateMonthly: checked }))}
+                        />
+                      </div>
+                      {form.generateMonthly && (
+                        <div className="space-y-2 w-full md:max-w-xs">
+                          <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Quantidade de meses</label>
+                          <Select
+                            value={String(form.monthsCount)}
+                            onValueChange={(v) => setForm(prev => ({ ...prev, monthsCount: Number(v) }))}
+                          >
+                            <SelectTrigger className="h-12 w-full rounded-xl border-border bg-muted/30 focus:ring-4 focus:ring-violet-500/10 transition-all text-sm font-semibold px-4">
+                              <SelectValue placeholder="Meses" />
+                            </SelectTrigger>
+                            <SelectContent className="rounded-xl border-border shadow-2xl p-1">
+                              {[1, 2, 3, 6, 12].map(m => (
+                                <SelectItem key={m} value={String(m)} className="rounded-lg font-medium">{m} {m === 1 ? "mês" : "meses"}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <>
                       <div>
                         <p className="text-sm font-bold text-foreground">Gerar mensalidades automaticamente</p>
-                        <p className="text-xs text-muted-foreground mt-0.5">Ao salvar, serão criadas as mensalidades deste aluno automaticamente.</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          Crie as próximas cobranças deste aluno a partir do mês atual. Meses que já têm mensalidade são pulados.
+                        </p>
                       </div>
-                      <Switch
-                        checked={form.generateMonthly}
-                        onCheckedChange={(checked) => setForm(prev => ({ ...prev, generateMonthly: checked }))}
-                      />
-                    </div>
-                    {form.generateMonthly && (
-                      <div className="space-y-2 w-full md:max-w-xs">
-                        <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Quantidade de meses</label>
-                        <Select
-                          value={String(form.monthsCount)}
-                          onValueChange={(v) => setForm(prev => ({ ...prev, monthsCount: Number(v) }))}
+                      <div className="flex flex-col sm:flex-row sm:items-end gap-3">
+                        <div className="space-y-2 w-full sm:max-w-[200px]">
+                          <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Quantidade de meses</label>
+                          <Select
+                            value={String(form.monthsCount)}
+                            onValueChange={(v) => setForm(prev => ({ ...prev, monthsCount: Number(v) }))}
+                          >
+                            <SelectTrigger className="h-12 w-full rounded-xl border-border bg-muted/30 focus:ring-4 focus:ring-violet-500/10 transition-all text-sm font-semibold px-4">
+                              <SelectValue placeholder="Meses" />
+                            </SelectTrigger>
+                            <SelectContent className="rounded-xl border-border shadow-2xl p-1">
+                              {[1, 2, 3, 6, 12].map(m => (
+                                <SelectItem key={m} value={String(m)} className="rounded-lg font-medium">{m} {m === 1 ? "mês" : "meses"}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <Button
+                          type="button"
+                          onClick={() => {
+                            if (!studentId) return;
+                            const now = new Date();
+                            generateMonthlyMutation.mutate({
+                              studentId,
+                              amount: parseBRL(form.monthlyFee),
+                              dueDay: Number(form.dueDay) || 10,
+                              startMonth: now.getMonth() + 1,
+                              startYear: now.getFullYear(),
+                              monthsCount: form.monthsCount,
+                            });
+                          }}
+                          disabled={generateMonthlyMutation.isPending || !form.monthlyFee}
+                          className="h-12 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-5 shadow-lg shadow-indigo-500/20 transition-all active:scale-95"
                         >
-                          <SelectTrigger className="h-12 w-full rounded-xl border-border bg-muted/30 focus:ring-4 focus:ring-violet-500/10 transition-all text-sm font-semibold px-4">
-                            <SelectValue placeholder="Meses" />
-                          </SelectTrigger>
-                          <SelectContent className="rounded-xl border-border shadow-2xl p-1">
-                            {[1, 2, 3, 6, 12].map(m => (
-                              <SelectItem key={m} value={String(m)} className="rounded-lg font-medium">{m} {m === 1 ? "mês" : "meses"}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                          {generateMonthlyMutation.isPending
+                            ? <Loader2 size={16} className="animate-spin" />
+                            : <><FileText size={16} className="mr-2" /> Gerar {form.monthsCount} {form.monthsCount === 1 ? "mensalidade" : "mensalidades"}</>}
+                        </Button>
                       </div>
-                    )}
-                  </div>
-                )}
+                    </>
+                  )}
+                </div>
               </div>
             </motion.div>
           </motion.div>
