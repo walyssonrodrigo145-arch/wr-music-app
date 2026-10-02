@@ -327,6 +327,12 @@ const filesToUpload = [
   'server/fiscalRouter.ts',
   'server/_core/index.ts',
   'shared/releases.ts',
+  // ── Aba de Requisições fiscais + ambiente Homologação/Produção por escola ──
+  'client/src/components/fiscal/RequisicoesFiscaisTab.tsx',
+  'client/src/pages/NotasFiscais.tsx',
+  'server/services/fiscal/FocusNFeProvider.ts',
+  'server/services/fiscal/FiscalService.ts',
+  'server/services/fiscal/FiscalProvider.interface.ts',
 ];
 
 console.log('🚀 Iniciando deploy no Ambiente de Testes (STAGING)...');

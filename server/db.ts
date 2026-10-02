@@ -210,6 +210,9 @@ async function ensureSchemaConsistency(db: any) {
     await db.execute(sql`ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "schoolLegalRepName" varchar(255)`);
     await db.execute(sql`ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "schoolLegalRepRg" varchar(30)`);
     await db.execute(sql`ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "schoolLegalRepCpf" varchar(14)`);
+
+    // fiscal_companies: ambiente de emissão por escola (homologação/produção)
+    await db.execute(sql`ALTER TABLE "fiscal_companies" ADD COLUMN IF NOT EXISTS "focusEnvironment" varchar(20) DEFAULT 'homologacao' NOT NULL`);
     
     // users.mustChangePassword
     await db.execute(sql`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "mustChangePassword" boolean DEFAULT false NOT NULL`);

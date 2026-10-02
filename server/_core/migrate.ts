@@ -568,6 +568,8 @@ export async function runAutoMigrations() {
       { table: 'settings', sql: `ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "schoolLegalRepName" varchar(255)` },
       { table: 'settings', sql: `ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "schoolLegalRepRg" varchar(30)` },
       { table: 'settings', sql: `ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "schoolLegalRepCpf" varchar(14)` },
+      // fiscal_companies: ambiente de emissão por escola (homologação/produção)
+      { table: 'fiscal_companies', sql: `ALTER TABLE "fiscal_companies" ADD COLUMN IF NOT EXISTS "focusEnvironment" varchar(20) DEFAULT 'homologacao' NOT NULL` },
       { table: 'support_tickets', sql: `CREATE TABLE IF NOT EXISTS "support_tickets" ("id" serial PRIMARY KEY, "organizationId" integer, "userId" integer NOT NULL, "category" varchar(20) DEFAULT 'melhoria' NOT NULL, "title" varchar(255) NOT NULL, "description" text NOT NULL, "pageUrl" varchar(500), "status" varchar(20) DEFAULT 'aberto' NOT NULL, "priority" varchar(10) DEFAULT 'media' NOT NULL, "adminResponse" text, "resolvedAt" timestamp, "createdAt" timestamp DEFAULT now() NOT NULL, "updatedAt" timestamp DEFAULT now() NOT NULL)` },
       { table: 'support_tickets', sql: `CREATE INDEX IF NOT EXISTS "support_tickets_org_idx" ON "support_tickets" ("organizationId")` },
       { table: 'support_tickets', sql: `CREATE INDEX IF NOT EXISTS "support_tickets_status_idx" ON "support_tickets" ("status")` },

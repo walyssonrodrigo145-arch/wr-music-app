@@ -2078,6 +2078,8 @@ export const fiscalCompanies = pgTable("fiscal_companies", {
   // Focus NFe & Certificado A1
   focusCompanyId: varchar("focusCompanyId", { length: 100 }),
   focusApiKey: text("focusApiKey"), // Opcional se usar API Key própria por escola
+  // Ambiente de emissão da escola: 'homologacao' (testes) | 'producao' (notas reais)
+  focusEnvironment: varchar("focusEnvironment", { length: 20 }).default("homologacao").notNull(),
   certificateA1Status: varchar("certificateA1Status", { length: 30 }).default("nao_configurado"), // configurado, vencido, pendente, nao_configurado
   certificateExpiresAt: timestamp("certificateExpiresAt"),
   

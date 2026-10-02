@@ -17,6 +17,8 @@ export interface CompanyFiscalData {
   telefone?: string | null;
   email?: string | null;
   apiKey?: string | null;
+  /** 'homologacao' (testes) | 'producao' (notas reais) — prioridade sobre o env do servidor */
+  environment?: string | null;
 }
 
 export interface CustomerFiscalData {

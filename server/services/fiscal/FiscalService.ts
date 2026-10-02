@@ -109,6 +109,7 @@ export class FiscalService {
       telefone: company.telefone,
       email: company.email,
       apiKey: company.focusApiKey,
+      environment: (company as any).focusEnvironment ?? "homologacao",
     };
   }
 

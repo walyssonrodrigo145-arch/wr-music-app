@@ -11,9 +11,14 @@ import axios, { AxiosInstance } from "axios";
 export class FocusNFeProvider implements IFiscalProvider {
   public readonly name = "focusnfe";
 
-  private getClient(companyApiKey?: string | null): { client: AxiosInstance; baseUrl: string } {
+  private getClient(companyApiKey?: string | null, companyEnvironment?: string | null): { client: AxiosInstance; baseUrl: string } {
     const apiKey = companyApiKey || process.env.FOCUS_NFE_API_KEY || "";
-    const env = process.env.FOCUS_NFE_ENVIRONMENT || "development";
+    // Ambiente por escola (focusEnvironment) tem prioridade sobre o env do servidor.
+    // 'producao' emite notas reais; qualquer outro valor usa homologação.
+    const companyEnv = String(companyEnvironment || "").toLowerCase();
+    const env = companyEnv
+      ? (companyEnv === "producao" || companyEnv === "production" ? "production" : "development")
+      : (process.env.FOCUS_NFE_ENVIRONMENT || "development");
     
     // Test/Development URL by default, Production if explicitly configured
     const defaultBaseUrl =
@@ -65,7 +70,7 @@ export class FocusNFeProvider implements IFiscalProvider {
   }
 
   public async emitNfse(input: EmitNfseInput): Promise<EmitNfseOutput> {
-    const { client, baseUrl } = this.getClient(input.company.apiKey);
+    const { client, baseUrl } = this.getClient(input.company.apiKey, input.company.environment);
 
     const prestadorDoc = this.cleanDoc(input.company.cnpj);
     const tomadorDoc = this.cleanDoc(input.customer.taxId);
@@ -148,7 +153,7 @@ export class FocusNFeProvider implements IFiscalProvider {
   }
 
   public async queryNfse(reference: string, company: CompanyFiscalData): Promise<QueryNfseOutput> {
-    const { client, baseUrl } = this.getClient(company.apiKey);
+    const { client, baseUrl } = this.getClient(company.apiKey, company.environment);
 
     try {
       const response = await client.get(`/v2/nfse/${encodeURIComponent(reference)}?completo=1`);
@@ -183,7 +188,7 @@ export class FocusNFeProvider implements IFiscalProvider {
   }
 
   public async cancelNfse(reference: string, reason: string, company: CompanyFiscalData): Promise<CancelNfseOutput> {
-    const { client } = this.getClient(company.apiKey);
+    const { client } = this.getClient(company.apiKey, company.environment);
 
     try {
       const response = await client.delete(`/v2/nfse/${encodeURIComponent(reference)}`, {
@@ -213,7 +218,7 @@ export class FocusNFeProvider implements IFiscalProvider {
     if (query.pdfUrl) {
       return { url: query.pdfUrl };
     }
-    const { client } = this.getClient(company.apiKey);
+    const { client } = this.getClient(company.apiKey, company.environment);
     const response = await client.get(`/v2/nfse/${encodeURIComponent(reference)}/danfe`, { responseType: "arraybuffer" });
     return { buffer: Buffer.from(response.data) };
   }
@@ -223,7 +228,7 @@ export class FocusNFeProvider implements IFiscalProvider {
     if (query.xmlUrl) {
       return { url: query.xmlUrl };
     }
-    const { client } = this.getClient(company.apiKey);
+    const { client } = this.getClient(company.apiKey, company.environment);
     const response = await client.get(`/v2/nfse/${encodeURIComponent(reference)}/xml`, { responseType: "text" });
     return { content: response.data };
   }

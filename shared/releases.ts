@@ -26,6 +26,28 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: "2026.10.02.7",
+    date: "2026-10-02",
+    title: "Escolha do ambiente fiscal: testes ou produção",
+    summary: "Nos Dados Fiscais agora você escolhe em qual ambiente a escola emite: Homologação (testes, sem validade fiscal) ou Produção (notas reais). A tela de Notas Fiscais mostra o ambiente ativo com um selo, e ao mudar para produção aparece um aviso claro de que as notas passam a valer fiscalmente.",
+    items: [
+      { type: "novo", title: "Seletor Homologação/Produção", description: "Use o token de produção apenas quando escolher o ambiente de Produção; o sistema muda o endereço da API da Focus NFe de acordo." },
+      { type: "melhoria", title: "Selo de ambiente visível", description: "Notas Fiscais exibe '🧪 Homologação' ou '⚠️ Produção — notas reais' conforme a configuração da escola." },
+    ],
+  },
+  {
+    version: "2026.10.02.6",
+    date: "2026-10-02",
+    title: "Fiscal: nova aba de Requisições com o histórico de emissão",
+    summary: "A página de Notas Fiscais ganhou a aba Requisições: um histórico de tudo o que o sistema enviou e recebeu na emissão de NFS-e, com filtros por sucesso/erro e o motivo detalhado quando algo falha — útil para acompanhar na hora após reemitir uma nota.",
+    items: [
+      { type: "novo", title: "Aba Requisições", description: "Cada operação (envio à prefeitura, autorização, cancelamento, erro) aparece com data/hora, número da nota, tomador e valor." },
+      { type: "novo", title: "Filtros e contadores", description: "Alterne entre Todas, Sucesso e Erro vendo na hora quantos registros existem em cada grupo." },
+      { type: "melhoria", title: "Motivo do erro em destaque", description: "Quando a prefeitura recusa ou ocorre uma falha, a mensagem de retorno aparece destacada em vermelho." },
+      { type: "melhoria", title: "Botão Atualizar", description: "Recarregue a lista para acompanhar o resultado após reemitir ou alterar uma nota." },
+    ],
+  },
+  {
     version: "2026.10.02.5",
     date: "2026-10-02",
     title: "Busca automática dos dados da empresa pelo CNPJ",

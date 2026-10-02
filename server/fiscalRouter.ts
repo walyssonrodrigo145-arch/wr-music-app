@@ -64,6 +64,7 @@ export const fiscalRouter = router({
           telefone: z.string().optional().nullable(),
           email: z.string().optional().nullable(),
           focusApiKey: z.string().optional().nullable(),
+          focusEnvironment: z.enum(["homologacao", "producao"]).optional(),
           autoEmitOnPayment: z.boolean().default(false),
           emitTiming: z.string().default("imediato"),
           autoEmailInvoice: z.boolean().default(true),
@@ -479,6 +480,69 @@ export const fiscalRouter = router({
         } catch (err: any) {
           throw new TRPCError({ code: "BAD_REQUEST", message: err.message });
         }
+      }),
+  }),
+
+  // ─── REQUISIÇÕES / LOGS FISCAIS (acompanhar o que deu certo e o que deu erro) ─
+  logs: router({
+    list: protectedProcedure
+      .input(z.object({
+        kind: z.enum(["todos", "sucesso", "erro"]).default("todos"),
+        limit: z.number().min(1).max(500).default(200),
+      }))
+      .query(async ({ ctx, input }) => {
+        const orgId = ctx.user.organizationId;
+        if (!orgId) throw new TRPCError({ code: "UNAUTHORIZED" });
+
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+
+        const rows = await db
+          .select({
+            log: fiscalLogs,
+            invoiceReference: fiscalInvoices.reference,
+            invoiceNumber: fiscalInvoices.numero,
+            invoiceStatus: fiscalInvoices.status,
+            invoiceValue: fiscalInvoices.valor,
+            customerName: fiscalInvoices.customerName,
+          })
+          .from(fiscalLogs)
+          .leftJoin(fiscalInvoices, eq(fiscalInvoices.id, fiscalLogs.invoiceId))
+          .where(eq(fiscalLogs.organizationId, orgId))
+          .orderBy(desc(fiscalLogs.createdAt))
+          .limit(input.limit);
+
+        const mapped = rows.map((row) => {
+          const log = row.log;
+          const payload: any = log.payload ?? {};
+          const result = payload?.result ?? payload;
+          const errorMessage = result?.errorMessage || result?.error || (result?.rawResponse?.mensagem) || null;
+          const isError = /ERRO|ERROR|FAIL/i.test(log.event) || Boolean(errorMessage) || result?.success === false;
+          return {
+            id: log.id,
+            event: log.event,
+            kind: (isError ? "erro" : "sucesso") as "erro" | "sucesso",
+            errorMessage: errorMessage ? String(errorMessage) : null,
+            reference: row.invoiceReference ?? payload?.reference ?? null,
+            invoiceId: log.invoiceId,
+            invoiceNumber: row.invoiceNumber ?? null,
+            invoiceStatus: row.invoiceStatus ?? null,
+            invoiceValue: row.invoiceValue ?? payload?.valor ?? null,
+            customerName: row.customerName ?? null,
+            userName: log.userName ?? null,
+            createdAt: log.createdAt,
+          };
+        });
+
+        const filtered = input.kind === "todos" ? mapped : mapped.filter((m) => m.kind === input.kind);
+        return {
+          items: filtered,
+          stats: {
+            total: mapped.length,
+            sucesso: mapped.filter((m) => m.kind === "sucesso").length,
+            erro: mapped.filter((m) => m.kind === "erro").length,
+          },
+        };
       }),
   }),
 

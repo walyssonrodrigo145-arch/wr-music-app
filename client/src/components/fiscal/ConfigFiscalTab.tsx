@@ -97,6 +97,7 @@ export function ConfigFiscalTab() {
     telefone: "",
     email: "",
     focusApiKey: "",
+    focusEnvironment: "homologacao" as "homologacao" | "producao",
     autoEmitOnPayment: false,
     emitTiming: "imediato",
     autoEmailInvoice: true,
@@ -220,6 +221,7 @@ export function ConfigFiscalTab() {
         telefone: company.telefone || "",
         email: company.email || "",
         focusApiKey: company.focusApiKey || "",
+        focusEnvironment: (company as any).focusEnvironment === "producao" ? "producao" : "homologacao",
         autoEmitOnPayment: company.autoEmitOnPayment ?? false,
         emitTiming: company.emitTiming || "imediato",
         autoEmailInvoice: company.autoEmailInvoice ?? true,
@@ -631,6 +633,38 @@ export function ConfigFiscalTab() {
               <ShieldCheck size={11} /> Chave já configurada{company?.focusApiKeyLast4 ? ` (termina em ${company.focusApiKeyLast4})` : ""} — por segurança ela não é exibida. Deixe o campo em branco para manter ou digite uma nova para substituir.
             </span>
           ) : null}
+        </div>
+
+        {/* Ambiente de emissão (usa o mesmo token do Focus; muda o endereço da API) */}
+        <div className="pt-4 border-t border-border/60">
+          <Label className="text-xs font-bold">Ambiente de emissão</Label>
+          <div className="mt-1.5 grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setForm({ ...form, focusEnvironment: "homologacao" })}
+              className={`p-3 rounded-2xl border text-left transition-all active:scale-[0.98] ${form.focusEnvironment === "homologacao"
+                ? "border-emerald-500/50 bg-emerald-500/10"
+                : "border-border bg-background hover:border-emerald-500/30"}`}
+            >
+              <p className="text-xs font-black text-foreground">🧪 Homologação (testes)</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">Notas de teste, sem validade fiscal nem imposto.</p>
+            </button>
+            <button
+              type="button"
+              onClick={() => setForm({ ...form, focusEnvironment: "producao" })}
+              className={`p-3 rounded-2xl border text-left transition-all active:scale-[0.98] ${form.focusEnvironment === "producao"
+                ? "border-amber-500/50 bg-amber-500/10"
+                : "border-border bg-background hover:border-amber-500/30"}`}
+            >
+              <p className="text-xs font-black text-foreground">⚠️ Produção (notas reais)</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">Usa o token de produção — emite nota fiscal de verdade.</p>
+            </button>
+          </div>
+          {form.focusEnvironment === "producao" && (
+            <p className="text-[10px] font-bold text-amber-600 mt-2 flex items-start gap-1">
+              <AlertTriangle size={11} className="shrink-0 mt-px" /> As próximas emissões serão notas fiscais REAIS (com imposto). Ative somente quando a escola estiver pronta para emitir.
+            </p>
+          )}
         </div>
       </div>
 
