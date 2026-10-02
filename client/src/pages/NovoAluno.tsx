@@ -198,6 +198,11 @@ export default function NovoAluno() {
   const [isSaving, setIsSaving] = useState(false);
   const [isSearchingCep, setIsSearchingCep] = useState(false);
   const [cepNotFound, setCepNotFound] = useState(false);
+  // Busca automática de CEP: guarda o último CEP pesquisado e a ordem das buscas
+  // (descarta resposta obsoleta quando o usuário troca o CEP durante a consulta).
+  const lastSearchedCepRef = useRef("");
+  const cepSearchSeqRef = useRef(0);
+  const cepTouchedRef = useRef(false);
   const addressNumberRef = useRef<HTMLInputElement>(null);
   const [form, setForm] = useState({
     name: "",
@@ -357,6 +362,14 @@ export default function NovoAluno() {
     if (field === 'cep') {
       maskedValue = maskCEP(value || "");
       setCepNotFound(false);
+      cepTouchedRef.current = true;
+      cepSearchSeqRef.current++;
+      // Trocar o CEP limpa o endereço preenchido pela busca anterior (evita dados errados)
+      const digits = (value || "").replace(/\D/g, "");
+      if (lastSearchedCepRef.current && digits !== lastSearchedCepRef.current) {
+        setForm(prev => ({ ...prev, street: "", district: "", city: "", state: "" }));
+        lastSearchedCepRef.current = "";
+      }
     }
     if (field === 'state') maskedValue = (value || "").toUpperCase().replace(/[^A-Z]/g, "").slice(0, 2);
     
@@ -385,28 +398,41 @@ export default function NovoAluno() {
   // ─── Busca de CEP (ViaCEP → BrasilAPI): preenche endereço estruturado ────────
   const handleCepSearch = async (raw?: string) => {
     const value = raw ?? form.cep;
-    if (isSearchingCep || !isValidCEP(value)) return;
+    if (!isValidCEP(value)) return;
+    const seq = ++cepSearchSeqRef.current;
     setIsSearchingCep(true);
     setCepNotFound(false);
     try {
       const result = await buscarCep(value);
+      if (seq !== cepSearchSeqRef.current) return; // CEP mudou durante a busca — descarta
       if (!result) {
         setCepNotFound(true);
         return;
       }
+      lastSearchedCepRef.current = String(result.cep || value).replace(/\D/g, "");
       setForm(prev => ({
         ...prev,
         cep: maskCEP(result.cep || value),
-        street: result.street || prev.street,
-        district: result.district || prev.district,
-        city: result.city || prev.city,
-        state: result.state ? result.state.toUpperCase().slice(0, 2) : prev.state,
+        street: result.street || "",
+        district: result.district || "",
+        city: result.city || "",
+        state: result.state ? result.state.toUpperCase().slice(0, 2) : "",
       }));
       addressNumberRef.current?.focus();
     } finally {
-      setIsSearchingCep(false);
+      if (seq === cepSearchSeqRef.current) setIsSearchingCep(false);
     }
   };
+
+  // Busca automática: ao completar os 8 dígitos, consulta sozinho (sem clique).
+  useEffect(() => {
+    if (!cepTouchedRef.current) return;
+    const digits = form.cep.replace(/\D/g, "");
+    if (digits.length !== 8 || lastSearchedCepRef.current === digits) return;
+    const timer = setTimeout(() => { void handleCepSearch(); }, 450);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.cep]);
 
   // ─── PLANOS & BOLSAS: catálogo da escola (preenche valores automaticamente) ──
   const { data: schoolPlans = [] } = trpc.schoolPlans.list.useQuery({ somenteAtivos: true });

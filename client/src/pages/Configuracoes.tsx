@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/hooks/useAuth";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -550,26 +550,60 @@ export default function Configuracoes() {
   });
 
   // Busca de CEP da escola (ViaCEP → BrasilAPI): preenche logradouro/bairro/cidade/UF
+  const lastSearchedSchoolCepRef = useRef("");
+  const schoolCepSearchSeqRef = useRef(0);
+  const schoolCepTouchedRef = useRef(false);
+
+  const handleSchoolCepChange = (raw: string) => {
+    const masked = maskCEP(raw);
+    setSchoolCep(masked);
+    setSchoolCepNotFound(false);
+    schoolCepTouchedRef.current = true;
+    schoolCepSearchSeqRef.current++;
+    // Trocar o CEP limpa o endereço da busca anterior (evita dados errados)
+    const digits = masked.replace(/\D/g, "");
+    if (lastSearchedSchoolCepRef.current && digits !== lastSearchedSchoolCepRef.current) {
+      setSchoolAddress("");
+      setSchoolAddressDistrict("");
+      setSchoolCity("");
+      setSchoolState("");
+      lastSearchedSchoolCepRef.current = "";
+    }
+  };
+
   const handleSchoolCepSearch = async (raw?: string) => {
     const value = raw ?? schoolCep;
-    if (isSearchingSchoolCep || !isValidCEP(value)) return;
+    if (!isValidCEP(value)) return;
+    const seq = ++schoolCepSearchSeqRef.current;
     setIsSearchingSchoolCep(true);
     setSchoolCepNotFound(false);
     try {
       const result = await buscarCep(value);
+      if (seq !== schoolCepSearchSeqRef.current) return; // CEP mudou durante a busca — descarta
       if (!result) {
         setSchoolCepNotFound(true);
         return;
       }
+      lastSearchedSchoolCepRef.current = String(result.cep || value).replace(/\D/g, "");
       setSchoolCep(maskCEP(result.cep || value));
-      if (result.street) setSchoolAddress(result.street);
-      if (result.district) setSchoolAddressDistrict(result.district);
-      if (result.city) setSchoolCity(result.city);
-      if (result.state) setSchoolState(result.state.toUpperCase().slice(0, 2));
+      setSchoolAddress(result.street || "");
+      setSchoolAddressDistrict(result.district || "");
+      setSchoolCity(result.city || "");
+      setSchoolState(result.state ? result.state.toUpperCase().slice(0, 2) : "");
     } finally {
-      setIsSearchingSchoolCep(false);
+      if (seq === schoolCepSearchSeqRef.current) setIsSearchingSchoolCep(false);
     }
   };
+
+  // Busca automática ao completar os 8 dígitos (sem clique)
+  useEffect(() => {
+    if (!schoolCepTouchedRef.current) return;
+    const digits = schoolCep.replace(/\D/g, "");
+    if (digits.length !== 8 || lastSearchedSchoolCepRef.current === digits) return;
+    const timer = setTimeout(() => { void handleSchoolCepSearch(); }, 450);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [schoolCep]);
 
   const handleSaveWhatsApp = () => {
     // BUG-013: Validar URL se preenchida
@@ -1024,7 +1058,7 @@ export default function Configuracoes() {
                       <div className="relative">
                         <Input
                           value={schoolCep}
-                          onChange={(e) => { setSchoolCep(maskCEP(e.target.value)); setSchoolCepNotFound(false); }}
+                          onChange={(e) => handleSchoolCepChange(e.target.value)}
                           onBlur={() => { if (isValidCEP(schoolCep)) handleSchoolCepSearch(); }}
                           placeholder="00000-000"
                           inputMode="numeric"

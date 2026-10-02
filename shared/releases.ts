@@ -26,6 +26,16 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: "2026.10.02.3",
+    date: "2026-10-02",
+    title: "CEP com busca automática e sem dados antigos",
+    summary: "Agora a busca do endereço acontece sozinha assim que você termina de digitar o CEP — não precisa clicar na lupa. E ao trocar o CEP, o endereço preenchido pela busca anterior é limpo na hora, evitando ruas/cidades erradas no cadastro.",
+    items: [
+      { type: "melhoria", title: "Busca automática do CEP", description: "Digite os 8 dígitos e o logradouro, bairro, cidade e UF são preenchidos automaticamente (a lupa continua disponível como atalho)." },
+      { type: "correcao", title: "Sem endereço antigo", description: "Ao digitar um CEP diferente, os campos preenchidos pela busca anterior são apagados para não misturar informações." },
+    ],
+  },
+  {
     version: "2026.10.02.2",
     date: "2026-10-02",
     title: "Contratos mais seguros e ajustes do endereço/CEP",
