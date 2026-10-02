@@ -26,6 +26,16 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: "2026.10.02.4",
+    date: "2026-10-02",
+    title: "Fiscal: confirmação de que a chave da Focus NFe está salva",
+    summary: "Ao salvar a chave da API fiscal, o campo aparece vazio por segurança (a chave não é reexibida). Agora o sistema confirma em verde que a chave está configurada, mostrando os 4 últimos caracteres, e avisa quando você digitou uma nova chave que será substituída ao salvar.",
+    items: [
+      { type: "melhoria", title: "Chave salva fica visível como configurada", description: "Depois de salvar, aparece 'Chave já configurada (termina em XXXX)' — o campo em branco significa manter a atual, não apagar." },
+      { type: "correcao", title: "Confirmação ao salvar nova chave", description: "Ao digitar e salvar uma nova chave, aparece o aviso 'Chave da Focus NFe salva com sucesso!'." },
+    ],
+  },
+  {
     version: "2026.10.02.3",
     date: "2026-10-02",
     title: "CEP com busca automática e sem dados antigos",

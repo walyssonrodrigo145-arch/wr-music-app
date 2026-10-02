@@ -32,10 +32,13 @@ export const fiscalRouter = router({
 
       if (!company) return null;
       // C-3: nunca devolver a chave Focus NFe em claro — expõe apenas a existência
+      // e os 4 últimos caracteres para o usuário conferir que a chave está salva.
+      const keyText = company.focusApiKey ? String(company.focusApiKey) : "";
       return {
         ...company,
         focusApiKey: "",
         hasFocusApiKey: Boolean(company.focusApiKey),
+        focusApiKeyLast4: keyText ? keyText.slice(-4) : null,
       };
     }),
 

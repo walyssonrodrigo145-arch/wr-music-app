@@ -189,7 +189,12 @@ export function ConfigFiscalTab() {
     if (!payload.focusApiKey.trim() && hasStoredApiKey) {
       delete (payload as Partial<typeof form>).focusApiKey;
     }
-    saveCompanyMutation.mutate(payload);
+    const enviandoNovaChave = Boolean(payload.focusApiKey?.trim());
+    saveCompanyMutation.mutate(payload, {
+      onSuccess: () => {
+        if (enviandoNovaChave) toast.success("Chave da Focus NFe salva com sucesso!");
+      },
+    });
   };
 
   const handleSaveService = () => {
@@ -502,6 +507,15 @@ export function ConfigFiscalTab() {
           <span className="text-[10px] text-muted-foreground mt-1 block">
             Obtenha a chave em <b>Painel Focus NFe → Configurações → API Tokens</b>. Use o token de <b>Homologação</b> para emitir notas de teste sem gerar cobrança de impostos reais.
           </span>
+          {form.focusApiKey.trim() ? (
+            <span className="text-[10px] font-bold text-blue-500 mt-1.5 flex items-center gap-1">
+              <ShieldCheck size={11} /> Nova chave será salva ao clicar em salvar.
+            </span>
+          ) : hasStoredApiKey ? (
+            <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 mt-1.5 flex items-center gap-1">
+              <ShieldCheck size={11} /> Chave já configurada{company?.focusApiKeyLast4 ? ` (termina em ${company.focusApiKeyLast4})` : ""} — por segurança ela não é exibida. Deixe o campo em branco para manter ou digite uma nova para substituir.
+            </span>
+          ) : null}
         </div>
       </div>
 
